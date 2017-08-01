@@ -26,6 +26,8 @@
 #include "llvm/IR/Value.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
+#include "clang/AST/ExprCilk.h"
+#include "clang/AST/StmtCilk.h"
 #include <cassert>
 
 using namespace clang;
@@ -5502,6 +5504,15 @@ Address CGOpenMPRuntime::getTaskReductionItem(CodeGenFunction &CGF,
 
 void CGOpenMPRuntime::emitTaskwaitCall(CodeGenFunction &CGF,
                                        SourceLocation Loc) {
+  llvm::BasicBlock *ContinueBlock = CGF.createBasicBlock("sync.continue");
+
+  CGF.EnsureSyncRegion();
+
+  llvm::Instruction *SRStart = CGF.CurSyncRegion->getSyncRegionStart();
+
+  CGF.Builder.CreateSync(ContinueBlock, SRStart);
+  CGF.EmitBlock(ContinueBlock);
+  /*
   if (!CGF.HaveInsertPoint())
     return;
   // Build call kmp_int32 __kmpc_omp_taskwait(ident_t *loc, kmp_int32
@@ -5511,6 +5522,7 @@ void CGOpenMPRuntime::emitTaskwaitCall(CodeGenFunction &CGF,
   CGF.EmitRuntimeCall(createRuntimeFunction(OMPRTL__kmpc_omp_taskwait), Args);
   if (auto *Region = dyn_cast_or_null<CGOpenMPRegionInfo>(CGF.CapturedStmtInfo))
     Region->emitUntiedSwitch(CGF);
+    */
 }
 
 void CGOpenMPRuntime::emitInlinedDirective(CodeGenFunction &CGF,

@@ -990,8 +990,12 @@ StmtResult Parser::ParseOpenMPDeclarativeOrExecutableDirective(
       HasAssociatedStatement = false;
     }
 
+    // If we have a task, don't create a captured stmt, just a compound one
     StmtResult AssociatedStmt;
-    if (HasAssociatedStatement) {
+    if (DKind == OMPD_task){
+      AssociatedStmt = ParseStatement();    
+    }
+    else if (HasAssociatedStatement) {
       // The body is a block scope like in Lambdas and Blocks.
       Sema::CompoundScopeRAII CompoundScope(Actions);
       Actions.ActOnOpenMPRegionStart(DKind, getCurScope());
