@@ -2365,7 +2365,7 @@ StmtResult Sema::ActOnOpenMPExecutableDirective(
   llvm::DenseMap<ValueDecl *, Expr *> VarsWithInheritedDSA;
   bool ErrorFound = false;
   ClausesWithImplicit.append(Clauses.begin(), Clauses.end());
-  if (AStmt) {
+  if (AStmt && Kind != OMPD_task) {
     assert(isa<CapturedStmt>(AStmt) && "Captured statement expected");
 
     // Check default data sharing attributes for referenced variables.
@@ -5015,13 +5015,13 @@ StmtResult Sema::ActOnOpenMPTaskDirective(ArrayRef<OMPClause *> Clauses,
   if (!AStmt)
     return StmtError();
 
-  auto *CS = cast<CapturedStmt>(AStmt);
+  //auto *CS = cast<CapturedStmt>(AStmt);
   // 1.2.2 OpenMP Language Terminology
   // Structured block - An executable statement with a single entry at the
   // top and a single exit at the bottom.
   // The point of exit cannot be a branch out of the structured block.
   // longjmp() and throw() must not violate the entry/exit criteria.
-  CS->getCapturedDecl()->setNothrow();
+  //CS->getCapturedDecl()->setNothrow();
 
   getCurFunction()->setHasBranchProtectedScope();
 
