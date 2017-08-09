@@ -1,14 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/time.h>
-
-unsigned long long todval (struct timeval *tp) {
-    return tp->tv_sec * 1000 * 1000 + tp->tv_usec;
-}
 
 int ok (int n, char *a) {
-
   int i, j;
   char p, q;
 
@@ -55,7 +49,6 @@ int nqueens (int n, int j, char *a) {
 
 
 int main(int argc, char *argv[]) { 
-
   int res, n = argc > 1 ? atoi(argv[1]) : 13; 
   char *a = (char *) alloca (n * sizeof (char));
 
