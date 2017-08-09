@@ -42,6 +42,7 @@ int main(int argc, char **argv) {
   for(i=0; i<n-1; i++)
     if(lst[i] > lst[i+1])
       printf("not sorted!, lst[%d] > lst[%d]\n", i, i+1); 
+  printf("sorted succesfully\n"); 
   return 0;
 }
 

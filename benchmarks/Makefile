@@ -24,7 +24,7 @@ timeing.txt: ${targets}
 	${clang} ${ompflags} -o $@ $<
 
 %_serial: %.c
-	${clang} ${serialflags} -o $@ $<
+	${tapirclang} ${serialflags} -o $@ $<
 
 %_tapir: %.c
 	${tapirclang} ${tapirflags} -o $@ $<
