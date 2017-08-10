@@ -36,12 +36,11 @@ int main(int argc, char **argv) {
   #pragma omp parallel 
   #pragma omp single nowait
   merge_sort(lst, tmp, n);
-  if(print) 
-    for(i=0;i<n;i++)
-      printf("%d\n", lst[i]); 
   for(i=0; i<n-1; i++)
-    if(lst[i] > lst[i+1])
+    if(lst[i] > lst[i+1]){
       printf("not sorted!, lst[%d] > lst[%d]\n", i, i+1); 
+      return 1;
+    }
   printf("sorted succesfully\n"); 
   return 0;
 }
