@@ -90,6 +90,7 @@ LANGOPT(CPlusPlus         , 1, 0, "C++")
 LANGOPT(CPlusPlus11       , 1, 0, "C++11")
 LANGOPT(CPlusPlus14       , 1, 0, "C++14")
 LANGOPT(CPlusPlus1z       , 1, 0, "C++1z")
+LANGOPT(CPlusPlus2a       , 1, 0, "C++2a")
 LANGOPT(ObjC1             , 1, 0, "Objective-C 1")
 LANGOPT(ObjC2             , 1, 0, "Objective-C 2")
 BENIGN_LANGOPT(ObjCDefaultSynthProperties , 1, 0,
@@ -199,6 +200,7 @@ LANGOPT(CUDADeviceApproxTranscendentals, 1, 0, "using approximate transcendental
 
 LANGOPT(SizedDeallocation , 1, 0, "sized deallocation")
 LANGOPT(AlignedAllocation , 1, 0, "aligned allocation")
+LANGOPT(AlignedAllocationUnavailable, 1, 0, "aligned allocation functions are unavailable")
 LANGOPT(NewAlignOverride  , 32, 0, "maximum alignment guaranteed by '::operator new(size_t)'")
 LANGOPT(ConceptsTS , 1, 0, "enable C++ Extensions for Concepts")
 BENIGN_LANGOPT(ModulesCodegen , 1, 0, "Modules code generation")
@@ -258,8 +260,7 @@ VALUE_LANGOPT(VtorDispMode, 2, 1, "How many vtordisps to insert")
 
 LANGOPT(ApplePragmaPack, 1, 0, "Apple gcc-compatible #pragma pack handling")
 
-LANGOPT(CilkPlus, 1, 0, "Intel Cilk Plus extensions to C/C++")
-LANGOPT(Tapir, 1, 0, "Tapir/Cilk Plus extensions to C/C++")
+LANGOPT(CilkPlus, 1, 0, "Enable CilkPlus language extensions")
 LANGOPT(Rhino, 1, 0, "Rhino parallel extensions")
 LANGOPT(Detach, 1, 0, "Disable Parallel Memory Opts")
 
@@ -285,4 +286,3 @@ BENIGN_LANGOPT(AllowEditorPlaceholders, 1, 0,
 #undef VALUE_LANGOPT
 #undef COMPATIBLE_VALUE_LANGOPT
 #undef BENIGN_VALUE_LANGOPT
-
