@@ -3,13 +3,13 @@
 
 int fib(int n){
   if(n < 2) return n;
-  int x = 0; 
+  int x,y; 
   #pragma omp task shared(x) 
-  x += fib(n-1);
+  x = fib(n-1);
   #pragma omp task shared(x) 
-  x += fib(n-2); 
+  y = fib(n-2); 
   #pragma omp taskwait
-  return x;
+  return x+y;
 }
 
 int main(int argc, char** argv){
