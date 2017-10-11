@@ -2,7 +2,7 @@
 tapirclang=../../Parallel-IR/build/bin/clang
 clang=../../vanilla/build/bin/clang
 cflags=-O3 -g
-tapirflags=-ftapir -fopenmp ${cflags}
+tapirflags=-ftapir=cilk -fopenmp ${cflags}
 ompflags=-fopenmp ${serialflags}
 
 types=gomp omp serial tapir  
