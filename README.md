@@ -4,7 +4,7 @@ OpenMP -> Tapir
 This is a research project that compiles a subset of OpenMP to the Tapir LLVM
 IR extensions.
 
-To compile, use both `-fopenmp` and `-ftapir`. 
+To compile, use both `-fopenmp` and `-ftapir=openmp`. 
 
 Building
 ========
@@ -17,5 +17,5 @@ Building
     cd build
     cmake ../parallel-ir
     make -j `grep -c '^processor' /proc/cpuinfo` 
-
-
+    cd ../openmpir-clang/benchmarks
+    make -j `grep -c '^processor' /proc/cpuinfo` 
