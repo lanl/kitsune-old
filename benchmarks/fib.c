@@ -6,7 +6,7 @@ int fib(int n){
   int x,y; 
   #pragma omp task shared(x) 
   x = fib(n-1);
-  #pragma omp task shared(x) 
+  #pragma omp task shared(y) 
   y = fib(n-2); 
   #pragma omp taskwait
   return x+y;
