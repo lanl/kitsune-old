@@ -133,4 +133,5 @@ clean:
 	-@/bin/rm -rf $(build_dir)
 	-@/usr/bin/find . -name '*~' -exec rm -f {} \;
 	-@/usr/bin/find . -name '._*' -exec rm -f {} \;
-	-@/usr/bin/find . -name '.DS_Store' -exec rm -f {} \;	
+	-@/usr/bin/find . -name '.DS_Store' -exec rm -f {} \;
+	-@/bin/rm -f $(log_dir)/*.log
