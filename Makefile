@@ -54,25 +54,27 @@
 #
 # Summary of targets: 
 #
-#   'default'      : Run 'config' and 'build' (cmake 'Makefile'-based config 
-#                    and build). 
+#   'default'         : Run 'config' and 'build' (cmake 'Makefile'-based config 
+#                       and build). 
 #
-#   'config'       : Run cmake to dump a build configuration. The out-of-source 
-#                    build location defaults to $(PWD)/build. 
+#   'config'          : Run cmake to dump a build configuration. The out-of-source 
+#                       build location defaults to $(PWD)/build. 
 # 
-#   'build'        : Build from a cmake build configuration. 
+#   'build'           : Build from a cmake build configuration. 
 #
-#   'ninja'        : Run 'ninja-config' and 'ninja-build' (cmake 'Ninja'-based 
-#                    config and build).  For more on Ninja see: 
+#   'ninja'           : Run 'ninja-config' and 'ninja-build' (cmake 'Ninja'-based 
+#                       config and build).  For more on Ninja see: 
 #
-#                       https://ninja-build.org/
+#                         https://ninja-build.org/
 # 
-#   'ninja-config' : Run cmake to dump a ninja-based configuration/build. 
-#                    The out-of-source build location defaults to $(PWD)/build. 
+#   'ninja-config'    : Run cmake to dump a ninja-based configuration/build. 
+#                       The out-of-source build location defaults to $(PWD)/build. 
 #             
-#   'ninja-build'  : Build from a ninja build configuration.
+#   'ninja-build'     : Build from a ninja build configuration.
 #
-#   'clean'        : Clean up everything. 
+#   'update-subtrees' : Update the llvm subtrees used in the project. 
+#
+#   'clean'           : Clean up everything. 
 # 
 ########
 
@@ -92,7 +94,7 @@ default: config build
 ninja: ninja-config ninja-build 
 	@echo "kitsune: finished..."
 
-$(build_dir): 
+$(build_dir):
 	@((test -d $(build_dir)) || (mkdir $(build_dir)))
 
 $(build_dir)/Makefile: config 
@@ -119,6 +121,14 @@ ninja-config: $(build_dir)
 ninja-build:
 	@echo "kitsune: building..."
 	@(cd $(build_dir); ninja)
+
+# TODO: Make sure build configuration is done before updating subtrees... 
+update-subtrees:
+	@echo "kitsune: updating llvm subtrees..."
+	@echo "kitsune: [subtree update log: $(log_dir)/llvm-update-subtrees.log]"
+	@((test -f $(log_dir)/llvm-update-subtrees.log) || (rm -f $(log_dir)llvm-update-subtrees.log))
+	@(cd $(src_dir); ./git-tools/update-llvm > $(log_dir)/llvm-update-subtrees.log 2>&1)
+
 clean:
 	-@/bin/rm -rf $(build_dir)
 	-@/usr/bin/find . -name '*~' -exec rm -f {} \;
