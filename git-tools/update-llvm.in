@@ -85,5 +85,21 @@ git remote remove llvm
 echo "[kitsune]: finished llvm subtree."
 ## --------------------
 
+echo "[kitsune]:"
+
+## --- Clang subtree ---
+echo "[kitsune]: subtree --> clang (openmpir-clang)"
+echo "[kitsune]: --- add remote: https://github.com/lanl/openmpir-clang"
+git remote add clang https://github.com/lanl/openmpir-clang
+echo "[kitsune]: --- fetching master"
+git fetch clang master
+echo "[kitsune]: --- pulling master"
+git subtree -d pull --prefix=llvm/tools/clang --squash -m "[kitsune]: update clang (openmpir) subtree" clang master
+echo "[kitsune]: --- dropping remote"
+git remote remove clang 
+echo "[kitsune]: finished clang subtree."
+## --------------------
+
+
 # take us back to where we were... 
 popd 

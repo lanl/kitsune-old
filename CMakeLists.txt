@@ -1,6 +1,6 @@
 #
 ###########################################################################
-# Copyright (c) 2017, Los Alamos National Security, LLC.
+# Copyright (c) 2010,  Los Alamos National Security, LLC.
 # All rights reserved.
 #
 #  Copyright 2010. Los Alamos National Security, LLC. This software was
@@ -48,10 +48,14 @@
 #
 ###########################################################################
 #
-# Notes
+# Rule #1: Almost everyone hates one more more build systems.
+# 
+# Rule #2: If they don't hate all build systems, their preference
+#          won't be the one you selected...
 #
-#   - For details and help with CMake see:
-#
+# For those unfamiliar with CMake you can start with the general
+# documentation found at: 
+# 
 #       http://www.cmake.org/cmake/help/documentation.html
 #
 #####
@@ -59,7 +63,7 @@ project(kitsune)
 cmake_minimum_required(VERSION 3.9)
 set(KITSUNE_SOURCE_DIR ${PROJECT_SOURCE_DIR})
 message(STATUS generator: ${CMAKE_GENERATOR})
-#add_subdirectory(llvm)
+add_subdirectory(llvm)
 add_subdirectory(git-tools)
 
 
