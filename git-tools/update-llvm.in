@@ -1,0 +1,89 @@
+#!/bin/bash
+# =============================================================================
+# Within kitsune the LLVM infrastruture is actually handled via the
+# use of git subtrees.  A quick and fairly general overview of
+# subtrees can be found on the Atlassian Blog:
+#
+#  https://www.atlassian.com/blog/git/alternatives-to-git-submodule-git-subtree
+#
+# But subtrees can be complex and problematic so we should keep a pain
+# index awareness here about using them.  This script attempts in part
+# of keep some of the complexity hidden from the majority of users of
+# the repo (while those who are maintaining the the details in their
+# own personal world of hell...  ;-).
+#
+# When run this script will attempt to update the kitsune local copy the
+# LLVM components from the master branches of LLVM (that we care about). 
+# It is important to note that a few of these repos do not match the main
+# (master) LLVM repo but instead come from work done on the Tapir parallel
+# IR (reference: https://dl.acm.org/citation.cfm?id=3018758).
+#
+#
+# TODO:
+# 
+#  1. Need to do some better error checking below on return values from
+#     git commands (bail when bad things happen).
+#  2. Also need to add some checks to make sure the repo is in a committed
+#     state, isn't being run on the master branch, etc.
+#  3. Would be nice to add parameters/variables for remotes and branches. 
+# 
+# =============================================================================
+#
+
+## --- get_current_branch
+## Return the string that contains the name of the git branch
+## that is checked out/active. 
+function get_current_branch {
+    echo $(git branch | sed -n -e 's/^\* \(.*\)/\1/p');
+}
+
+
+## --- is_repo_committed
+## Return a 'yes' or 'no' status of if the repo is in an uncommitted
+## state (i.e. dirty). 
+function is_repo_committed {
+    [[ $(git diff --shortstat 2> /dev/null | tail -n1) != "" ]] && echo "no" || echo "yes"
+}
+
+# Make sure we start from the project's toplevel source directory (per
+# the CMake configuration).
+pushd @KITSUNE_SOURCE_DIR@
+
+echo "[kitsune]: begining process of updating llvm subtrees/subprojects..."
+
+# Don't allow direct mods (by developers) to the master branch.  We will
+# use our CI process in a attempt to keep 'master' clean. 
+if [ $(get_current_branch) == 'master' ]; then
+    echo "[kitsune]: master branch should not be updated directly!"
+    echo "please use a branch for updates."
+    popd 
+    exit 1;
+fi
+
+# Make sure the repo is not in a 'dirty' state -- has uncommitted changes.
+# The git commands will fail in this case but it is a bit cleaner to check
+# it here.
+if [ $(is_repo_committed) == 'no' ]; then
+    echo "project has uncommitted changes!"
+    echo "please commit changes first and update subtrees."
+    popd
+    exit 1;
+fi 
+
+echo "[kitsune]:"
+
+## --- LLVM subtree ---
+echo "[kitsune]: subtree --> llvm (parallel-ir)"
+echo "[kitsune]: --- add remote: https://github.com/wsmoses/parallel-ir"
+git remote add llvm https://github.com/wsmoses/parallel-ir
+echo "[kitsune]: --- fetching master"
+git fetch llvm master
+echo "[kitsune]: --- pulling master"
+git subtree -d pull --prefix=llvm --squash -m "[kitsune]: update llvm (parallel-ir) subtree" llvm master
+echo "[kitsune]: --- dropping remote"
+git remote remove llvm
+echo "[kitsune]: finished llvm subtree."
+## --------------------
+
+# take us back to where we were... 
+popd 
