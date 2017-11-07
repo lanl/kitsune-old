@@ -85,6 +85,20 @@ git remote remove llvm
 echo "[kitsune]: finished llvm subtree."
 ## --------------------
 
+## --- LLVM test suite ---
+echo "[kitsune]: subtree --> llvm test-suite"
+echo "[kitsune]: --- add remote: http://llvm.org/git/test-suite.git"
+git remote add llvm-test-suite http://llvm.org/git/test-suite.git
+echo "[kitsune]: --- fetching master"
+git fetch llvm-test-suite master
+echo "[kitsune]: --- pulling master"
+git subtree -d pull --prefix=llvm/projects/test-suite --squash -m "[kitsune]: update llvm test-suite subtree" llvm-test-suite master
+echo "[kitsune]: --- dropping remote"
+git remote remove llvm-test-suite 
+echo "[kitsune]: finished llvm subtree."
+## --------------------
+
+
 echo "[kitsune]:"
 
 ## --- Clang subtree ---
