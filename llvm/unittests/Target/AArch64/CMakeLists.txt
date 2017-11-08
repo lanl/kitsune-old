@@ -1,5 +1,5 @@
 include_directories(
-  ${{LLVM_MAIN_SRC_DIR}/lib/Target/AArch64
+  ${LLVM_MAIN_SRC_DIR}/lib/Target/AArch64
   ${LLVM_BINARY_DIR}/lib/Target/AArch64
   )
 
