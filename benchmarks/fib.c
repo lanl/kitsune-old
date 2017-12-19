@@ -16,7 +16,7 @@ int main(int argc, char** argv){
   int x, n = argc > 1 ? atoi(argv[1]) : 40; 
 
   #pragma omp parallel shared(x)
-  #pragma omp single nowait
+  #pragma omp single 
   x = fib(n); 
 
   printf("fib(%d) = %d\n", n, x);
