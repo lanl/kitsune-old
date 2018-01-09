@@ -249,6 +249,11 @@ Retry:
     break;
   case tok::kw_for:                 // C99 6.8.5.3: for-statement
     return ParseForStatement(TrailingElseLoc);
+    
+  // +===== Kitsune
+  case tok::kw_forall:
+    return ParseForAllStatement(TrailingElseLoc);
+  // +=============
 
   case tok::kw_goto:                // C99 6.8.6.1: goto-statement
     Res = ParseGotoStatement();

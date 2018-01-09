@@ -25,6 +25,10 @@
 #include <cstdio>
 #include <memory>
 
+// +===== Kitsune
+#include "clang/Sema/Kitsune/FleCSIAnalyzer.h"
+// +=============
+
 using namespace clang;
 
 namespace {
@@ -143,11 +147,28 @@ void clang::ParseAST(Sema &S, bool PrintStats, bool SkipFunctionBodies) {
   if (External)
     External->StartTranslationUnit(Consumer);
 
+  // +===== Kitsune
+  bool isFleCSI = P.getLangOpts().FleCSI;
+
+  if(isFleCSI){
+    sema::FleCSIAnalyzer::init(S);
+  }    
+  // +=============
+
   for (bool AtEOF = P.ParseFirstTopLevelDecl(ADecl); !AtEOF;
        AtEOF = P.ParseTopLevelDecl(ADecl)) {
     // If we got a null return and something *was* parsed, ignore it.  This
     // is due to a top-level semicolon, an action override, or a parse error
     // skipping something.
+
+    // +===== Kitsune
+    if(isFleCSI){
+      for(Decl* di : ADecl.get()){
+        sema::FleCSIAnalyzer::get()->gatherMetadata(di);
+      }
+    }
+    // +=============
+
     if (ADecl && !Consumer->HandleTopLevelDecl(ADecl.get()))
       return;
   }

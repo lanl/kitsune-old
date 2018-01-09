@@ -79,6 +79,12 @@
      COMPATIBLE_VALUE_LANGOPT(Name, Bits, Default, Description)
 #endif
 
+// +===== Kitsune
+
+LANGOPT(FleCSI   , 1, 0, "C++")
+
+// ==============
+
 // FIXME: A lot of the BENIGN_ options should be COMPATIBLE_ instead.
 LANGOPT(C99               , 1, 0, "C99")
 LANGOPT(C11               , 1, 0, "C11")

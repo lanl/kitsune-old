@@ -199,6 +199,18 @@ public:
   }
 };
 
+// +===== Kitsune
+
+inline bool isFleCSILang(const LangOptions &Opts) {
+  return Opts.FleCSI;
+}
+
+inline bool isKitsuneLang(const LangOptions &Opts) {
+  return Opts.FleCSI; /* || .... */
+}
+
+// ==============
+
 /// \brief Floating point control options
 class FPOptions {
 public:

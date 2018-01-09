@@ -73,7 +73,10 @@ class Driver {
     GCCMode,
     GXXMode,
     CPPMode,
-    CLMode
+    CLMode,
+    // +===== Kitsune
+    FleCSIMode
+    // +=============
   } Mode;
 
   enum SaveTempsMode {

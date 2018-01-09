@@ -144,6 +144,9 @@ void Driver::setDriverModeFromOption(StringRef Opt) {
                          .Case("g++", GXXMode)
                          .Case("cpp", CPPMode)
                          .Case("cl", CLMode)
+                         // +===== Kitsune
+                         .Case("flecsi", FleCSIMode)
+                         // +=============
                          .Default(~0U);
 
   if (M != ~0U)

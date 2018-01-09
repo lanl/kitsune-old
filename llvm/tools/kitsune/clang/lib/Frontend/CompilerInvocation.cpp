@@ -1437,6 +1437,9 @@ static InputKind ParseFrontendArgs(FrontendOptions &Opts, ArgList &Args,
                 .Case("objective-c", InputKind::ObjC)
                 .Case("objective-c++", InputKind::ObjCXX)
                 .Case("renderscript", InputKind::RenderScript)
+                // +===== Kitsune
+                .Case("flecsi", InputKind::FleCSI_CXX)
+                // +=============
                 .Default(InputKind::Unknown);
 
     // "objc[++]-cpp-output" is an acceptable synonym for
@@ -1699,6 +1702,11 @@ void CompilerInvocation::setLangDefaults(LangOptions &Opts, InputKind IK,
     case InputKind::RenderScript:
       LangStd = LangStandard::lang_c99;
       break;
+    // +===== Kitsune
+    case InputKind::FleCSI_CXX:
+      LangStd = LangStandard::lang_flecsi;
+      break;
+    // +=============
     }
   }
 
@@ -1716,6 +1724,12 @@ void CompilerInvocation::setLangDefaults(LangOptions &Opts, InputKind IK,
   Opts.GNUInline = !Opts.C99 && !Opts.CPlusPlus;
   Opts.HexFloats = Std.hasHexFloats();
   Opts.ImplicitInt = Std.hasImplicitInt();
+
+  // +===== Kitsune
+  if (IK.getLanguage() == InputKind::FleCSI_CXX) {
+    Opts.FleCSI = 1;
+  }
+  // +=============
 
   // Set OpenCL Version.
   Opts.OpenCL = Std.isOpenCL();
@@ -1804,6 +1818,9 @@ static bool IsInputCompatibleWithStandard(InputKind IK,
   case InputKind::OpenCL:
     return S.getLanguage() == InputKind::OpenCL;
 
+  // +===== Kitsune
+  case InputKind::FleCSI_CXX:
+  // +=============
   case InputKind::CXX:
   case InputKind::ObjCXX:
     return S.getLanguage() == InputKind::CXX;
@@ -1845,6 +1862,10 @@ static const StringRef GetInputKindName(InputKind IK) {
     return "Asm";
   case InputKind::LLVM_IR:
     return "LLVM IR";
+  // +===== Kitsune
+  case InputKind::FleCSI_CXX:
+    return "FleCSI C++";
+  // +=============
 
   case InputKind::Unknown:
     break;
@@ -2686,6 +2707,13 @@ bool CompilerInvocation::CreateFromArgs(CompilerInvocation &Res,
   // Set the triple of the host for OpenMP device compile.
   if (LangOpts.OpenMPIsDevice)
     Res.getTargetOpts().HostTriple = Res.getFrontendOpts().AuxTriple;
+
+  // +===== Kitsune
+  if (DashX.getLanguage() == InputKind::FleCSI_CXX) {
+    // Implicitly include the flecsi headers
+    //Res.getPreprocessorOpts().Includes.push_back("flecsi/flecsi.h");
+  }
+  // ==============
 
   // FIXME: Override value name discarding when asan or msan is used because the
   // backend passes depend on the name of the alloca in order to print out

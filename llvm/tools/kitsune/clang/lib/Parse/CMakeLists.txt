@@ -21,6 +21,10 @@ add_clang_library(clangParse
   ParseTentative.cpp
   Parser.cpp
 
+  # +===== Kitsune
+    Kitsune/ParseStmt.cpp
+  # +=============
+
   LINK_LIBS
   clangAST
   clangBasic
