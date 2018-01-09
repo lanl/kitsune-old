@@ -42,7 +42,19 @@ add_llvm_tool_subdirectory(llvm-profdata)
 
 # Projects supported via LLVM_EXTERNAL_*_SOURCE_DIR need to be explicitly
 # specified.
-add_llvm_external_project(clang)
+
+# +===== Kitsune
+
+if(KITSUNE_CLANG)
+  add_llvm_external_project(kitsune)
+  set(LLVM_TOOL_CLANG_BUILD OFF)
+else()
+  set(LLVM_TOOL_KITSUNE_BUILD OFF)
+  add_llvm_external_project(clang)
+endif()
+
+# ====== 
+
 add_llvm_external_project(llgo)
 add_llvm_external_project(lld)
 add_llvm_external_project(lldb)
