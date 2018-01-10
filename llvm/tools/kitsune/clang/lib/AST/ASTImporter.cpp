@@ -226,6 +226,10 @@ namespace clang {
     Stmt *VisitObjCAtThrowStmt(ObjCAtThrowStmt *S);
     Stmt *VisitObjCAutoreleasePoolStmt(ObjCAutoreleasePoolStmt *S);
 
+    // +===== Kitsune
+    Stmt *VisitKitsuneStmt(KitsuneStmt *S);
+    // ==============
+
     // Importing expressions
     Expr *VisitExpr(Expr *E);
     Expr *VisitVAArgExpr(VAArgExpr *E);
@@ -4370,6 +4374,12 @@ Stmt *ASTNodeImporter::VisitObjCAutoreleasePoolStmt
   return new (Importer.getToContext()) ObjCAutoreleasePoolStmt(ToAtLoc,
                                                                ToSubStmt);
 }
+
+// +===== Kitsune
+Stmt *ASTNodeImporter::VisitKitsuneStmt(KitsuneStmt *S){
+  assert(false && "unimplemented");
+}
+// ==============
 
 //----------------------------------------------------------------------------
 // Import Expressions

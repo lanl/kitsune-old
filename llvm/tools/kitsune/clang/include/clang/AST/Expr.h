@@ -32,6 +32,10 @@
 #include "llvm/Support/AtomicOrdering.h"
 #include "llvm/Support/Compiler.h"
 
+// +===== Kitsune
+#include "clang/AST/Kitsune/Stmt.h"
+// ==============
+
 namespace clang {
   class APValue;
   class ASTContext;

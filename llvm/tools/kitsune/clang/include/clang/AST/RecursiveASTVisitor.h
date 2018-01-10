@@ -48,6 +48,10 @@
 #include <cstddef>
 #include <type_traits>
 
+// +===== Kitsune
+#include "clang/AST/Kitsune/Stmt.h"
+// ==============
+
 // The following three macros are used for meta programming.  The code
 // using them is responsible for defining macro OPERATOR().
 
@@ -2145,6 +2149,10 @@ DEF_TRAVERSE_STMT(MSDependentExistsStmt, {
 DEF_TRAVERSE_STMT(ReturnStmt, {})
 DEF_TRAVERSE_STMT(SwitchStmt, {})
 DEF_TRAVERSE_STMT(WhileStmt, {})
+
+// +===== Kitsune
+DEF_TRAVERSE_STMT(KitsuneStmt, {})
+// ==============
 
 DEF_TRAVERSE_STMT(CXXDependentScopeMemberExpr, {
   TRY_TO(TraverseNestedNameSpecifierLoc(S->getQualifierLoc()));
