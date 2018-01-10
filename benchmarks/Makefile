@@ -3,7 +3,7 @@ tapirclang=../../build/bin/clang
 clang=clang
 cflags=-O2 -g
 tapirflags=-mllvm -fast-openmp -ftapir=openmp -fopenmp ${cflags}
-ompflags=-fopenmp ${serialflags}
+ompflags=-fopenmp ${cflags}
 
 types=gomp omp serial tapir  
 sources=fib nqueens merge daxpy
