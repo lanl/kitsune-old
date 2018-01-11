@@ -48,90 +48,27 @@
   *
   ***************************************************************************/
 
-#include "clang/Parse/Parser.h"
-
-#include "clang/Basic/Attributes.h"
-#include "clang/Basic/PrettyStackTrace.h"
-#include "clang/Parse/RAIIObjectsForParser.h"
-#include "clang/Sema/DeclSpec.h"
-#include "clang/Sema/LoopHint.h"
-#include "clang/Sema/PrettyDeclStackTrace.h"
-#include "clang/Sema/Scope.h"
-#include "clang/Sema/TypoCorrection.h"
-
-#include <iostream>
-#define np(X)                                                              \
-  std::cout << __FILE__ << ":" << __LINE__ << ": " << __PRETTY_FUNCTION__  \
-            << ": " << #X << " = " << (X) << std::endl
+#include "clang/AST/Kitsune/Stmt.h"
+#include "clang/Sema/SemaInternal.h"
 
 using namespace clang;
+using namespace sema;
 
-StmtResult Parser::ParseForAllStatement(SourceLocation *TrailingElseLoc) {
-  assert(Tok.is(tok::kw_forall) && "Not a forall stmt!");
-  SourceLocation ForallLoc = ConsumeToken();  // eat the 'forall'.
+StmtResult
+Sema::ActOnForallStmt(VarDecl* IndVar, Expr *Size, Stmt *Body,
+                      SourceLocation FL, SourceLocation LP,
+                      SourceLocation RP) {
+  PushFunctionScope();
 
-  if (Tok.isNot(tok::l_paren)) {
-    Diag(Tok, diag::err_expected_lparen_after) << "forall";
-    SkipUntil(tok::semi);
-    return StmtError();
-  }
+  getCurFunction()->setHasBranchProtectedScope();
+  PushExpressionEvaluationContext(
+      ExpressionEvaluationContext::PotentiallyEvaluated);
 
-  bool C99orCXXorObjC = getLangOpts().C99 || getLangOpts().CPlusPlus ||
-    getLangOpts().ObjC1;
+  StmtResult Result = 
+    new (Context) ForallStmt(Context, IndVar, Size, Body, FL, LP, RP);
 
-  unsigned ScopeFlags = 0;
-  if (C99orCXXorObjC)
-    ScopeFlags = Scope::DeclScope | Scope::ControlScope;
+  PopExpressionEvaluationContext();
+  PopFunctionScopeInfo();
 
-  ParseScope ForallScope(this, ScopeFlags);
-
-  BalancedDelimiterTracker T(*this, tok::l_paren);
-  
-  SourceLocation LP = Tok.getLocation();
-  T.consumeOpen();
-
-  ParsedAttributesWithRange attrs(AttrFactory);
-  MaybeParseCXX11Attributes(attrs);
-
-  SourceLocation DeclStart = Tok.getLocation(), DeclEnd;
-
-  DeclGroupPtrTy DG = ParseSimpleDeclaration(
-      Declarator::ForContext, DeclEnd, attrs, false, nullptr);
-
-  VarDecl* IndVar = dyn_cast<VarDecl>(DG.get().getSingleDecl());
-  assert(IndVar);
-
-  ConsumeToken();
-
-  ExprResult SizeExprRes = ParseExpression();
-  if(SizeExprRes.isInvalid()){
-    assert(false);
-  }
-
-  QualType SizeType = SizeExprRes.get()->getType();
-  if(!SizeType.getTypePtr()->isIntegerType()){
-    assert(false);
-  }
-
-  SourceLocation RP = Tok.getLocation();
-  T.consumeClose();
-
-  ParseScope InnerScope(this, Scope::DeclScope, C99orCXXorObjC,
-                        Tok.is(tok::l_brace));
-
-  if (C99orCXXorObjC)
-    getCurScope()->decrementMSManglingNumber();
-
-  StmtResult Body(ParseStatement(TrailingElseLoc));
-
-  InnerScope.Exit();
-
-  ForallScope.Exit();
-
-  if (Body.isInvalid())
-    return StmtError();
-
-  return Actions.ActOnForallStmt(IndVar, SizeExprRes.get(), Body.get(),
-                                 ForallLoc, T.getOpenLocation(),
-                                 T.getCloseLocation());
+  return Result;
 }
