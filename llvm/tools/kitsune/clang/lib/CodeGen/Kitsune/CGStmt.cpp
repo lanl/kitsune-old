@@ -63,7 +63,26 @@ llvm::Instruction *CodeGenFunction::EmitSyncRegionStart() {
   return SRStart;
 }
 
-void CodeGenFunction::EmitForallStmt(const ForallStmt &S) {
+/// \brief Cleanup to ensure parent stack frame is synced.
+struct RethrowCleanup : public EHScopeStack::Cleanup {
+  llvm::BasicBlock *InvokeDest;
+public:
+  RethrowCleanup(llvm::BasicBlock *InvokeDest = nullptr)
+      : InvokeDest(InvokeDest) {}
+  void Emit(CodeGenFunction &CGF, Flags F) {
+    llvm::BasicBlock *DetRethrowBlock = CGF.createBasicBlock("det.rethrow");
+    if (InvokeDest)
+      CGF.Builder.CreateInvoke(
+          CGF.CGM.getIntrinsic(llvm::Intrinsic::detached_rethrow),
+          DetRethrowBlock, InvokeDest);
+    else
+      CGF.Builder.CreateBr(DetRethrowBlock);
+    CGF.EmitBlock(DetRethrowBlock);
+  }
+};
+
+void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
+                                     ArrayRef<const Attr *> ForAttrs) {
   JumpDest LoopExit = getJumpDestInCurrentScope("pfor.end");
 
   PushSyncRegion();
@@ -72,5 +91,104 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S) {
 
   LexicalScope ForScope(*this, S.getSourceRange());
 
-  EmitVarDecl(*S.getIndVar());
+  const VarDecl* IndVar = S.getIndVar();
+
+  EmitVarDecl(*IndVar);
+
+  Address IndAddr = GetAddrOfLocalVar(IndVar);
+
+  llvm::Value* IndVal = Builder.CreateLoad(IndAddr, "ind");
+
+  RValue Size = EmitAnyExprToTemp(S.getSize());
+
+  llvm::Value* SizeVal = Size.getScalarVal();
+
+  JumpDest Continue = getJumpDestInCurrentScope("pfor.cond");
+  llvm::BasicBlock *CondBlock = Continue.getBlock();
+  EmitBlock(CondBlock);
+
+  LoopStack.setSpawnStrategy(LoopAttributes::DAC);
+  const SourceRange &R = S.getSourceRange();
+  LoopStack.push(CondBlock, CGM.getContext(), ForAttrs,
+                 SourceLocToDebugLoc(R.getBegin()),
+                 SourceLocToDebugLoc(R.getEnd()));
+
+  JumpDest Preattach = getJumpDestInCurrentScope("pfor.preattach");
+  Continue = getJumpDestInCurrentScope("pfor.inc");
+
+  // Store the blocks to use for break and continue.
+  BreakContinueStack.push_back(BreakContinue(Preattach, Preattach));
+
+  // Create a cleanup scope for the condition variable cleanups.
+  LexicalScope ConditionScope(*this, S.getSourceRange());
+
+  // Save the old alloca insert point.
+  llvm::AssertingVH<llvm::Instruction> OldAllocaInsertPt = AllocaInsertPt;
+  // Save the old EH state.
+  llvm::BasicBlock *OldEHResumeBlock = EHResumeBlock;
+  llvm::Value *OldExceptionSlot = ExceptionSlot;
+  llvm::AllocaInst *OldEHSelectorSlot = EHSelectorSlot;
+
+  llvm::BasicBlock *SyncContinueBlock = createBasicBlock("pfor.end.continue");
+  bool madeSync = false;
+  llvm::BasicBlock *DetachBlock;
+  llvm::BasicBlock *ForBodyEntry;
+  llvm::BasicBlock *ForBody;
+
+  {
+    llvm::BasicBlock *ExitBlock = LoopExit.getBlock();
+    // If there are any cleanups between here and the loop-exit scope,
+    // create a block to stage a loop exit along.
+    if (ForScope.requiresCleanups())
+      ExitBlock = createBasicBlock("pfor.cond.cleanup");
+
+    // As long as the condition is true, iterate the loop.
+    DetachBlock = createBasicBlock("pfor.detach");
+    // Emit extra entry block for detached body, to ensure that this detached
+    // entry block has just one predecessor.
+    ForBodyEntry = createBasicBlock("pfor.body.entry");
+    ForBody = createBasicBlock("pfor.body");
+
+    llvm::Value *BoolCondVal = 
+      Builder.CreateICmpUGT(IndVal, SizeVal, "end.cond");
+
+    Builder.CreateCondBr(BoolCondVal, DetachBlock, ExitBlock);
+
+    if (ExitBlock != LoopExit.getBlock()) {
+      EmitBlock(ExitBlock);
+      Builder.CreateSync(SyncContinueBlock, SyncRegionStart);
+      EmitBlock(SyncContinueBlock);
+      PopSyncRegion();
+      madeSync = true;
+      EmitBranchThroughCleanup(LoopExit);
+    }
+
+    EmitBlock(DetachBlock);
+
+    Builder.CreateDetach(ForBodyEntry, Continue.getBlock(), SyncRegionStart);
+
+    // Create a new alloca insert point.
+    llvm::Value *Undef = llvm::UndefValue::get(Int32Ty);
+    AllocaInsertPt = new llvm::BitCastInst(Undef, Int32Ty, "", ForBodyEntry);
+    // Set up nested EH state.
+    EHResumeBlock = nullptr;
+    ExceptionSlot = nullptr;
+    EHSelectorSlot = nullptr;
+
+    EmitBlock(ForBodyEntry);  
+  }
+
+  // Create a cleanup scope for the loop-variable cleanups.
+  RunCleanupsScope DetachCleanupsScope(*this);
+  EHStack.pushCleanup<RethrowCleanup>(EHCleanup);
+
+  // Inside the detached block, create the loop variable, setting its value to
+  // the saved initialization value.
+  AutoVarEmission LVEmission = EmitAutoVarAlloca(*IndVar);
+  QualType type = IndVar->getType();
+  Address Loc = LVEmission.getObjectAddress(*this);
+  LValue LV = MakeAddrLValue(Loc, type);
+  LV.setNonGC(true);
+  EmitStoreThroughLValue(RValue::get(llvm::ConstantInt::get(Int32Ty, 0)), LV, true);
+  EmitAutoVarCleanups(LVEmission);
 }

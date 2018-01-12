@@ -60,6 +60,16 @@ struct LoopAttributes {
 
   /// \brief Value for llvm.loop.distribute.enable metadata.
   LVEnableState DistributeEnable;
+
+  // +===== Kitsune
+
+  /// \brief Tapir-loop spawning strategy.
+  enum LSStrategy { Sequential, DAC };
+
+  /// \brief Value for tapir.loop.spawn.strategy metadata.
+  LSStrategy SpawnStrategy;
+
+  // ==============
 };
 
 /// \brief Information used when generating a structured loop.
@@ -151,6 +161,15 @@ public:
 
   /// \brief Set the unroll count for the next loop pushed.
   void setUnrollCount(unsigned C) { StagedAttrs.UnrollCount = C; }
+
+  // +===== Kitsune
+
+  /// \brief Set the Tapir-loop spawning strategy for the next loop pushed.
+  void setSpawnStrategy(const LoopAttributes::LSStrategy &Strat) {
+    StagedAttrs.SpawnStrategy = Strat;
+  }
+
+  // ==============
 
 private:
   /// \brief Returns true if there is LoopInfo on the stack.
