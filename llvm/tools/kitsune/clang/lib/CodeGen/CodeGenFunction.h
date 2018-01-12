@@ -2601,6 +2601,12 @@ public:
   void EnterSEHTryStmt(const SEHTryStmt &S);
   void ExitSEHTryStmt(const SEHTryStmt &S);
 
+  // +===== Kitsune
+  llvm::Instruction *EmitSyncRegionStart();
+  
+  void EmitForallStmt(const ForallStmt &S);
+  // ==============
+
   void startOutlinedSEHHelper(CodeGenFunction &ParentCGF, bool IsFilter,
                               const Stmt *OutlinedStmt);
 

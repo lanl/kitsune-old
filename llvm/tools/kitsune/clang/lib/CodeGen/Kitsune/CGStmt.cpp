@@ -48,96 +48,21 @@
   *
   ***************************************************************************/
 
-#ifndef KITSUNE_LLVM_CLANG_AST_STMT_H
-#define KITSUNE_LLVM_CLANG_AST_STMT_H
+#include "CodeGenFunction.h"
 
-#include "clang/AST/Stmt.h"
+using namespace clang;
+using namespace CodeGen;
 
-namespace clang {
+llvm::Instruction *CodeGenFunction::EmitSyncRegionStart() {
+  // Start the sync region.  To ensure the syncregion.start call dominates all
+  // uses of the generated token, we insert this call at the alloca insertion
+  // point.
+  llvm::Instruction *SRStart = llvm::CallInst::Create(
+      CGM.getIntrinsic(llvm::Intrinsic::syncregion_start),
+      "syncreg", AllocaInsertPt);
+  return SRStart;
+}
 
-// +===== Kitsune
-
-class KitsuneStmt : public Stmt {
-public:
-  enum KitsuneStmtKind{
-    Forall
-  };
-
-  KitsuneStmt(KitsuneStmtKind K)
-  : Stmt(KitsuneStmtClass),
-    Kind(K){}
-
-  virtual ~KitsuneStmt(){}
-
-  /// \brief Build an empty for statement.
-  explicit KitsuneStmt(EmptyShell Empty) : Stmt(KitsuneStmtClass, Empty) { }
-
-  static bool classof(const Stmt *T) {
-    return T->getStmtClass() == KitsuneStmtClass;
-  }
-
-  KitsuneStmtKind kind() const{
-    return Kind;
-  }
+void CodeGenFunction::EmitForallStmt(const ForallStmt &S) {
   
-  static bool classof(const KitsuneStmt *){ return true; }
-  
-  virtual child_range children(){
-    return child_range(child_iterator(), child_iterator());
-  }
-
-  SourceLocation getLocStart() const LLVM_READONLY{
-    return StartLoc;
-  }
-  
-  void setLocStart(SourceLocation Loc){
-    StartLoc = Loc;
-  }
-  
-  SourceLocation getLocEnd() const LLVM_READONLY{
-    return EndLoc;
-  }
-  
-  void setLocEnd(SourceLocation Loc){
-    EndLoc = Loc;
-  }
-
-private:
-  KitsuneStmtKind Kind;
-  SourceLocation StartLoc;
-  SourceLocation EndLoc;
-};
-
-class ForallStmt : public KitsuneStmt{
-public:
-  ForallStmt(const ASTContext &C, VarDecl *IndVar, Expr *Size,
-             Stmt *Body, SourceLocation FL, SourceLocation LP,
-             SourceLocation RP)
-  : KitsuneStmt(KitsuneStmt::Forall),
-  IndVar(IndVar),
-  Size(Size),
-  Body(Body),
-  LP(LP),
-  RP(RP){}
-
-  VarDecl *getIndVar() { return IndVar; }
-  Expr *getSize()  { return Size; }
-  Stmt *getBody() { return Body; }
-
-  const VarDecl *getIndVar() const { return IndVar; }
-  const Expr *getSize() const { return Size; }
-  const Stmt *getBody() const { return Body; }
-
-private:
-  VarDecl *IndVar;
-  Expr *Size;
-  Stmt *Body;
-  SourceLocation LP;
-  SourceLocation RP;
-};
-
-// +============
-
-}  // end namespace clang
-
-#endif
+}

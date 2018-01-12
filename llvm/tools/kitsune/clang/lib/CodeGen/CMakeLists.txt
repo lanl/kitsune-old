@@ -87,6 +87,10 @@ add_clang_library(clangCodeGen
   TargetInfo.cpp
   VarBypassDetector.cpp
 
+  # +===== Kitsune
+    Kitsune/CGStmt.cpp
+  # +=============
+
   DEPENDS
   ${codegen_deps}
 
