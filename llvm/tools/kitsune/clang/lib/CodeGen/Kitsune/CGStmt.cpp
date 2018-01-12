@@ -81,6 +81,14 @@ public:
   }
 };
 
+// Helper routine copied from CodeGenFunction.cpp
+static void EmitIfUsed(CodeGenFunction &CGF, llvm::BasicBlock *BB) {
+  if (!BB) return;
+  if (!BB->use_empty())
+    return CGF.CurFn->getBasicBlockList().push_back(BB);
+  delete BB;
+}
+
 void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
                                      ArrayRef<const Attr *> ForAttrs) {
   JumpDest LoopExit = getJumpDestInCurrentScope("pfor.end");
@@ -93,11 +101,13 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
 
   const VarDecl* IndVar = S.getIndVar();
 
+/*
   EmitVarDecl(*IndVar);
 
   Address IndAddr = GetAddrOfLocalVar(IndVar);
 
   llvm::Value* IndVal = Builder.CreateLoad(IndAddr, "ind");
+  */
 
   RValue Size = EmitAnyExprToTemp(S.getSize());
 
@@ -134,6 +144,17 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
   llvm::BasicBlock *DetachBlock;
   llvm::BasicBlock *ForBodyEntry;
   llvm::BasicBlock *ForBody;
+
+  // Inside the detached block, create the loop variable, setting its value to
+  // the saved initialization value.
+  AutoVarEmission LVEmission = EmitAutoVarAlloca(*IndVar);
+  QualType type = IndVar->getType();
+  Address Loc = LVEmission.getObjectAddress(*this);
+  llvm::Value* IndVal = Builder.CreateLoad(Loc, "ind.val");
+  LValue LV = MakeAddrLValue(Loc, type);
+  LV.setNonGC(true);
+  EmitStoreThroughLValue(RValue::get(llvm::ConstantInt::get(Int32Ty, 0)), LV, true);
+  EmitAutoVarCleanups(LVEmission);
 
   {
     llvm::BasicBlock *ExitBlock = LoopExit.getBlock();
@@ -182,13 +203,68 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
   RunCleanupsScope DetachCleanupsScope(*this);
   EHStack.pushCleanup<RethrowCleanup>(EHCleanup);
 
-  // Inside the detached block, create the loop variable, setting its value to
-  // the saved initialization value.
-  AutoVarEmission LVEmission = EmitAutoVarAlloca(*IndVar);
-  QualType type = IndVar->getType();
-  Address Loc = LVEmission.getObjectAddress(*this);
-  LValue LV = MakeAddrLValue(Loc, type);
-  LV.setNonGC(true);
-  EmitStoreThroughLValue(RValue::get(llvm::ConstantInt::get(Int32Ty, 0)), LV, true);
-  EmitAutoVarCleanups(LVEmission);
+  Builder.CreateBr(ForBody);
+
+  EmitBlock(ForBody);
+
+  incrementProfileCounter(&S);
+
+  {
+    // Create a separate cleanup scope for the body, in case it is not
+    // a compound statement.
+    RunCleanupsScope BodyScope(*this);
+    EmitStmt(S.getBody());
+    Builder.CreateBr(Preattach.getBlock());
+  }
+
+  // Finish detached body and emit the reattach.
+  {
+    EmitBlock(Preattach.getBlock());
+
+    DetachCleanupsScope.ForceCleanup();
+
+    Builder.CreateReattach(Continue.getBlock(), SyncRegionStart);
+  }
+
+  // Restore CGF state after detached region.
+  {
+    // Restore the alloca insertion point.
+    llvm::Instruction *Ptr = AllocaInsertPt;
+    AllocaInsertPt = OldAllocaInsertPt;
+    Ptr->eraseFromParent();
+
+    // Restore the EH state.
+    EmitIfUsed(*this, EHResumeBlock);
+    EHResumeBlock = OldEHResumeBlock;
+    ExceptionSlot = OldExceptionSlot;
+    EHSelectorSlot = OldEHSelectorSlot;
+  }
+
+  // Emit the increment next.
+  EmitBlock(Continue.getBlock());
+
+  IndVal = Builder.CreateLoad(Loc, "ind.val");
+  
+  llvm::Value* Inc = 
+    Builder.CreateAdd(IndVal, llvm::ConstantInt::get(Int32Ty, 1));
+
+  EmitStoreThroughLValue(RValue::get(Inc), LV, true);
+
+  BreakContinueStack.pop_back();
+
+  ConditionScope.ForceCleanup();
+
+  EmitStopPoint(&S);
+  EmitBranch(CondBlock);
+
+  ForScope.ForceCleanup();
+
+  LoopStack.pop();
+  // Emit the fall-through block.
+  EmitBlock(LoopExit.getBlock(), true);
+  if (!madeSync) {
+    Builder.CreateSync(SyncContinueBlock, SyncRegionStart);
+    EmitBlock(SyncContinueBlock);
+    PopSyncRegion();
+  }
 }
