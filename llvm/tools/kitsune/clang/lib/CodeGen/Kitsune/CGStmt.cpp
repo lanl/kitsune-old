@@ -64,5 +64,13 @@ llvm::Instruction *CodeGenFunction::EmitSyncRegionStart() {
 }
 
 void CodeGenFunction::EmitForallStmt(const ForallStmt &S) {
-  
+  JumpDest LoopExit = getJumpDestInCurrentScope("pfor.end");
+
+  PushSyncRegion();
+  llvm::Instruction *SyncRegionStart = EmitSyncRegionStart();
+  CurSyncRegion->setSyncRegionStart(SyncRegionStart);
+
+  LexicalScope ForScope(*this, S.getSourceRange());
+
+  EmitVarDecl(*S.getIndVar());
 }

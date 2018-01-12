@@ -2605,6 +2605,42 @@ public:
   llvm::Instruction *EmitSyncRegionStart();
   
   void EmitForallStmt(const ForallStmt &S);
+
+  class SyncRegion {
+    CodeGenFunction &CGF;
+    SyncRegion *ParentRegion;
+    llvm::Instruction *SyncRegionStart;
+
+    SyncRegion(const SyncRegion &) = delete;
+    void operator=(const SyncRegion &) = delete;
+  public:
+    explicit SyncRegion(CodeGenFunction &CGF)
+        : CGF(CGF), ParentRegion(CGF.CurSyncRegion), SyncRegionStart(nullptr)
+    {}
+
+    ~SyncRegion() {
+      // if (SyncRegionStart)
+      //   // Emit end of sync region.
+      //   CGF.Builder.CreateCall(
+      //       CGF.CGM.getIntrinsic(llvm::Intrinsic::syncregion_end),
+      //       {SyncRegionStart});
+      CGF.CurSyncRegion = ParentRegion;
+    }
+
+    llvm::Instruction *getSyncRegionStart() {
+      return SyncRegionStart;
+    }
+    void setSyncRegionStart(llvm::Instruction *SRStart) {
+      SyncRegionStart = SRStart;
+    }
+  };
+
+  /// The current sync region.
+  SyncRegion *CurSyncRegion;
+
+  void PushSyncRegion() {
+    CurSyncRegion = new SyncRegion(*this);
+  }
   // ==============
 
   void startOutlinedSEHHelper(CodeGenFunction &ParentCGF, bool IsFilter,
