@@ -55,8 +55,8 @@ using namespace clang;
 using namespace sema;
 
 StmtResult
-Sema::ActOnForallStmt(VarDecl* IndVar, Expr *Size, Stmt *Body,
-                      SourceLocation FL, SourceLocation LP,
+Sema::ActOnForallStmt(Stmt* Init, VarDecl* LoopVar, Expr *Cond, Expr *Inc,
+                      Stmt *Body, SourceLocation FL, SourceLocation LP,
                       SourceLocation RP) {
   PushFunctionScope();
 
@@ -65,7 +65,7 @@ Sema::ActOnForallStmt(VarDecl* IndVar, Expr *Size, Stmt *Body,
       ExpressionEvaluationContext::PotentiallyEvaluated);
 
   StmtResult Result = 
-    new (Context) ForallStmt(Context, IndVar, Size, Body, FL, LP, RP);
+    new (Context) ForallStmt(Context, Init, nullptr, Cond, Inc, Body, FL, LP, RP);
 
   PopExpressionEvaluationContext();
   PopFunctionScopeInfo();

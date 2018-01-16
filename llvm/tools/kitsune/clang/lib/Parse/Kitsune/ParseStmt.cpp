@@ -98,18 +98,24 @@ StmtResult Parser::ParseForAllStatement(SourceLocation *TrailingElseLoc) {
   DeclGroupPtrTy DG = ParseSimpleDeclaration(
       Declarator::ForContext, DeclEnd, attrs, false, nullptr);
 
-  VarDecl* IndVar = dyn_cast<VarDecl>(DG.get().getSingleDecl());
-  assert(IndVar);
+  VarDecl* LoopVar = dyn_cast<VarDecl>(DG.get().getSingleDecl());
+  assert(LoopVar);
+
+  StmtResult InitRes = 
+    Actions.ActOnDeclStmt(DG, DeclStart, Tok.getLocation());
 
   ConsumeToken();
 
-  ExprResult SizeExprRes = ParseExpression();
-  if(SizeExprRes.isInvalid()){
+  ExprResult CondRes = ParseExpression();
+  if(CondRes.isInvalid()){
     assert(false);
   }
 
-  QualType SizeType = SizeExprRes.get()->getType();
-  if(!SizeType.getTypePtr()->isIntegerType()){
+  assert(Tok.is(tok::semi));
+  ConsumeToken();
+
+  ExprResult IncRes = ParseExpression();
+  if(IncRes.isInvalid()){
     assert(false);
   }
 
@@ -122,16 +128,17 @@ StmtResult Parser::ParseForAllStatement(SourceLocation *TrailingElseLoc) {
   if (C99orCXXorObjC)
     getCurScope()->decrementMSManglingNumber();
 
-  StmtResult Body(ParseStatement(TrailingElseLoc));
+  StmtResult BodyRes(ParseStatement(TrailingElseLoc));
 
   InnerScope.Exit();
 
   ForallScope.Exit();
 
-  if (Body.isInvalid())
+  if (BodyRes.isInvalid())
     return StmtError();
 
-  return Actions.ActOnForallStmt(IndVar, SizeExprRes.get(), Body.get(),
+  return Actions.ActOnForallStmt(InitRes.get(), LoopVar, CondRes.get(),
+                                 IncRes.get(), BodyRes.get(),
                                  ForallLoc, T.getOpenLocation(),
                                  T.getCloseLocation());
 }
