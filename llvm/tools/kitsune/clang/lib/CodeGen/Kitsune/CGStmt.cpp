@@ -91,6 +91,11 @@ static void EmitIfUsed(CodeGenFunction &CGF, llvm::BasicBlock *BB) {
 
 void CodeGenFunction::EmitForallStmt(const ForallStmt &FS,
                                      ArrayRef<const Attr *> ForAttrs) {
+  if(FS.getForRangeStmt()){
+    EmitForallRangeStmt(FS, ForAttrs);
+    return;
+  }
+
   const ForStmt& S = *FS.getForStmt();
 
   JumpDest LoopExit = getJumpDestInCurrentScope("pfor.end");
@@ -166,6 +171,7 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &FS,
       EmitBranchThroughCleanup(LoopExit);
     }
 
+  
     EmitBlock(DetachBlock);
 
     Builder.CreateDetach(ForBodyEntry, Continue.getBlock(), SyncRegionStart);
@@ -246,3 +252,113 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &FS,
 
   //CurFn->dump();
 }
+
+void CodeGenFunction::EmitForallRangeStmt(const ForallStmt &FS,
+                                          ArrayRef<const Attr *> ForAttrs) {
+  const CXXForRangeStmt& S = *FS.getForRangeStmt();
+
+  JumpDest LoopExit = getJumpDestInCurrentScope("pfor.end");
+
+  PushSyncRegion();
+  llvm::Instruction *SyncRegionStart = EmitSyncRegionStart();
+  CurSyncRegion->setSyncRegionStart(SyncRegionStart);
+
+  LexicalScope ForScope(*this, S.getSourceRange());
+
+  // Evaluate the first pieces before the loop.
+  EmitStmt(S.getRangeStmt());
+  EmitStmt(S.getBeginStmt());
+  EmitStmt(S.getEndStmt());
+
+  // Start the loop with a block that tests the condition.
+  // If there's an increment, the continue scope will be overwritten
+  // later.
+  llvm::BasicBlock *CondBlock = createBasicBlock("pfor.cond");
+  EmitBlock(CondBlock);
+
+  const SourceRange &R = S.getSourceRange();
+  LoopStack.push(CondBlock, CGM.getContext(), ForAttrs,
+                 SourceLocToDebugLoc(R.getBegin()),
+                 SourceLocToDebugLoc(R.getEnd()));
+
+  // If there are any cleanups between here and the loop-exit scope,
+  // create a block to stage a loop exit along.
+  llvm::BasicBlock *ExitBlock = LoopExit.getBlock();
+  if (ForScope.requiresCleanups())
+    ExitBlock = createBasicBlock("pfor.cond.cleanup");
+
+  llvm::BasicBlock *SyncContinueBlock = createBasicBlock("pfor.end.continue");
+  bool madeSync = false;
+  llvm::BasicBlock *DetachBlock = createBasicBlock("pfor.detach");
+
+  // The loop body, consisting of the specified body and the loop variable.
+  llvm::BasicBlock *ForBody = createBasicBlock("pfor.body");
+
+  // The body is executed if the expression, contextually converted
+  // to bool, is true.
+  llvm::Value *BoolCondVal = EvaluateExprAsBool(S.getCond());
+  Builder.CreateCondBr(
+      BoolCondVal, DetachBlock, ExitBlock,
+      createProfileWeightsForLoop(S.getCond(), getProfileCount(S.getBody())));
+
+  if (ExitBlock != LoopExit.getBlock()) {
+    EmitBlock(ExitBlock);
+    EmitBranchThroughCleanup(LoopExit);
+  }
+
+  // right place to call this?
+  JumpDest Continue = getJumpDestInCurrentScope("pfor.inc");
+
+  EmitBlock(DetachBlock);
+
+  Builder.CreateDetach(ForBody, Continue.getBlock(), SyncRegionStart);
+
+  EmitBlock(ForBody);
+
+  RunCleanupsScope DetachCleanupsScope(*this);
+
+  incrementProfileCounter(&S);
+
+  // Create a block for the increment. In case of a 'continue', we jump there.
+  JumpDest Preattach = getJumpDestInCurrentScope("pfor.preattach");
+
+  // Store the blocks to use for break and continue.
+  BreakContinueStack.push_back(BreakContinue(LoopExit, Continue));
+
+  {
+    // Create a separate cleanup scope for the loop variable and body.
+    LexicalScope BodyScope(*this, S.getSourceRange());
+    EmitStmt(S.getLoopVarStmt());
+    EmitStmt(S.getBody());
+    Builder.CreateBr(Preattach.getBlock());
+  }
+
+  EmitBlock(Preattach.getBlock());
+  DetachCleanupsScope.ForceCleanup();
+  Builder.CreateReattach(Continue.getBlock(), SyncRegionStart);
+
+  EmitStopPoint(&S);
+  // If there is an increment, emit it next.
+  EmitBlock(Continue.getBlock());
+  EmitStmt(S.getInc());
+
+  BreakContinueStack.pop_back();
+
+  EmitBranch(CondBlock);
+
+  ForScope.ForceCleanup();
+
+  LoopStack.pop();
+
+  // Emit the fall-through block.
+  EmitBlock(LoopExit.getBlock(), true);
+
+  if (!madeSync) {
+    Builder.CreateSync(SyncContinueBlock, SyncRegionStart);
+    EmitBlock(SyncContinueBlock);
+    PopSyncRegion();
+  }
+
+  //CurFn->dump();
+}
+

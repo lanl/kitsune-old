@@ -2611,6 +2611,9 @@ public:
   void EmitForallStmt(const ForallStmt &S,
                       ArrayRef<const Attr *> ForAttrs = None);
 
+  void EmitForallRangeStmt(const ForallStmt &S,
+                           ArrayRef<const Attr *> ForAttrs = None);
+
   class SyncRegion {
     CodeGenFunction &CGF;
     SyncRegion *ParentRegion;
