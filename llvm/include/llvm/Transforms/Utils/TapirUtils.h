@@ -11,7 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TRANSFORMS_UTILS_TAPIRUITLS_H
+#ifndef LLVM_TRANSFORMS_UTILS_TAPIRUTILS_H
 #define LLVM_TRANSFORMS_UTILS_TAPIRUTILS_H
 
 #include "llvm/ADT/SmallVector.h"
