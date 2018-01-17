@@ -42,6 +42,9 @@ Function *extractDetachBodyToFunction(DetachInst &Detach,
 class TapirTarget {
 
 public:
+
+  virtual ~TapirTarget() {};
+  
   //! For use in loopspawning grainsize calculation
   virtual Value *GetOrCreateWorker8(Function &F) = 0;
   virtual void createSync(SyncInst &inst, ValueToValueMapTy &DetachCtxToStackFrame) = 0;
