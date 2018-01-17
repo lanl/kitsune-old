@@ -1170,6 +1170,9 @@ def err_kitsune_for_missing_condition: Error<
 def err_kitsune_for_missing_increment: Error<
   "missing loop increment expression in 'forall'">;
 
+def err_kitsune_for_foreach_loop_not_supported: Error<
+  "'forall' not supported on for-each loops">;
+
 }
 
 // ==============

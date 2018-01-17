@@ -70,11 +70,31 @@ StmtResult Parser::ParseForAllStatement(SourceLocation *TrailingElseLoc) {
   assert(Tok.is(tok::kw_forall) && "Not a forall stmt!");
   SourceLocation ForallLoc = ConsumeToken();  // eat the 'forall'.
 
+  SourceLocation CoawaitLoc;
+  if (Tok.is(tok::kw_co_await))
+    CoawaitLoc = ConsumeToken();
+
   if (Tok.isNot(tok::l_paren)) {
     Diag(Tok, diag::err_expected_lparen_after) << "forall";
     SkipUntil(tok::semi);
     return StmtError();
   }
+
+  // C99 6.8.5p5 - In C99, the for statement is a block.  This is not
+  // the case for C90.  Start the loop scope.
+  //
+  // C++ 6.4p3:
+  // A name introduced by a declaration in a condition is in scope from its
+  // point of declaration until the end of the substatements controlled by the
+  // condition.
+  // C++ 3.3.2p4:
+  // Names declared in the for-init-statement, and in the condition of if,
+  // while, for, and switch statements are local to the if, while, for, or
+  // switch statement (including the controlled statement).
+  // C++ 6.5.3p1:
+  // Names declared in the for-init-statement are in the same declarative-region
+  // as those declared in the condition.
+  //
 
   bool C99orCXXorObjC = getLangOpts().C99 || getLangOpts().CPlusPlus ||
     getLangOpts().ObjC1;
@@ -266,43 +286,38 @@ StmtResult Parser::ParseForAllStatement(SourceLocation *TrailingElseLoc) {
 
   // // C++ Coroutines [stmt.iter]:
   // //   'co_await' can only be used for a range-based for statement.
-  // if (CoawaitLoc.isValid() && !ForRange) {
-  //   Diag(CoawaitLoc, diag::err_for_co_await_not_range_for);
-  //   CoawaitLoc = SourceLocation();
-  // }
+  if (CoawaitLoc.isValid() && !ForRange) {
+    Diag(CoawaitLoc, diag::err_for_co_await_not_range_for);
+    CoawaitLoc = SourceLocation();
+  }
 
   // // We need to perform most of the semantic analysis for a C++0x for-range
   // // statememt before parsing the body, in order to be able to deduce the type
   // // of an auto-typed loop variable.
-  // StmtResult ForRangeStmt;
+  StmtResult ForRangeStmt;
   // StmtResult ForEachStmt;
 
-  // TODO: Extend _Cilk_for to support these.
   if (ForRange) {
-    //Diag(ForallLoc, diag::err_kitsune_for_forrange_loop_not_supported);
-    // ForRangeStmt = Actions.ActOnCXXForRangeStmt(ForallLoc, FirstPart.get(),
-    //                                             ForRangeInit.ColonLoc,
-    //                                             ForRangeInit.RangeExpr.get(),
-    //                                             T.getCloseLocation(),
-    //                                             Sema::BFRK_Build);
-
+    ExprResult CorrectedRange =
+        Actions.CorrectDelayedTyposInExpr(ForRangeInit.RangeExpr.get());
+    ForRangeStmt = Actions.ActOnCXXForRangeStmt(
+        getCurScope(), ForallLoc, CoawaitLoc, FirstPart.get(),
+        ForRangeInit.ColonLoc, CorrectedRange.get(),
+        T.getCloseLocation(), Sema::BFRK_Build);
 
   // Similarly, we need to do the semantic analysis for a for-range
   // statement immediately in order to close over temporaries correctly.
   } else if (ForEach) {
-    //Diag(ForallLoc, diag::err_kitsune_for_foreach_loop_not_supported);
-    // ForEachStmt = Actions.ActOnObjCForCollectionStmt(ForallLoc,
-    //                                                  FirstPart.get(),
-    //                                                  Collection.get(),
-    //                                                  T.getCloseLocation());
+    Diag(ForallLoc, diag::err_kitsune_for_foreach_loop_not_supported);
+    return StmtError();
   }
-  // else {
-  //   // In OpenMP loop region loop control variable must be captured and be
-  //   // private. Perform analysis of first part (if any).
-  //   if (getLangOpts().OpenMP && FirstPart.isUsable()) {
-  //     Actions.ActOnOpenMPLoopInitialization(ForallLoc, FirstPart.get());
-  //   }
-  // }
+  else {
+    // In OpenMP loop region loop control variable must be captured and be
+    // private. Perform analysis of first part (if any).
+    if (getLangOpts().OpenMP && FirstPart.isUsable()) {
+      Actions.ActOnOpenMPLoopInitialization(ForallLoc, FirstPart.get());
+    }
+  }
 
   // The body of the _Cilk_for statement is a scope, even if there is no
   // compound stmt.  We only do this if the body isn't a compound statement to
@@ -337,14 +352,9 @@ StmtResult Parser::ParseForAllStatement(SourceLocation *TrailingElseLoc) {
   if (Body.isInvalid())
     return StmtError();
 
-  // if (ForEach) {
-  //   return Actions.FinishObjCForCollectionStmt(ForEachStmt.get(),
-  //                                              Body.get());
-  // }
-
-  // if (ForRange) {
-  //   return Actions.FinishCXXForRangeStmt(ForRangeStmt.get(), Body.get());
-  // }
+  if (ForRange) {
+    return Actions.FinishCXXForRangeStmt(ForRangeStmt.get(), Body.get());
+  }
 
   return Actions.ActOnForallStmt(FirstPart.get(), nullptr, SecondPart.get().second,
                                  ThirdPart.get(), Body.get(),
