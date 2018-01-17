@@ -99,19 +99,7 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
 
   LexicalScope ForScope(*this, S.getSourceRange());
 
-  const VarDecl* IndVar = S.getIndVar();
-
-/*
-  EmitVarDecl(*IndVar);
-
-  Address IndAddr = GetAddrOfLocalVar(IndVar);
-
-  llvm::Value* IndVal = Builder.CreateLoad(IndAddr, "ind");
-  */
-
-  RValue Size = EmitAnyExprToTemp(S.getSize());
-
-  llvm::Value* SizeVal = Size.getScalarVal();
+  EmitStmt(S.getInit());
 
   JumpDest Continue = getJumpDestInCurrentScope("pfor.cond");
   llvm::BasicBlock *CondBlock = Continue.getBlock();
@@ -122,6 +110,8 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
   LoopStack.push(CondBlock, CGM.getContext(), ForAttrs,
                  SourceLocToDebugLoc(R.getBegin()),
                  SourceLocToDebugLoc(R.getEnd()));
+
+  const Expr *Inc = S.getInc();
 
   JumpDest Preattach = getJumpDestInCurrentScope("pfor.preattach");
   Continue = getJumpDestInCurrentScope("pfor.inc");
@@ -141,20 +131,11 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
 
   llvm::BasicBlock *SyncContinueBlock = createBasicBlock("pfor.end.continue");
   bool madeSync = false;
+  const VarDecl *LoopVar = S.getLoopVar();
+  RValue LoopVarInitRV;
   llvm::BasicBlock *DetachBlock;
   llvm::BasicBlock *ForBodyEntry;
   llvm::BasicBlock *ForBody;
-
-  // Inside the detached block, create the loop variable, setting its value to
-  // the saved initialization value.
-  AutoVarEmission LVEmission = EmitAutoVarAlloca(*IndVar);
-  QualType type = IndVar->getType();
-  Address Loc = LVEmission.getObjectAddress(*this);
-  llvm::Value* IndVal = Builder.CreateLoad(Loc, "ind.val");
-  LValue LV = MakeAddrLValue(Loc, type);
-  LV.setNonGC(true);
-  EmitStoreThroughLValue(RValue::get(llvm::ConstantInt::get(Int32Ty, 0)), LV, true);
-  EmitAutoVarCleanups(LVEmission);
 
   {
     llvm::BasicBlock *ExitBlock = LoopExit.getBlock();
@@ -170,10 +151,11 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
     ForBodyEntry = createBasicBlock("pfor.body.entry");
     ForBody = createBasicBlock("pfor.body");
 
-    llvm::Value *BoolCondVal = 
-      Builder.CreateICmpUGT(IndVal, SizeVal, "end.cond");
+    llvm::Value *BoolCondVal = EvaluateExprAsBool(S.getCond());
 
-    Builder.CreateCondBr(BoolCondVal, DetachBlock, ExitBlock);
+    Builder.CreateCondBr(
+        BoolCondVal, DetachBlock, ExitBlock,
+        createProfileWeightsForLoop(S.getCond(), getProfileCount(S.getBody())));
 
     if (ExitBlock != LoopExit.getBlock()) {
       EmitBlock(ExitBlock);
@@ -185,6 +167,9 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
     }
 
     EmitBlock(DetachBlock);
+
+    if (LoopVar)
+      LoopVarInitRV = EmitAnyExprToTemp(LoopVar->getInit());
 
     Builder.CreateDetach(ForBodyEntry, Continue.getBlock(), SyncRegionStart);
 
@@ -202,6 +187,18 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
   // Create a cleanup scope for the loop-variable cleanups.
   RunCleanupsScope DetachCleanupsScope(*this);
   EHStack.pushCleanup<RethrowCleanup>(EHCleanup);
+
+  // Inside the detached block, create the loop variable, setting its value to
+  // the saved initialization value.
+  if (LoopVar) {
+    AutoVarEmission LVEmission = EmitAutoVarAlloca(*LoopVar);
+    QualType type = LoopVar->getType();
+    Address Loc = LVEmission.getObjectAddress(*this);
+    LValue LV = MakeAddrLValue(Loc, type);
+    LV.setNonGC(true);
+    EmitStoreThroughLValue(LoopVarInitRV, LV, true);
+    EmitAutoVarCleanups(LVEmission);
+  }
 
   Builder.CreateBr(ForBody);
 
@@ -242,13 +239,7 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
 
   // Emit the increment next.
   EmitBlock(Continue.getBlock());
-
-  IndVal = Builder.CreateLoad(Loc, "ind.val");
-  
-  llvm::Value* Inc = 
-    Builder.CreateAdd(IndVal, llvm::ConstantInt::get(Int32Ty, 1));
-
-  EmitStoreThroughLValue(RValue::get(Inc), LV, true);
+  EmitStmt(Inc);
 
   BreakContinueStack.pop_back();
 
@@ -267,4 +258,6 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
     EmitBlock(SyncContinueBlock);
     PopSyncRegion();
   }
+
+  //CurFn->dump();
 }

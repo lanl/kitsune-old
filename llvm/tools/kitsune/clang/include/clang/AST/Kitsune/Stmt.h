@@ -110,27 +110,35 @@ private:
 
 class ForallStmt : public KitsuneStmt{
 public:
-  ForallStmt(const ASTContext &C, VarDecl *IndVar, Expr *Size,
+  ForallStmt(const ASTContext &C, Stmt *Init, VarDecl* LoopVar, Expr *Cond, Expr *Inc,
              Stmt *Body, SourceLocation FL, SourceLocation LP,
              SourceLocation RP)
   : KitsuneStmt(KitsuneStmt::Forall),
-  IndVar(IndVar),
-  Size(Size),
+  Init(Init),
+  LoopVar(LoopVar),
+  Cond(Cond),
+  Inc(Inc),
   Body(Body),
   LP(LP),
   RP(RP){}
 
-  VarDecl *getIndVar() { return IndVar; }
-  Expr *getSize()  { return Size; }
+  Stmt *getInit() { return Init; }
+  Expr *getCond()  { return Cond; }
+  Expr *getInc()  { return Inc; }
   Stmt *getBody() { return Body; }
+  VarDecl *getLoopVar() { return LoopVar; }
 
-  const VarDecl *getIndVar() const { return IndVar; }
-  const Expr *getSize() const { return Size; }
+  const Stmt *getInit() const { return Init; }
+  const Expr *getCond() const { return Cond; }
+  const Expr *getInc() const { return Inc; }
   const Stmt *getBody() const { return Body; }
+  const VarDecl *getLoopVar() const { return LoopVar; }
 
 private:
-  VarDecl *IndVar;
-  Expr *Size;
+  Stmt *Init;
+  VarDecl* LoopVar;
+  Expr *Cond;
+  Expr *Inc;
   Stmt *Body;
   SourceLocation LP;
   SourceLocation RP;
