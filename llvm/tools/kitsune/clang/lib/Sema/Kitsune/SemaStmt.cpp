@@ -55,20 +55,10 @@ using namespace clang;
 using namespace sema;
 
 StmtResult
-Sema::ActOnForallStmt(Stmt* Init, VarDecl* LoopVar, Expr *Cond, Expr *Inc,
-                      Stmt *Body, SourceLocation FL, SourceLocation LP,
-                      SourceLocation RP) {
-  PushFunctionScope();
-
-  getCurFunction()->setHasBranchProtectedScope();
-  PushExpressionEvaluationContext(
-      ExpressionEvaluationContext::PotentiallyEvaluated);
+Sema::ActOnForallStmt(ForStmt *ForStmt, CXXForRangeStmt *ForRangeStmt) {
 
   StmtResult Result = 
-    new (Context) ForallStmt(Context, Init, nullptr, Cond, Inc, Body, FL, LP, RP);
-
-  PopExpressionEvaluationContext();
-  PopFunctionScopeInfo();
+    new (Context) ForallStmt(ForStmt, ForRangeStmt);
 
   return Result;
 }

@@ -53,6 +53,9 @@
 
 #include "clang/AST/Stmt.h"
 
+#include "clang/AST/StmtCXX.h"
+
+
 namespace clang {
 
 // +===== Kitsune
@@ -110,38 +113,20 @@ private:
 
 class ForallStmt : public KitsuneStmt{
 public:
-  ForallStmt(const ASTContext &C, Stmt *Init, VarDecl* LoopVar, Expr *Cond, Expr *Inc,
-             Stmt *Body, SourceLocation FL, SourceLocation LP,
-             SourceLocation RP)
+  ForallStmt(ForStmt *TheForStmt, CXXForRangeStmt *ForRangeStmt)
   : KitsuneStmt(KitsuneStmt::Forall),
-  Init(Init),
-  LoopVar(LoopVar),
-  Cond(Cond),
-  Inc(Inc),
-  Body(Body),
-  LP(LP),
-  RP(RP){}
+  ForStmt_(TheForStmt),
+  ForRangeStmt(ForRangeStmt){}
 
-  Stmt *getInit() { return Init; }
-  Expr *getCond()  { return Cond; }
-  Expr *getInc()  { return Inc; }
-  Stmt *getBody() { return Body; }
-  VarDecl *getLoopVar() { return LoopVar; }
+  ForStmt *getForStmt() { return ForStmt_; }
+  CXXForRangeStmt *getForRangeStmt() { return ForRangeStmt; }
 
-  const Stmt *getInit() const { return Init; }
-  const Expr *getCond() const { return Cond; }
-  const Expr *getInc() const { return Inc; }
-  const Stmt *getBody() const { return Body; }
-  const VarDecl *getLoopVar() const { return LoopVar; }
+  const ForStmt *getForStmt() const { return ForStmt_; }
+  const CXXForRangeStmt *getForRangeStmt() const { return ForRangeStmt; }
 
 private:
-  Stmt *Init;
-  VarDecl* LoopVar;
-  Expr *Cond;
-  Expr *Inc;
-  Stmt *Body;
-  SourceLocation LP;
-  SourceLocation RP;
+  ForStmt* ForStmt_;
+  CXXForRangeStmt *ForRangeStmt;
 };
 
 // +============

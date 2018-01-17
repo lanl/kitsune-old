@@ -26,6 +26,10 @@
 #include "clang/Sema/Template.h"
 #include "clang/Sema/TemplateDeduction.h"
 
+// +===== Kitsune
+#include "clang/AST/Kitsune/Stmt.h"
+// ==============
+
 using namespace clang;
 using namespace sema;
 

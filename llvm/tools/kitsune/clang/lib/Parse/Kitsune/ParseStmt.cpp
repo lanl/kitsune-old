@@ -352,12 +352,35 @@ StmtResult Parser::ParseForAllStatement(SourceLocation *TrailingElseLoc) {
   if (Body.isInvalid())
     return StmtError();
 
+  CXXForRangeStmt *ForRangeStmtOut;
+  ForStmt *ForStmtOut;
+
   if (ForRange) {
-    return Actions.FinishCXXForRangeStmt(ForRangeStmt.get(), Body.get());
+    StmtResult ForRangeStmtRes =
+      Actions.FinishCXXForRangeStmt(ForRangeStmt.get(), Body.get()).get();
+    
+    if(ForRangeStmtRes.isInvalid()){
+      return StmtError();
+    }
+
+    ForRangeStmtOut = cast<CXXForRangeStmt>(ForRangeStmtRes.get());
+    ForStmtOut = nullptr;
+  }
+  else{
+    ForRangeStmt = nullptr;
+
+    StmtResult ForStmtRes =
+      Actions.ActOnForStmt(ForallLoc, T.getOpenLocation(), FirstPart.get(),
+                           SecondPart, ThirdPart, T.getCloseLocation(),
+                           Body.get());
+
+    if(ForStmtRes.isInvalid()){
+      return StmtError();
+    }
+
+    ForStmtOut = cast<ForStmt>(ForStmtRes.get());
+    ForRangeStmtOut = nullptr;
   }
 
-  return Actions.ActOnForallStmt(FirstPart.get(), nullptr, SecondPart.get().second,
-                                 ThirdPart.get(), Body.get(),
-                                 ForallLoc, T.getOpenLocation(),
-                                 T.getCloseLocation());
+  return Actions.ActOnForallStmt(ForStmtOut, ForRangeStmtOut);
 }

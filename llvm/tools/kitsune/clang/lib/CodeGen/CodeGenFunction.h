@@ -39,6 +39,10 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Transforms/Utils/SanitizerStats.h"
 
+// +===== Kitsune
+#include "clang/AST/Kitsune/Stmt.h"
+// ==============
+
 namespace llvm {
 class BasicBlock;
 class LLVMContext;

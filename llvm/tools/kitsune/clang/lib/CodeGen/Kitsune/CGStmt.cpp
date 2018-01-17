@@ -89,8 +89,10 @@ static void EmitIfUsed(CodeGenFunction &CGF, llvm::BasicBlock *BB) {
   delete BB;
 }
 
-void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
+void CodeGenFunction::EmitForallStmt(const ForallStmt &FS,
                                      ArrayRef<const Attr *> ForAttrs) {
+  const ForStmt& S = *FS.getForStmt();
+
   JumpDest LoopExit = getJumpDestInCurrentScope("pfor.end");
 
   PushSyncRegion();
@@ -131,8 +133,6 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
 
   llvm::BasicBlock *SyncContinueBlock = createBasicBlock("pfor.end.continue");
   bool madeSync = false;
-  const VarDecl *LoopVar = S.getLoopVar();
-  RValue LoopVarInitRV;
   llvm::BasicBlock *DetachBlock;
   llvm::BasicBlock *ForBodyEntry;
   llvm::BasicBlock *ForBody;
@@ -168,9 +168,6 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
 
     EmitBlock(DetachBlock);
 
-    if (LoopVar)
-      LoopVarInitRV = EmitAnyExprToTemp(LoopVar->getInit());
-
     Builder.CreateDetach(ForBodyEntry, Continue.getBlock(), SyncRegionStart);
 
     // Create a new alloca insert point.
@@ -187,18 +184,6 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
   // Create a cleanup scope for the loop-variable cleanups.
   RunCleanupsScope DetachCleanupsScope(*this);
   EHStack.pushCleanup<RethrowCleanup>(EHCleanup);
-
-  // Inside the detached block, create the loop variable, setting its value to
-  // the saved initialization value.
-  if (LoopVar) {
-    AutoVarEmission LVEmission = EmitAutoVarAlloca(*LoopVar);
-    QualType type = LoopVar->getType();
-    Address Loc = LVEmission.getObjectAddress(*this);
-    LValue LV = MakeAddrLValue(Loc, type);
-    LV.setNonGC(true);
-    EmitStoreThroughLValue(LoopVarInitRV, LV, true);
-    EmitAutoVarCleanups(LVEmission);
-  }
 
   Builder.CreateBr(ForBody);
 
