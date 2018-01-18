@@ -57,6 +57,14 @@
 #include "llvm/Transforms/Utils/NameAnonGlobals.h"
 #include "llvm/Transforms/Utils/SymbolRewriter.h"
 #include <memory>
+
+// +===== Kitsune
+#include "llvm/Transforms/Tapir/TapirTypes.h"
+#include "llvm/Transforms/Tapir/TapirUtils.h"
+#include "llvm/Transforms/Tapir/CilkABI.h"
+#include "llvm/Transforms/Tapir/OpenMPABI.h"
+// ==============
+
 using namespace clang;
 using namespace llvm;
 
@@ -487,6 +495,25 @@ void EmitAssemblyHelper::CreatePasses(legacy::PassManager &MPM,
   }
 
   PMBuilder.OptLevel = CodeGenOpts.OptimizationLevel;
+
+  // +===== Kitsune
+  if(LangOpts.FleCSI){
+    switch(LangOpts.Tapir){
+      case tapir::TapirTargetType::Cilk:
+        PMBuilder.tapirTarget = new llvm::tapir::CilkABI();
+        break;
+      case tapir::TapirTargetType::OpenMP:
+        PMBuilder.tapirTarget = new llvm::tapir::OpenMPABI();
+        break;
+      case tapir::TapirTargetType::Serial:
+        assert(0 && "TODO MAKE OTHER TAPIR OPTS");
+      case tapir::TapirTargetType::None:
+        PMBuilder.tapirTarget = nullptr;
+        break;
+    }
+  }
+  // ==============
+
   PMBuilder.SizeLevel = CodeGenOpts.OptimizeSize;
   PMBuilder.SLPVectorize = CodeGenOpts.VectorizeSLP;
   PMBuilder.LoopVectorize = CodeGenOpts.VectorizeLoop;

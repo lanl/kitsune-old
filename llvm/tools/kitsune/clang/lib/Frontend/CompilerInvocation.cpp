@@ -49,6 +49,10 @@
 #include <system_error>
 using namespace clang;
 
+// +===== Kitsune
+#include "llvm/Transforms/Tapir/TapirTypes.h"
+// ==============
+
 //===----------------------------------------------------------------------===//
 // Initialization.
 //===----------------------------------------------------------------------===//
@@ -2712,6 +2716,10 @@ bool CompilerInvocation::CreateFromArgs(CompilerInvocation &Res,
   if (DashX.getLanguage() == InputKind::FleCSI_CXX) {
     // Implicitly include the flecsi headers
     //Res.getPreprocessorOpts().Includes.push_back("flecsi/flecsi.h");
+  }
+
+  if (LangOpts.FleCSI) {
+    LangOpts.Tapir = llvm::tapir::TapirTargetType::OpenMP;    
   }
   // ==============
 

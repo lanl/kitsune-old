@@ -23,6 +23,10 @@
 #include <string>
 #include <vector>
 
+// +===== Kitsune
+#include "llvm/Transforms/Tapir/TapirTypes.h"
+// ==============
+
 namespace clang {
 
 /// Bitfields of LangOptions, split out from LangOptions in order to ensure that
@@ -96,6 +100,10 @@ public:
   };
 
 public:
+  // +===== Kitsune
+  llvm::tapir::TapirTargetType Tapir = llvm::tapir::TapirTargetType::OpenMP;
+  // ==============
+
   /// \brief Set of enabled sanitizers.
   SanitizerSet Sanitize;
 
