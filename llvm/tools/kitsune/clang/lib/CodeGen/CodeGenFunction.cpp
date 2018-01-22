@@ -2088,6 +2088,7 @@ CodeGenFunction::SanitizerScope::~SanitizerScope() {
   CGF->IsSanitizerScope = false;
 }
 
+// +===== Kitsune =============================
 void CodeGenFunction::DetachScope::InitDetachScope() {
   // Create the detached and continue blocks.
   DetachedBlock = CGF.createBasicBlock("det.achd");
@@ -2210,6 +2211,7 @@ Address CodeGenFunction::DetachScope::CreateDetachedMemTemp(QualType Ty,
 
   return RefTmp;
 }
+// =========================================
 
 void CodeGenFunction::InsertHelper(llvm::Instruction *I,
                                    const llvm::Twine &Name,

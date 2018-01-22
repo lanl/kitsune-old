@@ -2818,6 +2818,8 @@ void CodeGenFunction::EmitOMPTaskBasedDirective(const OMPExecutableDirective &S,
 }
 
 void CodeGenFunction::EmitOMPTaskDirective(const OMPTaskDirective &S) {
+  // +===== Kitsune
+
   // Emit outlined function for task construct.
   PushDetachScope();
   CurDetachScope->StartDetach();
@@ -2856,6 +2858,8 @@ void CodeGenFunction::EmitOMPTaskDirective(const OMPTaskDirective &S) {
   };
   EmitOMPTaskBasedDirective(S, BodyGen, TaskGen, Data);
   */
+
+  // ============
 }
 
 void CodeGenFunction::EmitOMPTaskyieldDirective(

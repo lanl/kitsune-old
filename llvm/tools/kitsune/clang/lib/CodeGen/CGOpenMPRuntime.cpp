@@ -5502,6 +5502,7 @@ Address CGOpenMPRuntime::getTaskReductionItem(CodeGenFunction &CGF,
 
 void CGOpenMPRuntime::emitTaskwaitCall(CodeGenFunction &CGF,
                                        SourceLocation Loc) {
+  // +===== Kitsune
   llvm::BasicBlock *ContinueBlock = CGF.createBasicBlock("sync.continue");
 
   CGF.EnsureSyncRegion();
@@ -5521,6 +5522,7 @@ void CGOpenMPRuntime::emitTaskwaitCall(CodeGenFunction &CGF,
   if (auto *Region = dyn_cast_or_null<CGOpenMPRegionInfo>(CGF.CapturedStmtInfo))
     Region->emitUntiedSwitch(CGF);
     */
+  // ==============
 }
 
 void CGOpenMPRuntime::emitInlinedDirective(CodeGenFunction &CGF,
