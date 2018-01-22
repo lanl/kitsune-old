@@ -2819,6 +2819,16 @@ void CodeGenFunction::EmitOMPTaskBasedDirective(const OMPExecutableDirective &S,
 
 void CodeGenFunction::EmitOMPTaskDirective(const OMPTaskDirective &S) {
   // Emit outlined function for task construct.
+  PushDetachScope();
+  CurDetachScope->StartDetach();
+
+  // Emit the spawned statement.
+  EmitStmt(S.getAssociatedStmt());
+
+  // Finish the detach.
+  PopDetachScope();
+
+  /*
   auto CS = cast<CapturedStmt>(S.getAssociatedStmt());
   auto CapturedStruct = GenerateCapturedStmtArgument(*CS);
   auto SharedsTy = getContext().getRecordType(CS->getCapturedRecordDecl());
@@ -2845,6 +2855,7 @@ void CodeGenFunction::EmitOMPTaskDirective(const OMPTaskDirective &S) {
                                             Data);
   };
   EmitOMPTaskBasedDirective(S, BodyGen, TaskGen, Data);
+  */
 }
 
 void CodeGenFunction::EmitOMPTaskyieldDirective(

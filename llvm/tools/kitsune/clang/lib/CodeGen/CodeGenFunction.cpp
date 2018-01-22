@@ -70,7 +70,11 @@ CodeGenFunction::CodeGenFunction(CodeGenModule &cgm, bool suppressNewContext)
       BlockPointer(nullptr), LambdaThisCaptureField(nullptr),
       NormalCleanupDest(nullptr), NextCleanupDestIndex(1),
       FirstBlockInfo(nullptr), EHResumeBlock(nullptr), ExceptionSlot(nullptr),
-      EHSelectorSlot(nullptr), DebugInfo(CGM.getModuleDebugInfo()),
+      EHSelectorSlot(nullptr),
+      // +===== Kitsune
+      CurSyncRegion(nullptr), CurDetachScope(nullptr),
+      // ==============
+      DebugInfo(CGM.getModuleDebugInfo()),
       DisableDebugInfo(false), DidCallStackSave(false), IndirectBranch(nullptr),
       PGO(cgm), SwitchInsn(nullptr), SwitchWeights(nullptr),
       CaseRangeBlock(nullptr), UnreachableBlock(nullptr), NumReturnExprs(0),
@@ -2082,6 +2086,129 @@ CodeGenFunction::SanitizerScope::SanitizerScope(CodeGenFunction *CGF)
 
 CodeGenFunction::SanitizerScope::~SanitizerScope() {
   CGF->IsSanitizerScope = false;
+}
+
+void CodeGenFunction::DetachScope::InitDetachScope() {
+  // Create the detached and continue blocks.
+  DetachedBlock = CGF.createBasicBlock("det.achd");
+  ContinueBlock = CGF.createBasicBlock("det.cont");
+
+  // Set the detached block as the new alloca insertion point.
+  OldAllocaInsertPt = CGF.AllocaInsertPt;
+  llvm::Value *Undef = llvm::UndefValue::get(CGF.Int32Ty);
+  CGF.AllocaInsertPt = new llvm::BitCastInst(Undef, CGF.Int32Ty, "",
+                                             DetachedBlock);
+
+  DetachInitialized = true;
+}
+
+void CodeGenFunction::DetachScope::RestoreDetachScope() {
+  OldAllocaInsertPt = CGF.AllocaInsertPt;
+  CGF.AllocaInsertPt = SavedDetachedAllocaInsertPt;
+}
+
+void CodeGenFunction::DetachScope::StartDetach() {
+  // ndm - fix
+  return;
+  if (!DetachInitialized)
+    InitDetachScope();
+  else
+    RestoreDetachScope();
+
+  // Create the detach
+  CGF.Builder.CreateDetach(DetachedBlock, ContinueBlock,
+                           CGF.CurSyncRegion->getSyncRegionStart());
+
+  // Save the old EH state.
+  OldEHResumeBlock = CGF.EHResumeBlock;
+  CGF.EHResumeBlock = nullptr;
+  OldExceptionSlot = CGF.ExceptionSlot;
+  CGF.ExceptionSlot = nullptr;
+  OldEHSelectorSlot = CGF.EHSelectorSlot;
+  CGF.EHSelectorSlot = nullptr;
+
+  // Emit the detached block.
+  CGF.EmitBlock(DetachedBlock);
+
+  // Create a cleanups scope.
+  CleanupsScope = new RunCleanupsScope(CGF);
+
+  CGF.PushSyncRegion();
+
+  // Initialize lifetime intrinsics for the reference temporary.
+  if (RefTmp.isValid()) {
+    switch (RefTmpSD) {
+    case SD_Automatic:
+    case SD_FullExpression:
+      if (auto *Size = CGF.EmitLifetimeStart(
+              CGF.CGM.getDataLayout().getTypeAllocSize(RefTmp.getElementType()),
+              RefTmp.getPointer())) {
+        if (RefTmpSD == SD_Automatic)
+          CGF.pushCleanupAfterFullExpr<CallLifetimeEnd>(NormalEHLifetimeMarker,
+                                                        RefTmp, Size);
+        else
+          CGF.pushFullExprCleanup<CallLifetimeEnd>(NormalEHLifetimeMarker,
+                                                   RefTmp, Size);
+      }
+      break;
+    default:
+      break;
+    }
+  }
+
+  DetachStarted = true;
+}
+
+void CodeGenFunction::DetachScope::FinishDetach() {
+  assert(DetachStarted &&
+         "Attempted to finish a detach that was not started.");
+
+  CGF.PopSyncRegion();
+
+  // Force cleanups from detached code.
+  CleanupsScope->ForceCleanup();
+
+  // The CFG path into the spawned statement should terminate with a `reattach'.
+  CGF.Builder.CreateReattach(ContinueBlock,
+                             CGF.CurSyncRegion->getSyncRegionStart());
+
+  // Restore the alloca insertion point.
+  llvm::Instruction *Ptr = CGF.AllocaInsertPt;
+  CGF.AllocaInsertPt = OldAllocaInsertPt;
+  SavedDetachedAllocaInsertPt = nullptr;
+  Ptr->eraseFromParent();
+
+  // Restore the EH state.
+  EmitIfUsed(CGF, CGF.EHResumeBlock);
+  CGF.EHResumeBlock = OldEHResumeBlock;
+  CGF.ExceptionSlot = OldExceptionSlot;
+  CGF.EHSelectorSlot = OldEHSelectorSlot;
+
+  // Emit the continue block.
+  CGF.EmitBlock(ContinueBlock);
+}
+
+Address CodeGenFunction::DetachScope::CreateDetachedMemTemp(QualType Ty,
+                                                            StorageDuration SD,
+                                                            const Twine &Name) {
+  if (!DetachInitialized)
+    InitDetachScope();
+  else
+    RestoreDetachScope();
+
+  // There shouldn't be multiple reference temporaries needed.
+  assert(!RefTmp.isValid() &&
+         "Already created a reference temporary in this detach scope.");
+
+  // Create the reference temporary
+  RefTmp = CGF.CreateMemTemp(Ty, Name);
+  RefTmpSD = SD;
+
+  // Save the detached scope
+  SavedDetachedAllocaInsertPt = CGF.AllocaInsertPt;
+  CGF.AllocaInsertPt = OldAllocaInsertPt;
+
+  return RefTmp;
 }
 
 void CodeGenFunction::InsertHelper(llvm::Instruction *I,

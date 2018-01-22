@@ -2719,7 +2719,7 @@ bool CompilerInvocation::CreateFromArgs(CompilerInvocation &Res,
   }
 
   if (LangOpts.FleCSI) {
-    LangOpts.Tapir = llvm::tapir::TapirTargetType::OpenMP;    
+    LangOpts.Tapir = llvm::tapir::TapirTargetType::Cilk;    
   }
   // ==============
 
