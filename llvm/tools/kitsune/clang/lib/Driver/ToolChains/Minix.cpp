@@ -77,6 +77,11 @@ void tools::minix::Linker::ConstructJob(Compilation &C, const JobAction &JA,
     }
   }
 
+  // +===== Kitsune
+  if (D.CCCIsFleCSI())
+    CmdArgs.push_back("-lcilkrts");
+  // ==============
+
   if (!Args.hasArg(options::OPT_nostdlib, options::OPT_nostartfiles)) {
     if (Args.hasArg(options::OPT_pthread))
       CmdArgs.push_back("-lpthread");

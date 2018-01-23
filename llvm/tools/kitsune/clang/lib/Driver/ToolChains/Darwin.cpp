@@ -253,6 +253,11 @@ void darwin::Linker::AddLinkArgs(Compilation &C, const ArgList &Args,
     CmdArgs.push_back(C.getArgs().MakeArgString(LibLTOPath));
   }
 
+  // +===== Kitsune
+  if (D.CCCIsFleCSI())
+    CmdArgs.push_back("-lcilkrts");
+  // ==============
+
   // ld64 version 262 and above run the deduplicate pass by default.
   if (Version[0] >= 262 && shouldLinkerNotDedup(C.getJobs().empty(), Args))
     CmdArgs.push_back("-no_deduplicate");

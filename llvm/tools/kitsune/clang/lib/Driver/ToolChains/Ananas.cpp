@@ -102,6 +102,11 @@ void ananas::Linker::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back(Args.MakeArgString(ToolChain.GetFilePath("crtn.o")));
   }
 
+  // +===== Kitsune
+  if (D.CCCIsFleCSI())
+    CmdArgs.push_back("-lcilkrts");
+  // ==============
+
   const char *Exec = Args.MakeArgString(ToolChain.GetLinkerPath());
   C.addCommand(llvm::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
 }

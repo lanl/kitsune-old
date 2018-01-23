@@ -110,6 +110,11 @@ void solaris::Linker::ConstructJob(Compilation &C, const JobAction &JA,
     }
   }
 
+  // +===== Kitsune
+  if (getToolChain().getDriver().CCCIsFleCSI())
+    CmdArgs.push_back("-lcilkrts");
+  // ==============
+
   if (!Args.hasArg(options::OPT_nostdlib, options::OPT_nostartfiles)) {
     CmdArgs.push_back(
         Args.MakeArgString(getToolChain().GetFilePath("crtend.o")));

@@ -174,7 +174,12 @@ public:
       InputList;
 
   /// Whether the driver should follow g++ like behavior.
-  bool CCCIsCXX() const { return Mode == GXXMode; }
+  bool CCCIsCXX() const { 
+    return Mode == GXXMode
+  // +===== Kitsune
+      || Mode == FleCSIMode;
+  // ==============
+  }
 
   /// Whether the driver is just the preprocessor.
   bool CCCIsCPP() const { return Mode == CPPMode; }
@@ -184,6 +189,10 @@ public:
 
   /// Whether the driver should follow cl.exe like behavior.
   bool IsCLMode() const { return Mode == CLMode; }
+
+  // +===== Kitsune
+  bool CCCIsFleCSI() const { return Mode == FleCSIMode; }
+  // ==============
 
   /// Only print tool bindings, don't build any jobs.
   unsigned CCCPrintBindings : 1;

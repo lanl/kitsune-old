@@ -558,6 +558,12 @@ void tools::gnutools::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   // The profile runtime also needs access to system libraries.
   getToolChain().addProfileRTLibs(Args, CmdArgs);
 
+  // +===== Kitsune
+  if (D.CCCIsFleCSI()){
+    CmdArgs.push_back("-lcilkrts");
+  }
+  // ==============
+
   if (D.CCCIsCXX() &&
       !Args.hasArg(options::OPT_nostdlib, options::OPT_nodefaultlibs)) {
     bool OnlyLibstdcxxStatic = Args.hasArg(options::OPT_static_libstdcxx) &&

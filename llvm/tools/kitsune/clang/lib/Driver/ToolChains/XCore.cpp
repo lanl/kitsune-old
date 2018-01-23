@@ -82,6 +82,11 @@ void tools::XCore::Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
   const char *Exec = Args.MakeArgString(getToolChain().GetProgramPath("xcc"));
   C.addCommand(llvm::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
+
+  // +===== Kitsune
+  if (getToolChain().getDriver().CCCIsFleCSI())
+    CmdArgs.push_back("-lcilkrts");
+  // ==============
 }
 
 /// XCore tool chain

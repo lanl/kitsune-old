@@ -143,6 +143,11 @@ void nacltools::Linker::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back("-lm");
   }
 
+  // +===== Kitsune
+  if (D.CCCIsFleCSI())
+    CmdArgs.push_back("-lcilkrts");
+  // ==============
+
   if (!Args.hasArg(options::OPT_nostdlib)) {
     if (!Args.hasArg(options::OPT_nodefaultlibs)) {
       // Always use groups, since it has no effect on dynamic libraries.

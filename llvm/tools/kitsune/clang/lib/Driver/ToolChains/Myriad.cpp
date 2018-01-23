@@ -170,6 +170,11 @@ void tools::Myriad::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   bool NeedsSanitizerDeps = addSanitizerRuntimes(TC, Args, CmdArgs);
   AddLinkerInputs(getToolChain(), Inputs, Args, CmdArgs, JA);
 
+  // +===== Kitsune
+  if (C.getDriver().CCCIsFleCSI())
+    CmdArgs.push_back("-lcilkrts");
+  // ==============
+
   if (UseDefaultLibs) {
     if (NeedsSanitizerDeps)
       linkSanitizerRuntimeDeps(TC, CmdArgs);

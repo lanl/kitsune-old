@@ -118,6 +118,9 @@ const DriverSuffix *FindDriverSuffix(StringRef ProgName) {
   // program name in order. If there is a match, the frontend type is updated as
   // necessary by applying the ModeFlag.
   static const DriverSuffix DriverSuffixes[] = {
+      // +===== Kitsune
+      {"flecsi-clang++", "--driver-mode=flecsi"},
+      // ==============
       {"clang", nullptr},
       {"clang++", "--driver-mode=g++"},
       {"clang-c++", "--driver-mode=g++"},
