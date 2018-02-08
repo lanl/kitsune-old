@@ -2763,3 +2763,21 @@ def InternalLinkage : InheritableAttr {
   let Subjects = SubjectList<[Var, Function, CXXRecord]>;
   let Documentation = [InternalLinkageDocs];
 }
+
+// +===== Kitsune
+
+def FleCSITaskArgs : Attr {
+  let Spellings = [CXX11<"clang", "flecsi_task_args">];
+  let Subjects = SubjectList<[Function], ErrorDiag, "ExpectedFunction">;
+  let Args = [
+    EnumArgument<"TaskTarget", "TaskTargetType",
+      ["loc", "toc"],
+      ["LOC", "TOC"]>,
+    EnumArgument<"TaskLaunch", "TaskLaunchType",
+      ["single", "index"],
+      ["Single", "Index"]>
+  ];
+  let Documentation = [Undocumented];
+}
+
+// ==============
