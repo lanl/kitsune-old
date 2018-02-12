@@ -2721,6 +2721,9 @@ bool CompilerInvocation::CreateFromArgs(CompilerInvocation &Res,
   if (LangOpts.FleCSI) {
     LangOpts.Tapir = llvm::tapir::TapirTargetType::Cilk;    
   }
+
+  LangOpts.Kokkos = Args.hasArg(OPT_fkokkos);
+
   // ==============
 
   // FIXME: Override value name discarding when asan or msan is used because the

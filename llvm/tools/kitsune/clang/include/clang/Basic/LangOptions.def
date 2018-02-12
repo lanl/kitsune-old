@@ -277,6 +277,10 @@ LANGOPT(XRayInstrument, 1, 0, "controls whether to do XRay instrumentation")
 BENIGN_LANGOPT(AllowEditorPlaceholders, 1, 0,
                "allow editor placeholders in source")
 
+// +===== Kokkos
+BENIGN_LANGOPT(Kokkos, 1, 0, "Enable Kitsune Kokkos code generation")
+// ==============
+
 #undef LANGOPT
 #undef COMPATIBLE_LANGOPT
 #undef BENIGN_LANGOPT
