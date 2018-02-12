@@ -4060,6 +4060,19 @@ RValue CodeGenFunction::EmitRValueForField(LValue LV,
 
 RValue CodeGenFunction::EmitCallExpr(const CallExpr *E,
                                      ReturnValueSlot ReturnValue) {
+  // +===== Kitsune
+  if(getLangOpts().Kokkos && isMainStmt(E)){
+    const FunctionDecl* f = E->getDirectCallee();
+    if(f){
+      std::string qn = f->getQualifiedNameAsString();
+      if(qn == "Kokkos::parallel_for" || qn == "Kokkos::parallel_reduce"){
+        EmitKokkosConstruct(E);
+        return RValue::get(nullptr);
+      }
+    }
+  }
+  // ==============
+
   // Builtins never have block type.
   if (E->getCallee()->getType()->isBlockPointerType())
     return EmitBlockCallExpr(E, ReturnValue);

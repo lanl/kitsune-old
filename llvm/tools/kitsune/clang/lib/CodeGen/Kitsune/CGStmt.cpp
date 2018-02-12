@@ -53,6 +53,26 @@
 using namespace clang;
 using namespace CodeGen;
 
+namespace{
+
+  static const LambdaExpr* GetLambda(const Expr* E){
+    if(auto me = dyn_cast<MaterializeTemporaryExpr>(E)){
+      E = me->GetTemporaryExpr();
+    }
+    
+    if(const CastExpr* c = dyn_cast<CastExpr>(E)){
+      E = c->getSubExpr();
+    }
+
+    if(const CXXBindTemporaryExpr* c = dyn_cast<CXXBindTemporaryExpr>(E)){
+      E = c->getSubExpr();
+    }
+
+    return dyn_cast<LambdaExpr>(E);
+  }
+
+} // namespace
+
 llvm::Instruction *CodeGenFunction::EmitSyncRegionStart() {
   // Start the sync region.  To ensure the syncregion.start call dominates all
   // uses of the generated token, we insert this call at the alloca insertion
@@ -362,3 +382,27 @@ void CodeGenFunction::EmitForallRangeStmt(const ForallStmt &FS,
   //CurFn->dump();
 }
 
+void CodeGenFunction::EmitKokkosConstruct(const CallExpr* E){
+  const LambdaExpr* LE = GetLambda(E->getArg(1));
+  const CXXMethodDecl* MD = LE->getCallOperator();
+  const ParmVarDecl* LoopVar = MD->getParamDecl(0);
+
+  JumpDest LoopExit = getJumpDestInCurrentScope("pfor.end");
+
+  PushSyncRegion();
+  llvm::Instruction *SyncRegionStart = EmitSyncRegionStart();
+  CurSyncRegion->setSyncRegionStart(SyncRegionStart);
+
+  LexicalScope ForScope(*this, E->getSourceRange());
+
+  llvm::Value* N = EmitScalarExpr(E->getArg(0));
+  Address Addr = CreateIRTemp(LoopVar->getType(), "loop.var"); 
+  LValue LVal = MakeAddrLValue(Addr, LoopVar->getType());
+
+  JumpDest Continue = getJumpDestInCurrentScope("pfor.cond");
+  llvm::BasicBlock *CondBlock = Continue.getBlock();
+  EmitBlock(CondBlock);
+
+  LoopStack.setSpawnStrategy(LoopAttributes::DAC);
+  const SourceRange &R = E->getSourceRange();
+}

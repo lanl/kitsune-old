@@ -2736,6 +2736,12 @@ public:
     delete CurDetachScope;
   }
 
+  bool isMainStmt(const Stmt* S){
+    return getContext().getSourceManager().isInMainFile(S->getLocStart());
+  }
+  
+  void EmitKokkosConstruct(const CallExpr* E);
+
   // ==============
 
   void startOutlinedSEHHelper(CodeGenFunction &ParentCGF, bool IsFilter,
