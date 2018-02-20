@@ -383,6 +383,9 @@ void CodeGenFunction::EmitForallRangeStmt(const ForallStmt &FS,
 }
 
 void CodeGenFunction::EmitKokkosConstruct(const CallExpr* E){
+  // anything to include here?
+  ArrayRef<const Attr *> ForAttrs;
+
   const LambdaExpr* LE = GetLambda(E->getArg(1));
   const CXXMethodDecl* MD = LE->getCallOperator();
   const ParmVarDecl* LoopVar = MD->getParamDecl(0);
@@ -395,9 +398,27 @@ void CodeGenFunction::EmitKokkosConstruct(const CallExpr* E){
 
   LexicalScope ForScope(*this, E->getSourceRange());
 
-  llvm::Value* N = EmitScalarExpr(E->getArg(0));
+  EmitVarDecl(*LoopVar);
+  Address Addr = GetAddrOfLocalVar(LoopVar);
+  llvm::Value *Zero = llvm::ConstantInt::get(ConvertType(LoopVar->getType()), 0);
+  Builder.CreateStore(Zero, Addr);
+
+  llvm::Value *N = EmitScalarExpr(E->getArg(0));
+
+  //llvm::Type* indexType = ConvertType(indexVar->getType());
+
+
+/*
+  llvm::Value *N = EmitScalarExpr(E->getArg(0));
   Address Addr = CreateIRTemp(LoopVar->getType(), "loop.var"); 
   LValue LVal = MakeAddrLValue(Addr, LoopVar->getType());
+
+  llvm::Value *Zero = llvm::ConstantInt::get(LVal.getPointer()->getType(), 0);
+  Builder.CreateStore(Zero, ?);
+
+  EmitScalarInit(const Expr *init, const ValueDecl *D, LValue lvalue,
+                      bool capturedByInit);
+                      */
 
   JumpDest Continue = getJumpDestInCurrentScope("pfor.cond");
   llvm::BasicBlock *CondBlock = Continue.getBlock();
@@ -405,4 +426,152 @@ void CodeGenFunction::EmitKokkosConstruct(const CallExpr* E){
 
   LoopStack.setSpawnStrategy(LoopAttributes::DAC);
   const SourceRange &R = E->getSourceRange();
+
+  LoopStack.push(CondBlock, CGM.getContext(), ForAttrs,
+                 SourceLocToDebugLoc(R.getBegin()),
+                 SourceLocToDebugLoc(R.getEnd()));
+
+  JumpDest Preattach = getJumpDestInCurrentScope("pfor.preattach");
+  Continue = getJumpDestInCurrentScope("pfor.inc");
+
+  // Store the blocks to use for break and continue.
+  BreakContinueStack.push_back(BreakContinue(Preattach, Preattach));
+
+  // Create a cleanup scope for the condition variable cleanups.
+  LexicalScope ConditionScope(*this, R);
+
+  // Save the old alloca insert point.
+  llvm::AssertingVH<llvm::Instruction> OldAllocaInsertPt = AllocaInsertPt;
+  // Save the old EH state.
+  llvm::BasicBlock *OldEHResumeBlock = EHResumeBlock;
+  llvm::Value *OldExceptionSlot = ExceptionSlot;
+  llvm::AllocaInst *OldEHSelectorSlot = EHSelectorSlot;
+
+  llvm::BasicBlock *SyncContinueBlock = createBasicBlock("pfor.end.continue");
+  bool madeSync = false;
+  llvm::BasicBlock *DetachBlock;
+  llvm::BasicBlock *ForBodyEntry;
+  llvm::BasicBlock *ForBody;
+
+  {
+    llvm::BasicBlock *ExitBlock = LoopExit.getBlock();
+    // If there are any cleanups between here and the loop-exit scope,
+    // create a block to stage a loop exit along.
+    if (ForScope.requiresCleanups())
+      ExitBlock = createBasicBlock("pfor.cond.cleanup");
+
+    // As long as the condition is true, iterate the loop.
+    DetachBlock = createBasicBlock("pfor.detach");
+    // Emit extra entry block for detached body, to ensure that this detached
+    // entry block has just one predecessor.
+    ForBodyEntry = createBasicBlock("pfor.body.entry");
+    ForBody = createBasicBlock("pfor.body");
+
+    llvm::Value *LoopVal = Builder.CreateLoad(Addr);
+
+    llvm::Value *BoolCondVal = Builder.CreateICmpULT(LoopVal, N);
+
+    // create profile from N?
+/*
+    Builder.CreateCondBr(
+        BoolCondVal, DetachBlock, ExitBlock,
+        createProfileWeightsForLoop(S.getCond(), getProfileCount(S.getBody())));
+*/
+
+    Builder.CreateCondBr(
+        BoolCondVal, DetachBlock, ExitBlock);
+
+    if (ExitBlock != LoopExit.getBlock()) {
+      EmitBlock(ExitBlock);
+      Builder.CreateSync(SyncContinueBlock, SyncRegionStart);
+      EmitBlock(SyncContinueBlock);
+      PopSyncRegion();
+      madeSync = true;
+      EmitBranchThroughCleanup(LoopExit);
+    }
+  
+    EmitBlock(DetachBlock);
+
+    Builder.CreateDetach(ForBodyEntry, Continue.getBlock(), SyncRegionStart);
+
+    // Create a new alloca insert point.
+    llvm::Value *Undef = llvm::UndefValue::get(Int32Ty);
+    AllocaInsertPt = new llvm::BitCastInst(Undef, Int32Ty, "", ForBodyEntry);
+    // Set up nested EH state.
+    EHResumeBlock = nullptr;
+    ExceptionSlot = nullptr;
+    EHSelectorSlot = nullptr;
+
+    EmitBlock(ForBodyEntry);  
+  }
+
+
+  // Create a cleanup scope for the loop-variable cleanups.
+  RunCleanupsScope DetachCleanupsScope(*this);
+  EHStack.pushCleanup<RethrowCleanup>(EHCleanup);
+
+  Builder.CreateBr(ForBody);
+
+  EmitBlock(ForBody);
+
+  incrementProfileCounter(E);
+
+  {
+    // Create a separate cleanup scope for the body, in case it is not
+    // a compound statement.
+    RunCleanupsScope BodyScope(*this);
+    EmitStmt(LE->getBody());
+    Builder.CreateBr(Preattach.getBlock());
+  }
+
+  // Finish detached body and emit the reattach.
+  {
+    EmitBlock(Preattach.getBlock());
+
+    DetachCleanupsScope.ForceCleanup();
+
+    Builder.CreateReattach(Continue.getBlock(), SyncRegionStart);
+  }
+
+  // Restore CGF state after detached region.
+  {
+    // Restore the alloca insertion point.
+    llvm::Instruction *Ptr = AllocaInsertPt;
+    AllocaInsertPt = OldAllocaInsertPt;
+    Ptr->eraseFromParent();
+
+    // Restore the EH state.
+    EmitIfUsed(*this, EHResumeBlock);
+    EHResumeBlock = OldEHResumeBlock;
+    ExceptionSlot = OldExceptionSlot;
+    EHSelectorSlot = OldEHSelectorSlot;
+  }
+
+  // Emit the increment next.
+  EmitBlock(Continue.getBlock());
+
+  llvm::Value *IncVal = Builder.CreateLoad(Addr);
+  llvm::Value *One = llvm::ConstantInt::get(ConvertType(LoopVar->getType()), 1);
+  IncVal = Builder.CreateAdd(IncVal, One);
+  Builder.CreateStore(IncVal, Addr);
+
+  BreakContinueStack.pop_back();
+
+  ConditionScope.ForceCleanup();
+
+  EmitStopPoint(E);
+  EmitBranch(CondBlock);
+
+  ForScope.ForceCleanup();
+
+  LoopStack.pop();
+  // Emit the fall-through block.
+  EmitBlock(LoopExit.getBlock(), true);
+  if (!madeSync) {
+    Builder.CreateSync(SyncContinueBlock, SyncRegionStart);
+    EmitBlock(SyncContinueBlock);
+    PopSyncRegion();
+  }
+
+  //CurFn->dump();
 }
