@@ -405,20 +405,17 @@ void CodeGenFunction::EmitKokkosConstruct(const CallExpr* E){
 
   llvm::Value *N = EmitScalarExpr(E->getArg(0));
 
-  //llvm::Type* indexType = ConvertType(indexVar->getType());
+  llvm::Type *LoopVarTy = ConvertType(LoopVar->getType());
 
+  unsigned NBits = N->getType()->getPrimitiveSizeInBits();
+  unsigned LoopVarBits = LoopVarTy->getPrimitiveSizeInBits();
 
-/*
-  llvm::Value *N = EmitScalarExpr(E->getArg(0));
-  Address Addr = CreateIRTemp(LoopVar->getType(), "loop.var"); 
-  LValue LVal = MakeAddrLValue(Addr, LoopVar->getType());
-
-  llvm::Value *Zero = llvm::ConstantInt::get(LVal.getPointer()->getType(), 0);
-  Builder.CreateStore(Zero, ?);
-
-  EmitScalarInit(const Expr *init, const ValueDecl *D, LValue lvalue,
-                      bool capturedByInit);
-                      */
+  if(NBits > LoopVarBits){
+    N = Builder.CreateTrunc(N, LoopVarTy);
+  }
+  else if(NBits < LoopVarBits){
+    N = Builder.CreateZExt(N, LoopVarTy);
+  }
 
   JumpDest Continue = getJumpDestInCurrentScope("pfor.cond");
   llvm::BasicBlock *CondBlock = Continue.getBlock();
@@ -504,7 +501,6 @@ void CodeGenFunction::EmitKokkosConstruct(const CallExpr* E){
 
     EmitBlock(ForBodyEntry);  
   }
-
 
   // Create a cleanup scope for the loop-variable cleanups.
   RunCleanupsScope DetachCleanupsScope(*this);
