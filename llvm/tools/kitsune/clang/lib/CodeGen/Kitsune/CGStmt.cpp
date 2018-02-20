@@ -516,7 +516,9 @@ void CodeGenFunction::EmitKokkosConstruct(const CallExpr* E){
     // Create a separate cleanup scope for the body, in case it is not
     // a compound statement.
     RunCleanupsScope BodyScope(*this);
+    InKokkosConstruct = true;
     EmitStmt(LE->getBody());
+    InKokkosConstruct = false;
     Builder.CreateBr(Preattach.getBlock());
   }
 

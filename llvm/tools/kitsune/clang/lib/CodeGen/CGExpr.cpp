@@ -2281,6 +2281,14 @@ LValue CodeGenFunction::EmitDeclRefLValue(const DeclRefExpr *E) {
 
     // Check for captured variables.
     if (E->refersToEnclosingVariableOrCapture()) {
+      // +===== Kitsune
+      if(InKokkosConstruct){
+        auto I = LocalDeclMap.find(VD);
+        assert(I != LocalDeclMap.end());
+        return MakeAddrLValue(I->second, T);  
+      }
+      // ==============
+
       if (auto *FD = LambdaCaptureFields.lookup(VD))
         return EmitCapturedFieldLValue(*this, FD, CXXABIThisValue);
       else if (CapturedStmtInfo) {

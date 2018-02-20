@@ -2742,6 +2742,8 @@ public:
   
   void EmitKokkosConstruct(const CallExpr* E);
 
+  bool InKokkosConstruct = false;
+
   // ==============
 
   void startOutlinedSEHHelper(CodeGenFunction &ParentCGF, bool IsFilter,
