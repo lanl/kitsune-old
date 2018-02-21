@@ -254,7 +254,7 @@ void darwin::Linker::AddLinkArgs(Compilation &C, const ArgList &Args,
   }
 
   // +===== Kitsune
-  if (D.CCCIsFleCSI())
+  if (D.CCCIsFleCSI() || D.CCCIsKokkos())
     CmdArgs.push_back("-lcilkrts");
   // ==============
 

@@ -559,7 +559,7 @@ void tools::gnutools::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   getToolChain().addProfileRTLibs(Args, CmdArgs);
 
   // +===== Kitsune
-  if (D.CCCIsFleCSI()){
+  if (D.CCCIsFleCSI() || D.CCCIsKokkos()){
     CmdArgs.push_back("-lcilkrts");
   }
   // ==============

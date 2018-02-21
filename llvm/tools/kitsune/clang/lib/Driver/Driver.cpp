@@ -146,6 +146,7 @@ void Driver::setDriverModeFromOption(StringRef Opt) {
                          .Case("cl", CLMode)
                          // +===== Kitsune
                          .Case("flecsi", FleCSIMode)
+                         .Case("kokkos", KokkosMode)
                          // +=============
                          .Default(~0U);
 

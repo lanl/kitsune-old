@@ -180,7 +180,7 @@ void tools::CrossWindows::Linker::ConstructJob(
   }
 
   // +===== Kitsune
-  if (D.CCCIsFleCSI())
+  if (D.CCCIsFleCSI() || D.CCCIsKokkos())
     CmdArgs.push_back("-lcilkrts");
   // ==============
 

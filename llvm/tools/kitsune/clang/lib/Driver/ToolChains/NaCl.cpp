@@ -144,7 +144,7 @@ void nacltools::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   }
 
   // +===== Kitsune
-  if (D.CCCIsFleCSI())
+  if (D.CCCIsFleCSI() || D.CCCIsKokkos())
     CmdArgs.push_back("-lcilkrts");
   // ==============
 

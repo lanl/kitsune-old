@@ -171,7 +171,7 @@ void tools::Myriad::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   AddLinkerInputs(getToolChain(), Inputs, Args, CmdArgs, JA);
 
   // +===== Kitsune
-  if (C.getDriver().CCCIsFleCSI())
+  if (C.getDriver().CCCIsFleCSI() || C.getDriver().CCCIsKokkos())
     CmdArgs.push_back("-lcilkrts");
   // ==============
 

@@ -497,7 +497,7 @@ void EmitAssemblyHelper::CreatePasses(legacy::PassManager &MPM,
   PMBuilder.OptLevel = CodeGenOpts.OptimizationLevel;
 
   // +===== Kitsune
-  if(LangOpts.FleCSI){
+  if(LangOpts.FleCSI || LangOpts.Kokkos){
     switch(LangOpts.Tapir){
       case tapir::TapirTargetType::Cilk:
         PMBuilder.tapirTarget = new llvm::tapir::CilkABI();

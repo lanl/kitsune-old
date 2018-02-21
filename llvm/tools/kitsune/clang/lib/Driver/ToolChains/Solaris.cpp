@@ -111,7 +111,7 @@ void solaris::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   }
 
   // +===== Kitsune
-  if (getToolChain().getDriver().CCCIsFleCSI())
+  if (getToolChain().getDriver().CCCIsFleCSI() || getToolChain().getDriver().CCCIsKokkos())
     CmdArgs.push_back("-lcilkrts");
   // ==============
 

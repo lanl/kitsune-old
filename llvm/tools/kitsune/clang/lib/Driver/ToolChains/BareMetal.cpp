@@ -203,7 +203,7 @@ void baremetal::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   }
 
   // +===== Kitsune
-  if (C.getDriver().CCCIsFleCSI())
+  if (C.getDriver().CCCIsFleCSI() || C.getDriver().CCCIsKokkos())
     CmdArgs.push_back("-lcilkrts");
   // ==============
 

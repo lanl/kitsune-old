@@ -75,7 +75,8 @@ class Driver {
     CPPMode,
     CLMode,
     // +===== Kitsune
-    FleCSIMode
+    FleCSIMode,
+    KokkosMode,
     // +=============
   } Mode;
 
@@ -177,7 +178,7 @@ public:
   bool CCCIsCXX() const { 
     return Mode == GXXMode
   // +===== Kitsune
-      || Mode == FleCSIMode;
+      || Mode == FleCSIMode || Mode == KokkosMode;
   // ==============
   }
 
@@ -192,6 +193,8 @@ public:
 
   // +===== Kitsune
   bool CCCIsFleCSI() const { return Mode == FleCSIMode; }
+
+  bool CCCIsKokkos() const { return Mode == KokkosMode; }
   // ==============
 
   /// Only print tool bindings, don't build any jobs.

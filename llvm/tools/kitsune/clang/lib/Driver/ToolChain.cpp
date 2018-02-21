@@ -120,6 +120,7 @@ const DriverSuffix *FindDriverSuffix(StringRef ProgName) {
   static const DriverSuffix DriverSuffixes[] = {
       // +===== Kitsune
       {"flecsi-clang++", "--driver-mode=flecsi"},
+      {"kokkos-clang++", "--driver-mode=kokkos"},
       // ==============
       {"clang", nullptr},
       {"clang++", "--driver-mode=g++"},

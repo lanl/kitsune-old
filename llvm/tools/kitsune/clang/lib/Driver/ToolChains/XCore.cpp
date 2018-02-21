@@ -84,7 +84,7 @@ void tools::XCore::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   C.addCommand(llvm::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
 
   // +===== Kitsune
-  if (getToolChain().getDriver().CCCIsFleCSI())
+  if (getToolChain().getDriver().CCCIsFleCSI() || getToolChain().getDriver().CCCIsKokkos())
     CmdArgs.push_back("-lcilkrts");
   // ==============
 }
