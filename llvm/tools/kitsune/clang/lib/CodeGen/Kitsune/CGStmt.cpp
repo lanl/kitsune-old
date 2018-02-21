@@ -55,6 +55,9 @@ using namespace CodeGen;
 
 namespace{
 
+  // this helper function can be used to extract the lambda expression
+  // which may sometimes be wrapped in other AST expressions, such as
+  // cast expressions
   static const LambdaExpr* GetLambda(const Expr* E){
     if(auto me = dyn_cast<MaterializeTemporaryExpr>(E)){
       E = me->GetTemporaryExpr();
@@ -73,6 +76,8 @@ namespace{
 
 } // namespace
 
+// this helper function is borrowed from Tapir to emit an intrinsic start
+// a sync region
 llvm::Instruction *CodeGenFunction::EmitSyncRegionStart() {
   // Start the sync region.  To ensure the syncregion.start call dominates all
   // uses of the generated token, we insert this call at the alloca insertion
@@ -82,6 +87,8 @@ llvm::Instruction *CodeGenFunction::EmitSyncRegionStart() {
       "syncreg", AllocaInsertPt);
   return SRStart;
 }
+
+// invoke cleanup for Tapir
 
 /// \brief Cleanup to ensure parent stack frame is synced.
 struct RethrowCleanup : public EHScopeStack::Cleanup {
@@ -109,6 +116,10 @@ static void EmitIfUsed(CodeGenFunction &CGF, llvm::BasicBlock *BB) {
   delete BB;
 }
 
+// this method is used perform code generation for a non-range-based
+// for a loop i.e. it has initialization statement, condition, and increment
+// the implementation of this method closely follows what happens for
+// in normal for loop but adds Tapir detach, reattach, and sync statements
 void CodeGenFunction::EmitForallStmt(const ForallStmt &FS,
                                      ArrayRef<const Attr *> ForAttrs) {
   if(FS.getForRangeStmt()){
@@ -126,6 +137,7 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &FS,
 
   LexicalScope ForScope(*this, S.getSourceRange());
 
+  // initialization statement
   EmitStmt(S.getInit());
 
   JumpDest Continue = getJumpDestInCurrentScope("pfor.cond");
@@ -270,9 +282,13 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &FS,
     PopSyncRegion();
   }
 
+  // debug, uncomment to dump IR thus far
   //CurFn->dump();
 }
 
+// this handles the code generation for a range based for style
+// forall statement it is based closely on the normal C++ range base for
+// code generation but adds Tapir detach, reattach, and sync statements
 void CodeGenFunction::EmitForallRangeStmt(const ForallStmt &FS,
                                           ArrayRef<const Attr *> ForAttrs) {
   const CXXForRangeStmt& S = *FS.getForRangeStmt();
@@ -382,10 +398,14 @@ void CodeGenFunction::EmitForallRangeStmt(const ForallStmt &FS,
   //CurFn->dump();
 }
 
+// this method handles the code generation corresponding to Kokkos parallel for
+// or parallel reduce
 void CodeGenFunction::EmitKokkosConstruct(const CallExpr* E){
   // anything to include here?
   ArrayRef<const Attr *> ForAttrs;
 
+  // extract the lambda expression which will be used as a body of the
+  // parallel for loop
   const LambdaExpr* LE = GetLambda(E->getArg(1));
   const CXXMethodDecl* MD = LE->getCallOperator();
   const ParmVarDecl* LoopVar = MD->getParamDecl(0);
@@ -398,10 +418,14 @@ void CodeGenFunction::EmitKokkosConstruct(const CallExpr* E){
 
   LexicalScope ForScope(*this, E->getSourceRange());
 
+  // emit the loop variable whose declaration comes as a sole argument
+  // the lambda expression, and initialize it to zero
   EmitVarDecl(*LoopVar);
   Address Addr = GetAddrOfLocalVar(LoopVar);
   llvm::Value *Zero = llvm::ConstantInt::get(ConvertType(LoopVar->getType()), 0);
   Builder.CreateStore(Zero, Addr);
+
+  // calculate the end range
 
   llvm::Value *N = EmitScalarExpr(E->getArg(0));
 
@@ -410,6 +434,8 @@ void CodeGenFunction::EmitKokkosConstruct(const CallExpr* E){
   unsigned NBits = N->getType()->getPrimitiveSizeInBits();
   unsigned LoopVarBits = LoopVarTy->getPrimitiveSizeInBits();
 
+  // we may need to truncate or extend the end range to get it to match the
+  // type of the loop variable
   if(NBits > LoopVarBits){
     N = Builder.CreateTrunc(N, LoopVarTy);
   }
@@ -516,6 +542,12 @@ void CodeGenFunction::EmitKokkosConstruct(const CallExpr* E){
     // Create a separate cleanup scope for the body, in case it is not
     // a compound statement.
     RunCleanupsScope BodyScope(*this);
+    
+    // emit the lambda expression as the body forall a loop
+    // since it came from a lambda, it may have special wrapped AST's
+    // for handling captured variables, so we set the following flag to true
+    // so that we can handle these has a special case, and look them up
+    // directly in the local declaration map instead
     InKokkosConstruct = true;
     EmitStmt(LE->getBody());
     InKokkosConstruct = false;
@@ -548,6 +580,7 @@ void CodeGenFunction::EmitKokkosConstruct(const CallExpr* E){
   // Emit the increment next.
   EmitBlock(Continue.getBlock());
 
+  // emit the loop variable increment
   llvm::Value *IncVal = Builder.CreateLoad(Addr);
   llvm::Value *One = llvm::ConstantInt::get(ConvertType(LoopVar->getType()), 1);
   IncVal = Builder.CreateAdd(IncVal, One);
@@ -571,5 +604,6 @@ void CodeGenFunction::EmitKokkosConstruct(const CallExpr* E){
     PopSyncRegion();
   }
 
+  // debug statement
   //CurFn->dump();
 }
