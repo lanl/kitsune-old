@@ -1,5 +1,5 @@
 
-tapirclang=../../build/bin/clang
+tapirclang=../../../../build/llvm/bin/clang
 clang=clang
 cflags=-O3 -g
 tapirflags=-mllvm -fast-openmp -ftapir=openmp -fopenmp ${cflags}
