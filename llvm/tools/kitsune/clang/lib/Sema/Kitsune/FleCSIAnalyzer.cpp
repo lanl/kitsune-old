@@ -482,8 +482,8 @@ namespace{
     }
 
     bool VisitTranslationUnitDecl(TranslationUnitDecl* d){
-      for(auto d : d->decls()){
-        TraverseDecl(d);
+      for(auto di : d->decls()){
+        TraverseDecl(di);
       }
 
       return true;
