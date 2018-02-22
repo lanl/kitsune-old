@@ -410,6 +410,24 @@ void CodeGenFunction::EmitKokkosConstruct(const CallExpr* E){
   const CXXMethodDecl* MD = LE->getCallOperator();
   const ParmVarDecl* LoopVar = MD->getParamDecl(0);
 
+  const FunctionDecl* F = E->getDirectCallee();
+  assert(F);
+
+  const VarDecl* ReduceVar;
+
+  if(F->getQualifiedNameAsString() == "Kokkos::parallel_for"){
+    assert(MD->getNumParams() == 1);
+    assert(E->getNumArgs() == 3);
+    ReduceVar = nullptr;
+  }
+  else if(F->getQualifiedNameAsString() == "Kokkos::parallel_reduce"){
+    ReduceVar = MD->getParamDecl(1);
+    assert(MD->getNumParams() == 2);
+  }
+  else{
+    assert(false && "expected parallel for or reduce");
+  }
+
   JumpDest LoopExit = getJumpDestInCurrentScope("pfor.end");
 
   PushSyncRegion();
@@ -418,12 +436,16 @@ void CodeGenFunction::EmitKokkosConstruct(const CallExpr* E){
 
   LexicalScope ForScope(*this, E->getSourceRange());
 
-  // emit the loop variable whose declaration comes as a sole argument
-  // the lambda expression, and initialize it to zero
+  // emit the loop variable whose declaration comes as the sole argument
+  // to the lambda expression, and initialize it to zero
   EmitVarDecl(*LoopVar);
   Address Addr = GetAddrOfLocalVar(LoopVar);
   llvm::Value *Zero = llvm::ConstantInt::get(ConvertType(LoopVar->getType()), 0);
   Builder.CreateStore(Zero, Addr);
+
+  if(ReduceVar){
+    EmitVarDecl(*ReduceVar);
+  }
 
   // calculate the end range
 
