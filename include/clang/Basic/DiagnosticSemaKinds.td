@@ -8496,6 +8496,8 @@ def err_cilk_spawn_invalid_func_context : Error<
   "|a copy assignment operator|a move assignment operator|the 'main' function"
   "|a constexpr function|a function with a deduced return type"
   "|a varargs function}0">;
+def err_pragma_cilk_precedes_noncilk : Error<
+  "expected a Cilk keyword to follow '%0'">;
 
 // cilk_spawn
 def err_not_a_call : Error<
@@ -8518,8 +8520,6 @@ def err_multiple_spawns: Error<
   "multiple spawn calls within a full expression">;
 def note_multiple_spawns: Note<
   "another spawn here">;
-def warn_spawn_assign_lhs_has_side_effects : Warning<
-  "left-hand side of _Cilk_spawn assignment has side effects">;
 
 // cilk_for
 def err_cilk_for_initializer_expected_variable : Error<

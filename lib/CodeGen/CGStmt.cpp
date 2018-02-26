@@ -12,7 +12,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "CodeGenFunction.h"
-#include "CGCleanup.h"
 #include "CGDebugInfo.h"
 #include "CodeGenModule.h"
 #include "TargetInfo.h"
@@ -155,9 +154,9 @@ void CodeGenFunction::EmitStmt(const Stmt *S) {
     }
     break;
   case Stmt::CilkSpawnStmtClass:
-                              EmitCilkSpawnStmt(cast<CilkSpawnStmt>(*S)); break;
+    EmitCilkSpawnStmt(cast<CilkSpawnStmt>(*S)); break;
   case Stmt::CilkForStmtClass:
-                              EmitCilkForStmt(cast<CilkForStmt>(*S)); break;
+    EmitCilkForStmt(cast<CilkForStmt>(*S)); break;
   case Stmt::ObjCAtTryStmtClass:
     EmitObjCAtTryStmt(cast<ObjCAtTryStmt>(*S));
     break;
