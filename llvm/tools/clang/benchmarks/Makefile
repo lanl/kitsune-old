@@ -1,12 +1,12 @@
 
 tapirclang=../../../../build/llvm/bin/clang
 clang=clang
-cflags=-O3 -g
+cflags=-O2 -g
 tapirflags=-mllvm -fast-openmp -ftapir=openmp -fopenmp ${cflags}
-ompflags=-fopenmp ${serialflags}
+ompflags=-fopenmp ${cflags}
 
 types=gomp omp serial tapir  
-sources=fib nqueens merge 
+sources=fib nqueens merge daxpy
 targets=$(foreach f,${sources},${f}_tapir $(foreach t, ${types}, ${f}_${t}))
 
 all: ${targets}
@@ -14,8 +14,11 @@ all: ${targets}
 timeing.txt: ${targets}
 	$(foreach t, ${targets}, time ./${t})	
 
+%.s: %.c
+	${tapirclang} -S -O2 -fopenmp -ftapir=openmp $<
+
 %.ll: %.c
-	${clang} -S -fopenmp -emit-llvm $<
+	${tapirclang} -S -O2 -fopenmp -emit-llvm $<
 	
 %_gomp: %.c
 	gcc ${ompflags} -o $@ $<
@@ -24,7 +27,7 @@ timeing.txt: ${targets}
 	${clang} ${ompflags} -o $@ $<
 
 %_serial: %.c
-	${tapirclang} ${serialflags} -o $@ $<
+	${tapirclang} ${cflags} -o $@ $<
 
 %_tapir: %.c
 	${tapirclang} ${tapirflags} -o $@ $<

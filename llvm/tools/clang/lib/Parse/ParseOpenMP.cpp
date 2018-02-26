@@ -990,9 +990,9 @@ StmtResult Parser::ParseOpenMPDeclarativeOrExecutableDirective(
       HasAssociatedStatement = false;
     }
 
-    // If we have a task, don't create a captured stmt, just a compound one
+    // If we have a tapir construct, don't create a captured stmt, just a compound one
     StmtResult AssociatedStmt;
-    if (DKind == OMPD_task){
+    if (DKind == OMPD_task || DKind == OMPD_parallel_for){
       AssociatedStmt = ParseStatement();    
     }
     else if (HasAssociatedStatement) {
