@@ -102,6 +102,7 @@ public:
 public:
   // +===== Kitsune
   llvm::tapir::TapirTargetType Tapir = llvm::tapir::TapirTargetType::Cilk;
+  //llvm::tapir::TapirTargetType Tapir = llvm::tapir::TapirTargetType::None;
   // ==============
 
   /// \brief Set of enabled sanitizers.
