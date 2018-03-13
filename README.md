@@ -20,7 +20,7 @@ Building with Flecsi+Kokkos -> Tapir Clang
 
 Running
 =======
-    ./build/bin/clang <source_file> <source_flags> -ftapir=<backend rts>
+    ./build/llvm/bin/clang <source_file> <source_flags> -ftapir=<backend rts>
 
 Currently supported backend runtimes are `cilk` and `openmp`, though the `cilk`
 backend is more mature.  
