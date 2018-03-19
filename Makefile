@@ -133,6 +133,9 @@ update-subtrees:
 	@((test -f $(log_dir)/llvm-update-subtrees.log) || (rm -f $(log_dir)llvm-update-subtrees.log))
 	@(cd $(src_dir); ./git-tools/update-llvm > $(log_dir)/llvm-update-subtrees.log 2>&1)
 
+test:
+	llvm/utils/lit/lit.py --verbose llvm/tools/kitsune/clang/test/Kitsune
+
 clean:
 	-@/bin/rm -rf $(build_dir)
 	-@/usr/bin/find . -name '*~' -exec rm -f {} \;
