@@ -52,7 +52,8 @@
 
 using namespace std;
 
-const size_t SIZE = 268435456;
+const size_t SIZE = 26843545;
+const size_t SIZE2 = 512;
 
 int main (int argc, char* argv[]) {
   Kokkos::initialize (argc, argv);
@@ -74,6 +75,31 @@ int main (int argc, char* argv[]) {
   for(size_t i = 0; i < SIZE; ++i){
     assert(a(i, 0) == i * 100.0);
     assert(a(i, 1) == i * 10000.0);
+  }
+
+  typedef Kokkos::View<double**[2]> view_type2;
+
+  view_type2 b ("B", SIZE2, SIZE2);
+
+  for(size_t i = 0; i < SIZE2; ++i){
+    for(size_t j = 0; j < SIZE2; ++j){
+      b(i, j, 0) = 0.0;
+      b(i, j, 1) = 0.0;
+    }
+  }
+
+  Kokkos::parallel_for (SIZE2, KOKKOS_LAMBDA (const int i) {
+    Kokkos::parallel_for (SIZE2, KOKKOS_LAMBDA (const int j) {
+      b(i, j, 0) += i * 100000.0 + j * 10000.0 + 0;
+      b(i, j, 1) += i * 100000.0 + j * 10000.0 + 1;
+    });
+  });
+
+  for(size_t i = 0; i < SIZE2; ++i){
+    for(size_t j = 0; j < SIZE2; ++j){
+      assert(b(i, j, 0) == i * 100000.0 + j * 10000.0 + 0);
+      assert(b(i, j, 1) == i * 100000.0 + j * 10000.0 + 1);
+    }
   }
 
   Kokkos::finalize ();
