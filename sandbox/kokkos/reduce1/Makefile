@@ -4,12 +4,10 @@ SRC = $(wildcard *.cpp)
 default: build
 	echo "Start Build"
 
-#CXX = /home/nickm/kitsune/build/llvm/bin/clang++ -std=c++14 -isystem /projects/opt/centos7/gcc/5.2.0/include/c++/5.2.0 -I/projects/opt/centos7/gcc/5.2.0/include/c++/5.2.0/x86_64-unknown-linux-gnu
-CXX = /home/nickm/kitsune/build/llvm/bin/kokkos-clang++ -std=c++14 -fkokkos
-CXX_NO_EXCEPT = /home/nickm/kitsune/build/llvm/bin/kokkos-clang++ -std=c++14 -fkokkos -fno-exceptions
+CXX = ../../../build/llvm/bin/kokkos-clang++ -std=c++14 -fkokkos -O2
+CXX_NO_EXCEPT = ../../../build/llvm/bin/kokkos-clang++ -std=c++14 -fkokkos -fno-exceptions -O2 -Wno-macro-redefined
 
 LINK = ${CXX}
-#LINKFLAGS = -L/home/nickm/kokkos-clang/build/runtime -L/usr/local/cuda/lib64 -L/projects/opt/centos7/gcc/5.2.0/packages/gcc-5.2.0/lib64 
 LINKFLAGS = 
 EXE = $(SRC:.cpp=.host)
 KOKKOS_DEVICES = "Pthread"
