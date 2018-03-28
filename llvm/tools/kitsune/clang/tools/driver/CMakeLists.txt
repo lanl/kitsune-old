@@ -62,8 +62,7 @@ if(NOT CLANG_LINKS_TO_CREATE)
   set(CLANG_LINKS_TO_CREATE clang++ clang-cl clang-cpp)
 
 # +===== Kitsune
-  set(CLANG_LINKS_TO_CREATE clang++ flecsi-clang++)
-  set(CLANG_LINKS_TO_CREATE clang++ kokkos-clang++)
+list(APPEND CLANG_LINKS_TO_CREATE flecsi-clang++ kokkos-clang++)
 # ==============
 
   if (MSVC)
