@@ -4,8 +4,8 @@ SRC = $(wildcard *.cpp)
 default: build
 	echo "Start Build"
 
-CXX = ../../../build/llvm/bin/kokkos-clang++ -std=c++14 -fkokkos -O2
-CXX_NO_EXCEPT = ../../../build/llvm/bin/kokkos-clang++ -std=c++14 -fkokkos -fno-exceptions -O2 -Wno-macro-redefined
+CXX = ../../../build/llvm/bin/kokkos-clang++ -std=c++11 -fkokkos -O2
+CXX_NO_EXCEPT = ../../../build/llvm/bin/kokkos-clang++ -std=c++11 -fkokkos -fno-exceptions -O2 -Wno-macro-redefined
 
 LINK = ${CXX}
 LINKFLAGS = 

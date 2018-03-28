@@ -4069,7 +4069,7 @@ RValue CodeGenFunction::EmitRValueForField(LValue LV,
 RValue CodeGenFunction::EmitCallExpr(const CallExpr *E,
                                      ReturnValueSlot ReturnValue) {
   // +===== Kitsune
-  if(getLangOpts().Kokkos && isMainStmt(E)){
+  if(getLangOpts().Kokkos/* && isMainStmt(E)*/){
     const FunctionDecl* f = E->getDirectCallee();
     if(f){
       std::string qn = f->getQualifiedNameAsString();

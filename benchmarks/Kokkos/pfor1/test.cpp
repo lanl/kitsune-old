@@ -48,18 +48,29 @@
 #include <iostream>
 #include <cassert>
 
-#define LOOP_COUNT 16
+#define LOOP_COUNT 64
+#define LOOP_NEST 1
 
 using namespace std;
 
-const size_t SIZE = 268435456;
+size_t uniform(size_t max){
+  return max * rand()/RAND_MAX;
+}
 
 int main (int argc, char* argv[]) {
   Kokkos::initialize (argc, argv);
 
-  typedef Kokkos::View<double*[2]> view_type;
+  srand(time(0));
 
+#ifdef LOOP_NEST
+  const size_t SIZE = 16384;
+  typedef Kokkos::View<double**[2]> view_type;
+  view_type a ("A", SIZE, SIZE);
+#else
+  const size_t SIZE = 536870912;
+  typedef Kokkos::View<double*[2]> view_type;
   view_type a ("A", SIZE);
+#endif
 
   #include "pfor_loop.h"
 
@@ -107,6 +118,119 @@ int main (int argc, char* argv[]) {
   #include "pfor_loop.h"
   #include "pfor_loop.h"
   #include "pfor_loop.h"
+  #endif
+
+  #if LOOP_COUNT > 32
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #endif
+
+  #if LOOP_COUNT > 64
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #include "pfor_loop.h"
+  #endif
+
+  #ifdef LOOP_NEST
+    size_t i = uniform(SIZE);
+    size_t j = uniform(SIZE);
+    cout << a(i, j, 0) << endl;
+    cout << a(i, j, 1) << endl;
+  #else
+    size_t i = uniform(SIZE);
+    cout << a(i, 0) << endl;
+    cout << a(i, 1) << endl;
   #endif
 
   Kokkos::finalize ();
