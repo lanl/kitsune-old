@@ -7,3 +7,6 @@
 [submodule "llvm/tools/polly"]
 	path = llvm/tools/polly
 	url = https://github.com/wsmoses/Tapir-Polly.git
+[submodule "llvm/projects/compiler-rt"]
+	path = llvm/projects/compiler-rt
+	url = https://github.com/wsmoses/Tapir-compiler-rt.git
