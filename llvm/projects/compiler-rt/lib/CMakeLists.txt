@@ -50,3 +50,8 @@ endif()
 if(COMPILER_RT_BUILD_LIBFUZZER)
   compiler_rt_build_runtime(fuzzer)
 endif()
+
+# +===== Kitsune
+# currently disabled while sorting out CUDA dependencies
+# compiler_rt_build_runtime(kitsune)
+# ==============

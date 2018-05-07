@@ -213,6 +213,10 @@ set(ALL_ESAN_SUPPORTED_ARCH ${X86_64} ${MIPS64})
 set(ALL_SCUDO_SUPPORTED_ARCH ${X86} ${X86_64} ${ARM32} ${ARM64} ${MIPS32} ${MIPS64})
 set(ALL_XRAY_SUPPORTED_ARCH ${X86_64} ${ARM32} ${ARM64} ${MIPS32} ${MIPS64} powerpc64le)
 
+# +===== Kitsune
+set(ALL_KITSUNE_SUPPORTED_ARCH ${X86_64})
+# ==============
+
 if(APPLE)
   include(CompilerRTDarwinUtils)
 
@@ -445,6 +449,10 @@ else()
   filter_available_targets(XRAY_SUPPORTED_ARCH ${ALL_XRAY_SUPPORTED_ARCH})
 endif()
 
+# +===== Kitsune
+filter_available_targets(KITSUNE_SUPPORTED_ARCH ${ALL_KITSUNE_SUPPORTED_ARCH})
+# ==============
+
 if (MSVC)
   # See if the DIA SDK is available and usable.
   set(MSVC_DIA_SDK_DIR "$ENV{VSINSTALLDIR}DIA SDK")
@@ -593,3 +601,7 @@ if (COMPILER_RT_HAS_SANITIZER_COMMON AND FUZZER_SUPPORTED_ARCH AND
 else()
   set(COMPILER_RT_HAS_FUZZER FALSE)
 endif()
+
+# +===== Kitsune
+  set(COMPILER_RT_HAS_KITSUNE TRUE)
+# ==============
