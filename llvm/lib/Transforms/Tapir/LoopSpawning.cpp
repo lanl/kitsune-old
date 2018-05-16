@@ -56,6 +56,16 @@
 #include "llvm/Transforms/Utils/ValueMapper.h"
 #include <utility>
 
+// +===== Kitsune
+
+#define np(X)                                                            \
+ std::cout << __FILE__ << ":" << __LINE__ << ": " << __PRETTY_FUNCTION__ \
+           << ": " << #X << " = " << (X) << std::endl
+
+#include <iostream>
+
+// ==============
+
 using std::make_pair;
 
 using namespace llvm;
@@ -509,6 +519,10 @@ private:
   void addTapirLoop(Loop *L, SmallVectorImpl<Loop *> &V);
   bool isTapirLoop(const Loop *L);
   bool processLoop(Loop *L);
+
+  // +===== Kitsune
+  void ProcessGPULoop(Loop* Loop);
+  // ==============
 
   Function &F;
   // function_ref<LoopInfo &(Function &)> GetLI;
@@ -2174,6 +2188,41 @@ bool LoopSpawningImpl::run() {
   return Changed;
 }
 
+// +===== Kitsune
+void LoopSpawningImpl::ProcessGPULoop(Loop* L){
+  PHINode* LoopNode = L->getCanonicalInductionVariable();
+  assert(LoopNode && "expected canonical loop");
+
+  ConstantInt* LoopStart = dyn_cast<ConstantInt>(LoopNode->getIncomingValue(0));
+  assert(LoopStart && "expected canonical loop start");
+
+  BasicBlock* ExitBlock = L->getUniqueExitBlock();
+  assert(ExitBlock && "expected canonical exit block");
+
+  BasicBlock* BranchBlock = ExitBlock->getSinglePredecessor();
+  assert(BranchBlock && "expected canonical branch block");
+
+  BranchInst* EndBranch = dyn_cast<BranchInst>(BranchBlock->getTerminator());
+  assert(EndBranch && "expected canonical end branch instruction");
+
+  Value* EndBranchCond = EndBranch->getCondition();
+  CmpInst* Cmp = dyn_cast<CmpInst>(EndBranchCond);
+  assert(Cmp && "expected canonical comparison instruction");
+  
+  assert(Cmp->getOperand(0) == LoopNode && "expected canonical comparison");
+
+  ConstantInt* LoopEnd = dyn_cast<ConstantInt>(Cmp->getOperand(1));
+  assert(LoopEnd && "expected canonical loop end");
+
+  /*
+  L->dump();
+  for(auto B : L->blocks()){
+    B->dump();
+  }
+  */
+}
+// ==============
+
 // Top-level routine to process a given loop.
 bool LoopSpawningImpl::processLoop(Loop *L) {
 #ifndef NDEBUG
@@ -2214,6 +2263,11 @@ bool LoopSpawningImpl::processLoop(Loop *L) {
     emitMissedWarning(F, L, Hints, &ORE);
     return false;
   }
+
+  // +===== Kitsune
+  //ProcessGPULoop(L);
+  //return true;
+  // ==============
 
   switch(Hints.getStrategy()) {
   case LoopSpawningHints::ST_SEQ:
