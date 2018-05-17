@@ -63,6 +63,7 @@
            << ": " << #X << " = " << (X) << std::endl
 
 #include <iostream>
+#include <set>
 
 // ==============
 
@@ -2190,8 +2191,26 @@ bool LoopSpawningImpl::run() {
 
 // +===== Kitsune
 void LoopSpawningImpl::ProcessGPULoop(Loop* L){
+  //  code generation is currently limited to a simple canonical loop structure
+  //  whereby we make the following assumptions and check assertions below
+  //  soon we will expand this extraction mechanism to handle more complex
+  //  loops
+
+  using TypeVec = std::vector<Type*>;
+
+  LLVMContext& C = L->getHeader()->getContext();
+
+  IRBuilder<> B(C);
+
+  Type* VoidTy = Type::getVoidTy(C);
+
+  //  and LLVM transformation is able in some cases to transform the loop to 
+  //  contain a phi node that exists at the entry block
+
   PHINode* LoopNode = L->getCanonicalInductionVariable();
   assert(LoopNode && "expected canonical loop");
+
+  //  only handle loops where the induction variable is initialized to a constant
 
   ConstantInt* LoopStart = dyn_cast<ConstantInt>(LoopNode->getIncomingValue(0));
   assert(LoopStart && "expected canonical loop start");
@@ -2199,20 +2218,118 @@ void LoopSpawningImpl::ProcessGPULoop(Loop* L){
   BasicBlock* ExitBlock = L->getUniqueExitBlock();
   assert(ExitBlock && "expected canonical exit block");
 
+  // and assume that a branch instruction exists here
+
   BasicBlock* BranchBlock = ExitBlock->getSinglePredecessor();
   assert(BranchBlock && "expected canonical branch block");
 
   BranchInst* EndBranch = dyn_cast<BranchInst>(BranchBlock->getTerminator());
   assert(EndBranch && "expected canonical end branch instruction");
 
+  //  get the branch condition in order to extract the end loop value
+  //  which we also currently assume is constant
+
   Value* EndBranchCond = EndBranch->getCondition();
   CmpInst* Cmp = dyn_cast<CmpInst>(EndBranchCond);
   assert(Cmp && "expected canonical comparison instruction");
-  
-  assert(Cmp->getOperand(0) == LoopNode && "expected canonical comparison");
 
   ConstantInt* LoopEnd = dyn_cast<ConstantInt>(Cmp->getOperand(1));
   assert(LoopEnd && "expected canonical loop end");
+
+  BasicBlock* EntryBlock = L->getBlocks()[0];
+
+  // assume a detach exists here  and this basic block contains the body
+  //  of the kernel function we will be generating
+
+  DetachInst* Detach = dyn_cast<DetachInst>(EntryBlock->getTerminator());
+  assert(Detach && "expected canonical loop entry detach");
+
+  BasicBlock* Body = Detach->getDetached();
+
+  // extract the externally defined variables
+  // these will be passed in as CUDA arrays
+
+  std::set<Value*> Values;
+  Values.insert(LoopNode);
+
+  std::set<Value*> ExtValues;
+
+  for(Instruction& I : *Body){
+    if(dyn_cast<ReattachInst>(&I)){
+      continue;
+    }
+
+    for(Use& U : I.operands()){
+      Value* V = U.get();
+
+      if(Values.find(V) == Values.end()){
+        ExtValues.insert(V);
+      }
+    }
+    
+    Values.insert(&I);
+  }
+
+  TypeVec ParamTypes;
+
+  for(Value* V : ExtValues){
+    ParamTypes.push_back(V->getType());
+  }
+
+  // create the GPU function
+
+  FunctionType* FuncTy = FunctionType::get(VoidTy, ParamTypes, false);
+
+  Module PTXModule("PTXModule", C);
+
+  llvm::Function* F = llvm::Function::Create(FuncTy,
+    llvm::Function::ExternalLinkage, "run", &PTXModule);
+
+  auto aitr = F->arg_begin();
+
+  std::map<Value*, Value*> M;
+
+  // set and parameter names and map values to be replaced
+
+  for(Value* V : ExtValues){
+    M[V] = aitr;
+    aitr->setName(V->getName());
+    ++aitr;
+  }
+
+  BasicBlock* BR = BasicBlock::Create(C, "entry", F);
+  BasicBlock::InstListType& IL = BR->getInstList();
+
+  // clone instructions of the body basic block,  remapping values as needed
+
+  for(const Instruction& I : *Body){
+    if(dyn_cast<ReattachInst>(&I)){
+      continue;
+    }
+
+    Instruction* IC = I.clone();
+
+    size_t i = 0;
+
+    for(Use& U : IC->operands()){
+      Value* V = U.get();
+
+      auto eitr = M.find(V);
+      if(eitr != M.end()){
+        IC->setOperand(i, eitr->second);
+      }
+
+      ++i;
+    }
+
+    IL.push_back(IC);
+  }
+
+  B.SetInsertPoint(BR);
+
+  B.CreateRetVoid();
+
+  PTXModule.dump();
 
   /*
   L->dump();
