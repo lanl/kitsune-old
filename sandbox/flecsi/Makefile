@@ -1,4 +1,4 @@
-CXX = ../../build/llvm/bin/kokkos-clang++ -std=c++14 -x flecsi
+CXX = ../../build/llvm/bin/flecsi-clang++ -std=c++14 -O2
 
 all:
-	$(CXX) test.cpp
+	$(CXX) test.fcc
