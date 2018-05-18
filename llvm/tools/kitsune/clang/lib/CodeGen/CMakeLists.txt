@@ -88,7 +88,8 @@ add_clang_library(clangCodeGen
   VarBypassDetector.cpp
 
   # +===== Kitsune
-    Kitsune/CGStmt.cpp
+  Kitsune/CGStmt.cpp
+  Kitsune/CGKitsuneRuntime.cpp
   # +=============
 
   DEPENDS

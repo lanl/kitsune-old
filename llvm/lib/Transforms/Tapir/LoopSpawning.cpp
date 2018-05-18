@@ -64,6 +64,7 @@
 
 #include <iostream>
 #include <set>
+#include <sstream>
 
 // ==============
 
@@ -2198,145 +2199,141 @@ void LoopSpawningImpl::ProcessGPULoop(Loop* L){
 
   using TypeVec = std::vector<Type*>;
 
-  LLVMContext& C = L->getHeader()->getContext();
+  LLVMContext& c = L->getHeader()->getContext();
 
-  IRBuilder<> B(C);
+  IRBuilder<> b(c);
 
-  Type* VoidTy = Type::getVoidTy(C);
+  Type* voidTy = Type::getVoidTy(c);
 
   //  and LLVM transformation is able in some cases to transform the loop to 
   //  contain a phi node that exists at the entry block
 
-  PHINode* LoopNode = L->getCanonicalInductionVariable();
-  assert(LoopNode && "expected canonical loop");
+  PHINode* loopNode = L->getCanonicalInductionVariable();
+  assert(loopNode && "expected canonical loop");
 
   //  only handle loops where the induction variable is initialized to a constant
 
-  ConstantInt* LoopStart = dyn_cast<ConstantInt>(LoopNode->getIncomingValue(0));
-  assert(LoopStart && "expected canonical loop start");
+  ConstantInt* loopStart = dyn_cast<ConstantInt>(loopNode->getIncomingValue(0));
+  assert(loopStart && "expected canonical loop start");
 
-  BasicBlock* ExitBlock = L->getUniqueExitBlock();
-  assert(ExitBlock && "expected canonical exit block");
+  BasicBlock* exitBlock = L->getUniqueExitBlock();
+  assert(exitBlock && "expected canonical exit block");
 
   // and assume that a branch instruction exists here
 
-  BasicBlock* BranchBlock = ExitBlock->getSinglePredecessor();
-  assert(BranchBlock && "expected canonical branch block");
+  BasicBlock* branchBlock = exitBlock->getSinglePredecessor();
+  assert(branchBlock && "expected canonical branch block");
 
-  BranchInst* EndBranch = dyn_cast<BranchInst>(BranchBlock->getTerminator());
-  assert(EndBranch && "expected canonical end branch instruction");
+  BranchInst* endBranch = dyn_cast<BranchInst>(branchBlock->getTerminator());
+  assert(endBranch && "expected canonical end branch instruction");
 
   //  get the branch condition in order to extract the end loop value
   //  which we also currently assume is constant
 
-  Value* EndBranchCond = EndBranch->getCondition();
-  CmpInst* Cmp = dyn_cast<CmpInst>(EndBranchCond);
-  assert(Cmp && "expected canonical comparison instruction");
+  Value* endBranchCond = endBranch->getCondition();
+  CmpInst* cmp = dyn_cast<CmpInst>(endBranchCond);
+  assert(cmp && "expected canonical comparison instruction");
 
-  ConstantInt* LoopEnd = dyn_cast<ConstantInt>(Cmp->getOperand(1));
-  assert(LoopEnd && "expected canonical loop end");
+  ConstantInt* loopEnd = dyn_cast<ConstantInt>(cmp->getOperand(1));
+  assert(loopEnd && "expected canonical loop end");
 
-  BasicBlock* EntryBlock = L->getBlocks()[0];
+  BasicBlock* entryBlock = L->getBlocks()[0];
 
   // assume a detach exists here  and this basic block contains the body
   //  of the kernel function we will be generating
 
-  DetachInst* Detach = dyn_cast<DetachInst>(EntryBlock->getTerminator());
-  assert(Detach && "expected canonical loop entry detach");
+  DetachInst* detach = dyn_cast<DetachInst>(entryBlock->getTerminator());
+  assert(detach && "expected canonical loop entry detach");
 
-  BasicBlock* Body = Detach->getDetached();
+  BasicBlock* Body = detach->getDetached();
 
   // extract the externally defined variables
   // these will be passed in as CUDA arrays
 
-  std::set<Value*> Values;
-  Values.insert(LoopNode);
+  std::set<Value*> values;
+  values.insert(loopNode);
 
-  std::set<Value*> ExtValues;
+  std::set<Value*> extValues;
 
-  for(Instruction& I : *Body){
-    if(dyn_cast<ReattachInst>(&I)){
+  for(Instruction& ii : *Body){
+    if(dyn_cast<ReattachInst>(&ii)){
       continue;
     }
 
-    for(Use& U : I.operands()){
-      Value* V = U.get();
+    for(Use& u : ii.operands()){
+      Value* v = u.get();
 
-      if(Values.find(V) == Values.end()){
-        ExtValues.insert(V);
+      if(values.find(v) == values.end()){
+        extValues.insert(v);
       }
     }
     
-    Values.insert(&I);
+    values.insert(&ii);
   }
 
-  TypeVec ParamTypes;
+  TypeVec paramTypes;
 
-  for(Value* V : ExtValues){
-    ParamTypes.push_back(V->getType());
+  for(Value* v : extValues){
+    paramTypes.push_back(v->getType());
   }
 
   // create the GPU function
 
-  FunctionType* FuncTy = FunctionType::get(VoidTy, ParamTypes, false);
+  FunctionType* funcTy = FunctionType::get(voidTy, paramTypes, false);
 
-  Module PTXModule("PTXModule", C);
+  Module PTXModule("PTXModule", c);
 
-  llvm::Function* F = llvm::Function::Create(FuncTy,
+  llvm::Function* f = llvm::Function::Create(funcTy,
     llvm::Function::ExternalLinkage, "run", &PTXModule);
 
-  auto aitr = F->arg_begin();
+  auto aitr = f->arg_begin();
 
-  std::map<Value*, Value*> M;
+  std::map<Value*, Value*> m;
 
   // set and parameter names and map values to be replaced
 
-  for(Value* V : ExtValues){
-    M[V] = aitr;
-    aitr->setName(V->getName());
+  size_t i = 0;
+
+  for(Value* v : extValues){
+    std::stringstream sstr;
+    sstr << "arg" << i;
+
+    m[v] = aitr;
+    aitr->setName(sstr.str());
     ++aitr;
+    ++i;
   }
 
-  BasicBlock* BR = BasicBlock::Create(C, "entry", F);
-  BasicBlock::InstListType& IL = BR->getInstList();
+  BasicBlock* br = BasicBlock::Create(c, "entry", f);
+  BasicBlock::InstListType& il = br->getInstList();
 
   // clone instructions of the body basic block,  remapping values as needed
 
-  for(const Instruction& I : *Body){
-    if(dyn_cast<ReattachInst>(&I)){
+  for(Instruction& ii : *Body){
+    if(dyn_cast<ReattachInst>(&ii)){
       continue;
     }
 
-    Instruction* IC = I.clone();
+    Instruction* ic = ii.clone();
 
-    size_t i = 0;
-
-    for(Use& U : IC->operands()){
-      Value* V = U.get();
-
-      auto eitr = M.find(V);
-      if(eitr != M.end()){
-        IC->setOperand(i, eitr->second);
-      }
-
-      ++i;
+    for(auto& itr : m){
+      ic->replaceUsesOfWith(itr.first, itr.second);
     }
 
-    IL.push_back(IC);
+    il.push_back(ic);
+    m[&ii] = ic;
   }
 
-  B.SetInsertPoint(BR);
+  b.SetInsertPoint(br);
 
-  B.CreateRetVoid();
+  b.CreateRetVoid();
 
   PTXModule.dump();
 
-  /*
-  L->dump();
-  for(auto B : L->blocks()){
-    B->dump();
-  }
-  */
+  // L->dump();
+  // for(auto B : L->blocks()){
+  //   B->dump();
+  // }
 }
 // ==============
 
