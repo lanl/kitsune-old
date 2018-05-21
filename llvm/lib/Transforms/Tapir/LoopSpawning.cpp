@@ -116,6 +116,7 @@ public:
   enum SpawningStrategy {
     ST_SEQ,
     ST_DAC,
+    ST_GPU,
     ST_END,
   };
 
@@ -157,6 +158,8 @@ public:
       return "Spawn iterations sequentially";
     case LoopSpawningHints::ST_DAC:
       return "Use divide-and-conquer";
+    case LoopSpawningHints::ST_GPU:
+      return "Use GPU";
     case LoopSpawningHints::ST_END:
     default:
       return "Unknown";
@@ -329,6 +332,13 @@ static void emitMissedWarning(Function *F, Loop *L,
                   L->getStartLoc(), L->getHeader())
               << "Tapir loop not transformed: "
               << "failed to use divide-and-conquer loop spawning");
+    break;
+  case LoopSpawningHints::ST_GPU:
+    ORE->emit(DiagnosticInfoOptimizationFailure(
+                  DEBUG_TYPE, "FailedRequestedSpawning",
+                  L->getStartLoc(), L->getHeader())
+              << "Tapir loop not transformed: "
+              << "failed to use GPU loop spawning");
     break;
   case LoopSpawningHints::ST_SEQ:
     ORE->emit(DiagnosticInfoOptimizationFailure(
@@ -2387,6 +2397,10 @@ bool LoopSpawningImpl::processLoop(Loop *L) {
   case LoopSpawningHints::ST_SEQ:
     DEBUG(dbgs() << "LS: Hints dictate sequential spawning.\n");
     break;
+  case LoopSpawningHints::ST_GPU:
+    DEBUG(dbgs() << "LS: Hints dictate GPU spawning.\n");
+    ProcessGPULoop(L);
+    break; 
   case LoopSpawningHints::ST_DAC:
     DEBUG(dbgs() << "LS: Hints dictate DAC spawning.\n");
     {
