@@ -2390,7 +2390,7 @@ StmtResult Sema::ActOnOpenMPExecutableDirective(
   llvm::DenseMap<ValueDecl *, Expr *> VarsWithInheritedDSA;
   bool ErrorFound = false;
   ClausesWithImplicit.append(Clauses.begin(), Clauses.end());
-  if (AStmt && Kind != OMPD_task && Kind != OMPD_parallel_for) {
+  if (AStmt && Kind != OMPD_task && Kind != OMPD_parallel_for && Kind != OMPD_target_parallel_for) {
     assert(isa<CapturedStmt>(AStmt) && "Captured statement expected");
 
     // Check default data sharing attributes for referenced variables.
@@ -4912,9 +4912,6 @@ StmtResult Sema::ActOnOpenMPParallelForDirective(
   if (!AStmt)
     return StmtError();
 
-  if (!AStmt)
-    return StmtError();
-
   //auto *CS = cast<CapturedStmt>(AStmt);
   // 1.2.2 OpenMP Language Terminology
   // Structured block - An executable statement with a single entry at the
@@ -5932,13 +5929,13 @@ StmtResult Sema::ActOnOpenMPTargetParallelForDirective(
   if (!AStmt)
     return StmtError();
 
-  CapturedStmt *CS = cast<CapturedStmt>(AStmt);
+  //CapturedStmt *CS = cast<CapturedStmt>(AStmt);
   // 1.2.2 OpenMP Language Terminology
   // Structured block - An executable statement with a single entry at the
   // top and a single exit at the bottom.
   // The point of exit cannot be a branch out of the structured block.
   // longjmp() and throw() must not violate the entry/exit criteria.
-  CS->getCapturedDecl()->setNothrow();
+  //CS->getCapturedDecl()->setNothrow();
 
   OMPLoopDirective::HelperExprs B;
   // In presence of clause 'collapse' or 'ordered' with number of loops, it will
