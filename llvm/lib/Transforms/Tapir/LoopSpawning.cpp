@@ -1483,6 +1483,151 @@ bool LoopSpawningImpl::processLoop(Loop *L) {
   return false;
 }
 
+void LoopSpawningImpl::ProcessGPULoop(Loop* L){
+  //  code generation is currently limited to a simple canonical loop structure
+  //  whereby we make the following assumptions and check assertions below
+  //  soon we will expand this extraction mechanism to handle more complex
+  //  loops
+
+  using TypeVec = std::vector<Type*>;
+
+  LLVMContext& c = L->getHeader()->getContext();
+
+  IRBuilder<> b(c);
+
+  Type* voidTy = Type::getVoidTy(c);
+
+  //  and LLVM transformation is able in some cases to transform the loop to 
+  //  contain a phi node that exists at the entry block
+
+  PHINode* loopNode = L->getCanonicalInductionVariable();
+  assert(loopNode && "expected canonical loop");
+
+  //  only handle loops where the induction variable is initialized to a constant
+
+  ConstantInt* loopStart = dyn_cast<ConstantInt>(loopNode->getIncomingValue(0));
+  assert(loopStart && "expected canonical loop start");
+
+  BasicBlock* exitBlock = L->getUniqueExitBlock();
+  assert(exitBlock && "expected canonical exit block");
+
+  // and assume that a branch instruction exists here
+
+  BasicBlock* branchBlock = exitBlock->getSinglePredecessor();
+  assert(branchBlock && "expected canonical branch block");
+
+  BranchInst* endBranch = dyn_cast<BranchInst>(branchBlock->getTerminator());
+  assert(endBranch && "expected canonical end branch instruction");
+
+  //  get the branch condition in order to extract the end loop value
+  //  which we also currently assume is constant
+
+  Value* endBranchCond = endBranch->getCondition();
+  CmpInst* cmp = dyn_cast<CmpInst>(endBranchCond);
+  assert(cmp && "expected canonical comparison instruction");
+
+  ConstantInt* loopEnd = dyn_cast<ConstantInt>(cmp->getOperand(1));
+  assert(loopEnd && "expected canonical loop end");
+
+  BasicBlock* entryBlock = L->getBlocks()[0];
+
+  // assume a detach exists here  and this basic block contains the body
+  //  of the kernel function we will be generating
+
+  DetachInst* detach = dyn_cast<DetachInst>(entryBlock->getTerminator());
+  assert(detach && "expected canonical loop entry detach");
+
+  BasicBlock* Body = detach->getDetached();
+
+  // extract the externally defined variables
+  // these will be passed in as CUDA arrays
+
+  std::set<Value*> values;
+  values.insert(loopNode);
+
+  std::set<Value*> extValues;
+
+  for(Instruction& ii : *Body){
+    if(dyn_cast<ReattachInst>(&ii)){
+      continue;
+    }
+
+    for(Use& u : ii.operands()){
+      Value* v = u.get();
+
+      if(values.find(v) == values.end()){
+        extValues.insert(v);
+      }
+    }
+    
+    values.insert(&ii);
+  }
+
+  TypeVec paramTypes;
+
+  for(Value* v : extValues){
+    paramTypes.push_back(v->getType());
+  }
+
+  // create the GPU function
+
+  FunctionType* funcTy = FunctionType::get(voidTy, paramTypes, false);
+
+  Module PTXModule("PTXModule", c);
+
+  llvm::Function* f = llvm::Function::Create(funcTy,
+    llvm::Function::ExternalLinkage, "run", &PTXModule);
+
+  auto aitr = f->arg_begin();
+
+  std::map<Value*, Value*> m;
+
+  // set and parameter names and map values to be replaced
+
+  size_t i = 0;
+
+  for(Value* v : extValues){
+    std::stringstream sstr;
+    sstr << "arg" << i;
+
+    m[v] = aitr;
+    aitr->setName(sstr.str());
+    ++aitr;
+    ++i;
+  }
+
+  BasicBlock* br = BasicBlock::Create(c, "entry", f);
+  BasicBlock::InstListType& il = br->getInstList();
+
+  // clone instructions of the body basic block,  remapping values as needed
+
+  for(Instruction& ii : *Body){
+    if(dyn_cast<ReattachInst>(&ii)){
+      continue;
+    }
+
+    Instruction* ic = ii.clone();
+
+    for(auto& itr : m){
+      ic->replaceUsesOfWith(itr.first, itr.second);
+    }
+
+    il.push_back(ic);
+    m[&ii] = ic;
+  }
+
+  b.SetInsertPoint(br);
+
+  b.CreateRetVoid();
+
+  PTXModule.dump();
+
+  // L->dump();
+  // for(auto B : L->blocks()){
+  //   B->dump();
+  // }
+}
+
 // PreservedAnalyses LoopSpawningPass::run(Module &M, ModuleAnalysisManager &AM) {
 //   // Find functions that detach for processing.
 //   SmallVector<Function *, 4> WorkList;
