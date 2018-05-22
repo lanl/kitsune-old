@@ -60,6 +60,7 @@ public:
   enum SpawningStrategy {
     ST_SEQ,
     ST_DAC,
+    ST_GPU,
     ST_END,
   };
 
@@ -93,6 +94,8 @@ public:
       return "Spawn iterations sequentially";
     case LoopSpawningHints::ST_DAC:
       return "Use divide-and-conquer";
+    case LoopSpawningHints::ST_GPU:
+      return "Use gpu";
     case LoopSpawningHints::ST_END:
     default:
       return "Unknown";
