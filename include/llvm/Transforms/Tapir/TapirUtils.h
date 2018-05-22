@@ -17,44 +17,63 @@
 
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Analysis/AliasSetTracker.h"
 #include "llvm/Analysis/AssumptionCache.h"
+#include "llvm/Analysis/LoopInfo.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/Transforms/Tapir/TapirTypes.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
 
 namespace llvm {
-namespace tapir {
 
 bool verifyDetachedCFG(const DetachInst &Detach, DominatorTree &DT,
                        bool error = true);
 
 bool populateDetachedCFG(const DetachInst &Detach, DominatorTree &DT,
                          SmallPtrSetImpl<BasicBlock *> &functionPieces,
-                         SmallVectorImpl<BasicBlock *> &reattachB,
+                         SmallVectorImpl<ReattachInst*> &reattachB,
                          SmallPtrSetImpl<BasicBlock *> &ExitBlocks,
-                         int replaceOrDelete, bool error = true);
+                         bool error = true);
+
+bool populateDetachedCFG(BasicBlock* startSearch, const DetachInst& Detach,
+                         DominatorTree &DT,
+                         SmallPtrSetImpl<BasicBlock *> &functionPieces,
+                         SmallVectorImpl<ReattachInst*> &reattachB,
+                         SmallPtrSetImpl<BasicBlock *> &ExitBlocks,
+                         bool error = true);
 
 Function *extractDetachBodyToFunction(DetachInst &Detach,
-                                     DominatorTree &DT, AssumptionCache &AC,
-                                     CallInst **call = nullptr);
+                                      DominatorTree &DT, AssumptionCache &AC,
+                                      CallInst **call = nullptr);
 
 class TapirTarget {
-
 public:
   //! For use in loopspawning grainsize calculation
   virtual Value *GetOrCreateWorker8(Function &F) = 0;
-  virtual void createSync(SyncInst &inst, ValueToValueMapTy &DetachCtxToStackFrame) = 0;
-
+  virtual void createSync(SyncInst &inst,
+                          ValueToValueMapTy &DetachCtxToStackFrame) = 0;
   virtual Function *createDetach(DetachInst &Detach,
-                         ValueToValueMapTy &DetachCtxToStackFrame,
-                         DominatorTree &DT, AssumptionCache &AC) = 0;
+                                 ValueToValueMapTy &DetachCtxToStackFrame,
+                                 DominatorTree &DT, AssumptionCache &AC) = 0;
+  virtual bool shouldProcessFunction(const Function &F);
   virtual void preProcessFunction(Function &F) = 0;
   virtual void postProcessFunction(Function &F) = 0;
   virtual void postProcessHelper(Function &F) = 0;
+  virtual bool processMain(Function &F) = 0;
 };
 
-} // ns: tapir
-} // ns: llvm
+TapirTarget *getTapirTargetFromType(TapirTargetType Type);
+
+bool doesDetachedInstructionAlias(AliasSetTracker &CurAST, const Instruction& I, bool FoundMod, bool FoundRef);
+// Any reads/writes done in must be done in CurAST
+// cannot have any writes/reads, in detached region, respectively
+bool doesDetachedRegionAlias(AliasSetTracker &CurAST, const SmallPtrSetImpl<BasicBlock*>& functionPieces);
+void moveDetachInstBefore(Instruction* moveBefore, DetachInst& det,
+                          const SmallVectorImpl<ReattachInst*>& reattaches,
+                          DominatorTree* DT, Value* newSyncRegion=nullptr);
+bool attemptSyncRegionElimination(Instruction *SyncRegion);
+bool isConstantMemoryFreeOperation(Instruction* inst, bool allowsyncregion=false);
+}  // end namepsace llvm
 
 #endif

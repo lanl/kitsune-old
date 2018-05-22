@@ -79,7 +79,6 @@
 #include <vector>
 
 using namespace llvm;
-using namespace llvm::tapir;
 using namespace PatternMatch;
 
 #define DEBUG_TYPE "simplifycfg"
@@ -1257,6 +1256,13 @@ static bool HoistThenElseCodeToIf(BranchInst *BI,
     // broken BB), instead clone it, and remove BI.
     if (isa<TerminatorInst>(I1))
       goto HoistTerminator;
+
+    // Disallow hoisting of setjmp.  Although hoisting the setjmp technically
+    // produces valid IR, it seems hard to generate appropariate machine code
+    // from this IR, e.g., for X86.
+    if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(I1))
+      if (Intrinsic::eh_sjlj_setjmp == II->getIntrinsicID())
+        return Changed;
 
     if (!TTI.isProfitableToHoist(I1) || !TTI.isProfitableToHoist(I2))
       return Changed;
@@ -5920,6 +5926,31 @@ static bool removeUndefIntroducingPredecessor(BasicBlock *BB) {
   return false;
 }
 
+/// Push up reattaches when possible
+static bool pushUpReattaches(BasicBlock *BB) {
+  Instruction *I = BB->getTerminator();
+  if (BB->getSinglePredecessor() == nullptr && isa<ReattachInst>(I) && BB->size() == 1) {
+    auto reattach = dyn_cast<ReattachInst>(I);
+    for(auto p : predecessors(BB)) {
+      auto term = p->getTerminator();
+      auto cnt = term->getNumSuccessors();
+      if (cnt == 1 && isa<BranchInst>(term)) {
+        auto toReplace = reattach->clone();
+        ReplaceInstWithInst(term, toReplace);
+      } else {
+        auto *NewBB = BasicBlock::Create(BB->getContext(), BB->getName(), BB->getParent());
+        auto toReplace = reattach->clone();
+        NewBB->getInstList().push_back(toReplace);
+        for(unsigned idx = 0; idx < cnt; idx++) {
+          if (term->getSuccessor(idx) == BB) {
+            term->setSuccessor(idx, NewBB);
+          }
+        }
+      }
+    }
+  }
+}
+
 /// If BB immediately syncs and BB's predecessor detaches, serialize
 /// the sync and detach.  This will allow normal serial
 /// optimization passes to remove the blocks appropriately.  Return
@@ -6085,6 +6116,9 @@ bool SimplifyCFGOpt::run(BasicBlock *BB) {
 
   // Check for and remove sync instructions in empty sync regions.
   Changed |= removeEmptySyncs(BB);
+
+  // Move reattaches to first point possible
+  Changed |= pushUpReattaches(BB);
 
   // Merge basic blocks into their predecessor if there is only one distinct
   // pred, and if there is only one distinct successor of the predecessor, and
