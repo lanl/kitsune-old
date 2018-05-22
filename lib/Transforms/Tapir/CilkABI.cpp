@@ -18,7 +18,6 @@
 #include "llvm/Analysis/ScalarEvolutionExpander.h"
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/Verifier.h"
-#include "llvm/ADT/Triple.h"
 #include "llvm/Transforms/Tapir/Outline.h"
 #include "llvm/Transforms/Utils/EscapeEnumerator.h"
 #include "llvm/Transforms/Utils/Local.h"
@@ -359,7 +358,6 @@ static void EmitSaveFloatingPointState(IRBuilder<> &B, Value *SF) {
   FunctionType *FTy =
     TypeBuilder<AsmPrototype, false>::get(B.getContext());
 
-
   Value *Asm = InlineAsm::get(FTy,
                               "stmxcsr $0\n\t" "fnstcw $1",
                               "*m,*m,~{dirflag},~{fpsr},~{flags}",
@@ -409,9 +407,7 @@ static CallInst *EmitCilkSetJmp(IRBuilder<> &B, Value *SF, Module& M) {
   LLVMContext &Ctx = M.getContext();
 
   // We always want to save the floating point state too
-  Triple T(M.getTargetTriple()); 
-  if(T.getArch() == Triple::x86 || T.getArch() == Triple::x86_64) 
-    EmitSaveFloatingPointState(B, SF);
+  EmitSaveFloatingPointState(B, SF);
 
   Type *Int32Ty = Type::getInt32Ty(Ctx);
   Type *Int8PtrTy = Type::getInt8PtrTy(Ctx);

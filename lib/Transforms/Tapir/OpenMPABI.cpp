@@ -14,7 +14,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <iostream>
 #include "llvm/Transforms/Tapir/OpenMPABI.h"
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/Verifier.h"
