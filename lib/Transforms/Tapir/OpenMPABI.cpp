@@ -184,7 +184,7 @@ Constant *createRuntimeFunction(OpenMPRuntimeFunction Function,
     RTLFn = M->getOrInsertFunction("__kmpc_barrier", FnTy);
     break;
   }
-	case OMPRTL__kmpc_global_num_threads: {
+  case OMPRTL__kmpc_global_num_threads: {
     Type *TypeParams[] = {IdentTyPtrTy};
     FunctionType *FnTy =
         FunctionType::get(Int32Ty, TypeParams, /*isVarArg=*/false);
