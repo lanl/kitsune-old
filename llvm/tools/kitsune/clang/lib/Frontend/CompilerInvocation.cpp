@@ -2719,7 +2719,7 @@ bool CompilerInvocation::CreateFromArgs(CompilerInvocation &Res,
   }
 
   if (LangOpts.FleCSI) {
-    LangOpts.Tapir = llvm::tapir::TapirTargetType::Cilk;    
+    LangOpts.Tapir = llvm::TapirTargetType::Cilk;    
   }
 
   LangOpts.Kokkos = Args.hasArg(OPT_fkokkos);
