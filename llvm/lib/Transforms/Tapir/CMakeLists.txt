@@ -13,6 +13,10 @@ add_llvm_library(LLVMTapirOpts
   TapirUtils.cpp
   NestedDetachMotion.cpp
 
+# +===== Kitsune
+  PTXABI.cpp
+# =============
+
   ADDITIONAL_HEADER_DIRS
   ${LLVM_MAIN_INCLUDE_DIR}/llvm/Transforms
   ${LLVM_MAIN_INCLUDE_DIR}/llvm/Transforms/Tapir
