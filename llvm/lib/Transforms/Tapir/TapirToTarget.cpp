@@ -32,7 +32,12 @@ static cl::opt<TapirTargetType> ClTapirTarget(
                clEnumValN(TapirTargetType::Cilk,
                           "cilk", "Cilk Plus"),
                clEnumValN(TapirTargetType::OpenMP,
-                          "openmp", "OpenMP")));
+                          "openmp", "OpenMP"),
+               // +===== Kitsune
+               clEnumValN(TapirTargetType::PTX,
+                          "ptx", "PTX")
+               // ==============
+               ));
 
 namespace {
 

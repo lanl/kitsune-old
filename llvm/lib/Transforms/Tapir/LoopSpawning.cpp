@@ -85,7 +85,12 @@ static cl::opt<TapirTargetType> ClTapirTarget(
                clEnumValN(TapirTargetType::Cilk,
                           "cilk", "Cilk Plus"),
                clEnumValN(TapirTargetType::OpenMP,
-                          "openmp", "OpenMP")));
+                          "openmp", "OpenMP"),
+               // +===== Kitsune
+               clEnumValN(TapirTargetType::PTX,
+                          "ptx", "PTX")
+               // ==============
+               ));
 
 namespace {
 // /// \brief This modifies LoopAccessReport to initialize message with
@@ -1435,8 +1440,8 @@ bool LoopSpawningImpl::processLoop(Loop *L) {
   }
 
   // +===== Kitsune
-  //ProcessGPULoop(L);
-  //return true;
+  // ProcessGPULoop(L);
+  // return true;
   // ==============
 
   switch(Hints.getStrategy()) {
@@ -1446,7 +1451,7 @@ bool LoopSpawningImpl::processLoop(Loop *L) {
   case LoopSpawningHints::ST_GPU:
     DEBUG(dbgs() << "LS: Hints dictate GPU spawning.\n");
     ProcessGPULoop(L);
-    break; 
+    return true;
   case LoopSpawningHints::ST_DAC:
     DEBUG(dbgs() << "LS: Hints dictate DAC spawning.\n");
     {

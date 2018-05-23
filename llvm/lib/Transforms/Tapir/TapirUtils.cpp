@@ -19,6 +19,10 @@
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
 
+// +===== Kitsune
+#include "llvm/Transforms/Tapir/PTXABI.h"
+// +=============
+
 using namespace llvm;
 
 #define DEBUG_TYPE "tapir"
@@ -29,6 +33,9 @@ TapirTarget *llvm::getTapirTargetFromType(TapirTargetType Type) {
     return new CilkABI();
   case TapirTargetType::OpenMP:
     return new OpenMPABI();
+  // +===== Kitsune
+    return new PTXABI();
+  // +=============
   case TapirTargetType::None:
   case TapirTargetType::Serial:
   default:
