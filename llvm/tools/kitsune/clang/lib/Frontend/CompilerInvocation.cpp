@@ -2718,7 +2718,12 @@ bool CompilerInvocation::CreateFromArgs(CompilerInvocation &Res,
     //Res.getPreprocessorOpts().Includes.push_back("flecsi/flecsi.h");
   }
 
-  if (LangOpts.FleCSI) {
+  LangOpts.GPU = Args.hasArg(OPT_fgpu);
+
+  if (LangOpts.GPU) {
+    LangOpts.Tapir = llvm::TapirTargetType::PTX;    
+  }
+  else if (LangOpts.FleCSI) {
     LangOpts.Tapir = llvm::TapirTargetType::Cilk;    
   }
 

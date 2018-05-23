@@ -58,6 +58,18 @@
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
 
+// +===== Kitsune
+
+#define np(X)                                                            \
+ std::cout << __FILE__ << ":" << __LINE__ << ": " << __PRETTY_FUNCTION__ \
+           << ": " << #X << " = " << (X) << std::endl
+
+#include <iostream>
+#include <set>
+#include <sstream>
+
+// ==============
+
 using namespace llvm;
 
 //##############################################################################
@@ -78,12 +90,16 @@ Function *PTXABI::createDetach(DetachInst &detach,
 
 }
 
-void PTXABI::preProcessFunction(Function &F) {}
+void PTXABI::preProcessFunction(Function &F) {
+  np(59);
+}
 
 void PTXABI::postProcessFunction(Function &F) {
+
 }
 
 void PTXABI::postProcessHelper(Function &F) {
+
 }
 
 bool PTXABI::processMain(Function &F) {

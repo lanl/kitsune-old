@@ -2293,6 +2293,7 @@ def working_directory_EQ : Joined<["-"], "working-directory=">, Flags<[CC1Option
 
 // +===== Kitsune
 def fkokkos : Flag<["-"], "fkokkos">, Group<f_Group>, Flags<[CC1Option]>, HelpText<"Enable Kitsune Kokkos code generation">;
+def fgpu : Flag<["-"], "fgpu">, Group<f_Group>, Flags<[CC1Option]>, HelpText<"Enable Kitsune GPU code generation">;
 // ==============
 
 // Double dash options, which are usually an alias for one of the previous

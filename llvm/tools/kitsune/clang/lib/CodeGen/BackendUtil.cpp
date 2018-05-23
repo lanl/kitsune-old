@@ -63,6 +63,7 @@
 #include "llvm/Transforms/Tapir/TapirUtils.h"
 #include "llvm/Transforms/Tapir/CilkABI.h"
 #include "llvm/Transforms/Tapir/OpenMPABI.h"
+#include "llvm/Transforms/Tapir/PTXABI.h"
 // ==============
 
 using namespace clang;
@@ -504,6 +505,9 @@ void EmitAssemblyHelper::CreatePasses(legacy::PassManager &MPM,
         break;
       case TapirTargetType::OpenMP:
         PMBuilder.tapirTarget = new llvm::OpenMPABI();
+        break;
+      case TapirTargetType::PTX:
+        PMBuilder.tapirTarget = new llvm::PTXABI();
         break;
       case TapirTargetType::Serial:
         assert(0 && "TODO MAKE OTHER TAPIR OPTS");
