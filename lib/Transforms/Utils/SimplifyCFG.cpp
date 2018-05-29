@@ -5929,7 +5929,9 @@ static bool removeUndefIntroducingPredecessor(BasicBlock *BB) {
 /// Push up reattaches when possible
 static bool pushUpReattaches(BasicBlock *BB) {
   Instruction *I = BB->getTerminator();
-  if (BB->getSinglePredecessor() == nullptr && isa<ReattachInst>(I) && BB->size() == 1) {
+  if (BB->getSinglePredecessor() == nullptr && 
+      isa<ReattachInst>(I) && 
+      BB->size() == 1) {
     auto reattach = dyn_cast<ReattachInst>(I);
     for(auto p : predecessors(BB)) {
       auto term = p->getTerminator();
@@ -5948,7 +5950,9 @@ static bool pushUpReattaches(BasicBlock *BB) {
         }
       }
     }
+    return true; 
   }
+  return false; 
 }
 
 /// If BB immediately syncs and BB's predecessor detaches, serialize
