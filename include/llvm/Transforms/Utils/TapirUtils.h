@@ -94,8 +94,7 @@ public:
     case LoopSpawningHints::ST_DAC:
       return "Use divide-and-conquer";
     case LoopSpawningHints::ST_END:
-    default:
-      return "Unknown";
+      return "ST_END"; 
     }
   }
 
