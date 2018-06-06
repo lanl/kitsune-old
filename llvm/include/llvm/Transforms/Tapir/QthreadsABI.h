@@ -1,4 +1,4 @@
-//===- OpenMPABI.h - Interface to the OpenMP runtime ----*- C++ -*--===//
+//===- QthreadsABI.h - Interface to the Qthreads runtime ----*- C++ -*--===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -11,8 +11,8 @@
 // exposed by the Utils library.
 //
 //===----------------------------------------------------------------------===//
-#ifndef OMP_ABI_H_
-#define OMP_ABI_H_
+#ifndef QTHREADS_ABI_H_
+#define QTHREADS_ABI_H_
 
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/ADT/SmallPtrSet.h"
@@ -35,42 +35,27 @@
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
+#include "llvm/Transforms/Tapir/LoopSpawning.h"
 #include "llvm/Transforms/Tapir/TapirUtils.h"
 #include <deque>
 
 namespace llvm {
 
-enum OpenMPRuntimeFunction {
-  OMPRTL__kmpc_fork_call,
-  OMPRTL__kmpc_for_static_init_4,
-  OMPRTL__kmpc_for_static_fini,
-  OMPRTL__kmpc_master,
-  OMPRTL__kmpc_end_master,
-  OMPRTL__kmpc_omp_task_alloc,
-  OMPRTL__kmpc_omp_task,
-  OMPRTL__kmpc_omp_taskwait,
-  OMPRTL__kmpc_global_thread_num,
-  OMPRTL__kmpc_barrier,
-  OMPRTL__kmpc_global_num_threads,
-};
-
-enum OpenMPSchedType {
-  OMP_sch_static = 34,
-};
-
-class OpenMPABI : public TapirTarget {
+class QthreadsABI : public TapirTarget {
 public:
-OpenMPABI();
-Value *GetOrCreateWorker8(Function &F) override final;
-void createSync(SyncInst &inst, ValueToValueMapTy &DetachCtxToStackFrame) override final;
+  QthreadsABI();
+  virtual ~QthreadsABI(); 
+  Value *GetOrCreateWorker8(Function &F) override final;
+  void createSync(SyncInst &inst, ValueToValueMapTy &DetachCtxToStackFrame)
+    override final;
 
-Function *createDetach(DetachInst &Detach,
-                       ValueToValueMapTy &DetachCtxToStackFrame,
-                       DominatorTree &DT, AssumptionCache &AC) override final;
-void preProcessFunction(Function &F) override final;
-void postProcessFunction(Function &F) override final;
-void postProcessHelper(Function &F) override final;
-bool processMain(Function &F) override final;
+  Function *createDetach(DetachInst &Detach,
+                         ValueToValueMapTy &DetachCtxToStackFrame,
+                         DominatorTree &DT, AssumptionCache &AC) override final;
+  void preProcessFunction(Function &F) override final;
+  void postProcessFunction(Function &F) override final;
+  void postProcessHelper(Function &F) override final;
+  bool processMain(Function &F) override final;
 };
 
 }  // end of llvm namespace
