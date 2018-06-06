@@ -87,7 +87,7 @@ static cl::opt<TapirTargetType> ClTapirTarget(
                clEnumValN(TapirTargetType::OpenMP,
                           "openmp", "OpenMP"),
                clEnumValN(TapirTargetType::Qthreads,
-                          "qthreads", "Qthreads")
+                          "qthreads", "Qthreads"),
                // +===== Kitsune
                clEnumValN(TapirTargetType::PTX,
                           "ptx", "PTX"))); 
