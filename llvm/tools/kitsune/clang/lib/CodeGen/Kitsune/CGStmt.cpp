@@ -144,7 +144,13 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &FS,
   llvm::BasicBlock *CondBlock = Continue.getBlock();
   EmitBlock(CondBlock);
 
-  LoopStack.setSpawnStrategy(LoopAttributes::DAC);
+  if (getLangOpts().GPU ){
+    LoopStack.setSpawnStrategy(LoopAttributes::GPU);
+  }
+  else{
+    LoopStack.setSpawnStrategy(LoopAttributes::DAC);
+  }
+
   const SourceRange &R = S.getSourceRange();
   LoopStack.push(CondBlock, CGM.getContext(), ForAttrs,
                  SourceLocToDebugLoc(R.getBegin()),

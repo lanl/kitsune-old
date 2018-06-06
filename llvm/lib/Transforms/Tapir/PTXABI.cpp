@@ -87,23 +87,44 @@ void PTXABI::createSync(SyncInst &SI, ValueToValueMapTy &DetachCtxToStackFrame) 
 Function *PTXABI::createDetach(DetachInst &detach,
                                ValueToValueMapTy &DetachCtxToStackFrame,
                                DominatorTree &DT, AssumptionCache &AC) {
+  BasicBlock *detB = detach.getParent();
+  // unused -- Function &F = *(detB->getParent());
 
+  BasicBlock *Spawned  = detach.getDetached();
+  BasicBlock *Continue = detach.getContinue();
+
+  // unused -- Module *M = F.getParent();
+
+  CallInst *cal = nullptr;
+  Function *extracted = extractDetachBodyToFunction(detach, DT, AC, &cal);
+  //extracted = formatFunctionToTask(extracted, cal);
+
+  // Replace the detach with a branch to the continuation.
+  BranchInst *ContinueBr = BranchInst::Create(Continue);
+  ReplaceInstWithInst(&detach, ContinueBr);
+
+  // Rewrite phis in the detached block.
+  {
+    BasicBlock::iterator BI = Spawned->begin();
+    while (PHINode *P = dyn_cast<PHINode>(BI)) {
+      P->removeIncomingValue(detB);
+      ++BI;
+    }
+  }
+  return extracted;
 }
 
 void PTXABI::preProcessFunction(Function &F) {
-  np(59);
 }
 
 void PTXABI::postProcessFunction(Function &F) {
-
 }
 
 void PTXABI::postProcessHelper(Function &F) {
-
 }
 
 bool PTXABI::processMain(Function &F) {
-  return false;
+  return true;
 }
 
 bool PTXABILoopSpawning::processLoop() {

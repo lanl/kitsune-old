@@ -304,6 +304,8 @@ static void EmitIfUsed(CodeGenFunction &CGF, llvm::BasicBlock *BB) {
 void CodeGenFunction::FinishFunction(SourceLocation EndLoc) {
   assert(BreakContinueStack.empty() &&
          "mismatched push/pop in break/continue stack!");
+  assert(!CurDetachScope &&
+         "mismatched push/pop in detach-scope stack!");
 
   bool OnlySimpleReturnStmts = NumSimpleReturnExprs > 0
     && NumSimpleReturnExprs == NumReturnExprs
@@ -760,7 +762,7 @@ void CodeGenFunction::StartFunction(GlobalDecl GD,
   // Apply sanitizer attributes to the function.
   if (SanOpts.hasOneOf(SanitizerKind::Address | SanitizerKind::KernelAddress))
     Fn->addFnAttr(llvm::Attribute::SanitizeAddress);
-  if (SanOpts.has(SanitizerKind::Thread))
+  if (SanOpts.has(SanitizerKind::Thread) || SanOpts.has(SanitizerKind::Cilk))
     Fn->addFnAttr(llvm::Attribute::SanitizeThread);
   if (SanOpts.has(SanitizerKind::Memory))
     Fn->addFnAttr(llvm::Attribute::SanitizeMemory);
@@ -2086,6 +2088,23 @@ CodeGenFunction::SanitizerScope::SanitizerScope(CodeGenFunction *CGF)
 
 CodeGenFunction::SanitizerScope::~SanitizerScope() {
   CGF->IsSanitizerScope = false;
+}
+
+CodeGenFunction::IsSpawnedScope::IsSpawnedScope(CodeGenFunction *CGF)
+    : CGF(CGF), OldIsSpawned(CGF->IsSpawned) {
+  CGF->IsSpawned = false;
+}
+
+CodeGenFunction::IsSpawnedScope::~IsSpawnedScope() {
+  RestoreOldScope();
+}
+
+bool CodeGenFunction::IsSpawnedScope::OldScopeIsSpawned() {
+  return OldIsSpawned;
+}
+
+void CodeGenFunction::IsSpawnedScope::RestoreOldScope() {
+  CGF->IsSpawned = OldIsSpawned;
 }
 
 // +===== Kitsune =============================

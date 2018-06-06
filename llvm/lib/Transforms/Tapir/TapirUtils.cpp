@@ -34,6 +34,7 @@ TapirTarget *llvm::getTapirTargetFromType(TapirTargetType Type) {
   case TapirTargetType::OpenMP:
     return new OpenMPABI();
   // +===== Kitsune
+  case TapirTargetType::PTX:
     return new PTXABI();
   // +=============
   case TapirTargetType::None:

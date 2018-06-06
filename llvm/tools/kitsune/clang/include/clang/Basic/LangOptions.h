@@ -20,6 +20,7 @@
 #include "clang/Basic/ObjCRuntime.h"
 #include "clang/Basic/Sanitizers.h"
 #include "clang/Basic/Visibility.h"
+#include "llvm/Transforms/Tapir/TapirTypes.h"
 #include <string>
 #include <vector>
 
