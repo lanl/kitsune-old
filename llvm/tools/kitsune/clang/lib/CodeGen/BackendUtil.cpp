@@ -63,6 +63,7 @@
 #include "llvm/Transforms/Tapir/TapirUtils.h"
 #include "llvm/Transforms/Tapir/CilkABI.h"
 #include "llvm/Transforms/Tapir/OpenMPABI.h"
+#include "llvm/Transforms/Tapir/PTXABI.h"
 // ==============
 
 using namespace clang;
@@ -499,15 +500,18 @@ void EmitAssemblyHelper::CreatePasses(legacy::PassManager &MPM,
   // +===== Kitsune
   if(LangOpts.FleCSI || LangOpts.Kokkos){
     switch(LangOpts.Tapir){
-      case tapir::TapirTargetType::Cilk:
-        PMBuilder.tapirTarget = new llvm::tapir::CilkABI();
+      case TapirTargetType::Cilk:
+        PMBuilder.tapirTarget = new llvm::CilkABI();
         break;
-      case tapir::TapirTargetType::OpenMP:
-        PMBuilder.tapirTarget = new llvm::tapir::OpenMPABI();
+      case TapirTargetType::OpenMP:
+        PMBuilder.tapirTarget = new llvm::OpenMPABI();
         break;
-      case tapir::TapirTargetType::Serial:
+      case TapirTargetType::PTX:
+        PMBuilder.tapirTarget = new llvm::PTXABI();
+        break;
+      case TapirTargetType::Serial:
         assert(0 && "TODO MAKE OTHER TAPIR OPTS");
-      case tapir::TapirTargetType::None:
+      case TapirTargetType::None:
         PMBuilder.tapirTarget = nullptr;
         break;
     }

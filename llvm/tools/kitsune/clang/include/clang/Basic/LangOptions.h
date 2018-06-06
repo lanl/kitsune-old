@@ -101,7 +101,8 @@ public:
 
 public:
   // +===== Kitsune
-  llvm::tapir::TapirTargetType Tapir = llvm::tapir::TapirTargetType::Cilk;
+  //llvm::TapirTargetType Tapir = llvm::TapirTargetType::PTX;
+  llvm::TapirTargetType Tapir = llvm::TapirTargetType::Cilk;
   //llvm::tapir::TapirTargetType Tapir = llvm::tapir::TapirTargetType::None;
   // ==============
 

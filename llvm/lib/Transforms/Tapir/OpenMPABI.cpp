@@ -355,6 +355,13 @@ llvm::OpenMPABI::OpenMPABI() {}
 static const StringRef worker8_name = "__omp_wc8"; 
 /// \brief Get/Create the worker count for the spawning function.
 Value *llvm::OpenMPABI::GetOrCreateWorker8(Function &F) {
+  // TODO?: Figure out better place for these calls, but needed here due to
+  // this function being called before other initialization points
+  getOrCreateIdentTy(F.getParent());
+  getOrCreateDefaultLocation(F.getParent());
+
+  Value* W8 = F.getValueSymbolTable()->lookup(worker8_name);
+  if (W8) return W8;
   IRBuilder<> B(F.getEntryBlock().getFirstNonPHIOrDbgOrLifetime());
   auto NTFn = createRuntimeFunction(
       OpenMPRuntimeFunction::OMPRTL__kmpc_global_num_threads, F.getParent());

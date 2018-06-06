@@ -23,6 +23,9 @@ enum class TapirTargetType {
   Cilk = 2,
   OpenMP = 3,
   CilkR = 4,
+  // +===== Kitsune
+  PTX = 5,
+  // ==============
 };
 
 } // end namespace llvm

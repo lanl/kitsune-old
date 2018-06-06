@@ -1,4 +1,4 @@
-CXX = ../../build/llvm/bin/flecsi-clang++ -std=c++14 -O2
+CXX = ../../build/llvm/bin/flecsi-clang++ -std=c++14 -fgpu -ldl -O2
 
 all:
 	$(CXX) test.fcc

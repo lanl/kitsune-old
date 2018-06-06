@@ -82,6 +82,7 @@
 // +===== Kitsune
 
 LANGOPT(FleCSI   , 1, 0, "C++")
+LANGOPT(GPU      , 1, 0, "GPU")
 
 // ==============
 
