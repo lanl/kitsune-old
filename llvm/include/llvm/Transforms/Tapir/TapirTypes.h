@@ -23,8 +23,9 @@ enum class TapirTargetType {
   Cilk = 2,
   OpenMP = 3,
   CilkR = 4,
+  Qthreads = 5
   // +===== Kitsune
-  PTX = 5,
+  PTX = 6,
   // ==============
 };
 

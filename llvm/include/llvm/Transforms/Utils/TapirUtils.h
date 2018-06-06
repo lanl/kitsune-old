@@ -97,8 +97,7 @@ public:
     case LoopSpawningHints::ST_GPU:
       return "Use gpu";
     case LoopSpawningHints::ST_END:
-    default:
-      return "Unknown";
+      return "ST_END"; 
     }
   }
 
