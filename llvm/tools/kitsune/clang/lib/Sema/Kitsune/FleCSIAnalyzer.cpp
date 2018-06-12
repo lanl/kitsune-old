@@ -48,718 +48,1900 @@
   *
   ***************************************************************************/
 
-#include "clang/Sema/Kitsune/FleCSIAnalyzer.h"
-
-#include <iostream>
-
-#include "llvm/Support/YAMLTraits.h"
-
+#include "clang/Basic/SourceManager.h"
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Lex/PPCallbacks.h"
 #include "clang/Lex/MacroArgs.h"
 #include "clang/Lex/Token.h"
 #include "clang/Sema/Sema.h"
-#include "clang/Basic/SourceManager.h"
 #include "clang/Sema/SemaDiagnostic.h"
+#include "clang/Sema/Kitsune/FleCSIAnalyzer.h"
+#include "llvm/Support/YAMLTraits.h"
+#include <fstream>
 
-#define np(X)                                                            \
- std::cout << __FILE__ << ":" << __LINE__ << ": " << __PRETTY_FUNCTION__ \
-           << ": " << #X << " = " << (X) << std::endl
 
-using namespace std;
-using namespace llvm;
-using namespace yaml;
-using namespace clang;
-using namespace sema;
 
-using llvm::yaml::MappingTraits;
-using llvm::yaml::IO;
-using llvm::yaml::Output;
+// -----------------------------------------------------------------------------
+// Helper constructs for debugging
+// -----------------------------------------------------------------------------
 
-namespace llvm{
-namespace yaml{
+#define KITSUNE_DEBUG
 
-struct RegisterDataClient{
-  string type = "register_data_client";
-  string file;
-  uint32_t line;
-  string meshType;
-  string nspace;
-  string name;
+#ifdef KITSUNE_DEBUG
+   #include <iostream>
+   #include <typeinfo>
+   #include <boost/core/demangle.hpp>
+#endif
+
+// kitsune_print
+#ifdef KITSUNE_DEBUG
+   #define kitsune_print(arg) \
+   std::cout << "kitsune: " #arg " == " << (arg) << std::endl
+#else
+   #define kitsune_print(arg)
+#endif
+
+#ifdef KITSUNE_DEBUG
+
+namespace {
+
+// kitsune_debug
+inline void kitsune_debug(const std::string &str, const bool newline = true)
+{
+   #ifdef KITSUNE_DEBUG
+      std::cout << "kitsune: " << str;
+      if (newline)
+         std::cout << std::endl;
+   #else
+      (void)str;
+      (void)newline;
+   #endif
+}
+
+// print_type(name)
+inline void print_type(const char *const name)
+{
+   kitsune_debug(boost::core::demangle(name));
+}
+
+// print_type<T>()
+template<class T>
+inline void print_type()
+{
+   print_type(typeid(T).name());
+}
+
+} // namespace
+
+#endif
+
+
+
+// -----------------------------------------------------------------------------
+// Helper constructs
+//    str
+//    MacroData
+//    getFileLine
+// Unnamed namespace ("static"); so constructs are used only in this file.
+// -----------------------------------------------------------------------------
+
+namespace {
+
+// str
+std::string str(const clang::Token &token)
+{
+   kitsune_debug("str()");
+   return token.getIdentifierInfo()->getName().str();
+}
+
+
+// MacroData
+//    arg()
+//    loc()
+struct MacroData
+{
+   clang::Token tok;
+   // qqq At some point, this should probably be a vector<vector<Token>>...
+   std::vector<clang::Token> args;
+
+   std::string arg(const std::size_t i) const
+   {
+      kitsune_debug("MacroData::arg()");
+      return str(args[i]);
+   }
+
+   clang::SourceLocation loc(const std::size_t i) const
+   {
+      kitsune_debug("MacroData::loc()");
+      return args[i].getLocation();
+   }
 };
 
-template <>
-struct MappingTraits<RegisterDataClient> {
-  static void mapping(IO& io, RegisterDataClient& c) {
-    io.mapRequired("type", c.type);
-    io.mapRequired("file", c.file);
-    io.mapRequired("line", c.line);
-    io.mapRequired("meshType", c.meshType);
-    io.mapRequired("nspace", c.nspace);
-    io.mapRequired("name", c.name);
-  }
-};
 
-struct RegisterTask{
-  string type = "register_task";
-  string file;
-  uint32_t line;
-  string name;
-  string processor;
-  string launch;
-};
+// getFileLine
+// Gets both the file and the line number. The file is returned in the second
+// parameter, while the line number is returned as the function's return value.
+std::uint32_t getFileLine(
+   const clang::Sema &sema_,
+   const MacroData &macdata,
+   std::string &file
+) {
+   kitsune_debug("getFileLine()");
 
-template <>
-struct MappingTraits<RegisterTask> {
-  static void mapping(IO& io, RegisterTask& c) {
-    io.mapRequired("type", c.type);
-    io.mapRequired("file", c.file);
-    io.mapRequired("line", c.line);
-    io.mapRequired("name", c.name);
-    io.mapRequired("processor", c.processor);
-    io.mapRequired("launch", c.launch);
-  }
-};
+   clang::SourceManager &srcMgr = sema_.getSourceManager();
+   clang::SourceLocation loc = macdata.tok.getLocation();
 
-struct RegisterField{
-  string type = "register_field";
-  string file;
-  uint32_t line;
-  string meshType;
-  string nspace;
-  string name;
-  string dataType;
-  string storageType;
-  uint32_t versions;
-  uint32_t indexSpace;
-};
+   file = srcMgr.getFilename(loc).str();
+   auto p = srcMgr.getDecomposedLoc(loc);
+   return srcMgr.getLineNumber(p.first, p.second);
+}
 
-template <>
-struct MappingTraits<RegisterField> {
-  static void mapping(IO& io, RegisterField& c) {
-    io.mapRequired("type", c.type);
-    io.mapRequired("file", c.file);
-    io.mapRequired("line", c.line);
-    io.mapRequired("meshType", c.meshType);
-    io.mapRequired("nspace", c.nspace);
-    io.mapRequired("name", c.name);
-    io.mapRequired("dataType", c.dataType);
-    io.mapRequired("storageType", c.storageType);
-    io.mapRequired("versions", c.versions);
-    io.mapRequired("indexSpace", c.indexSpace);
-  }
-};
+} // namespace
 
-struct ExecuteTask{
-  string type = "execute_task";
-  string file;
-  uint32_t line;
-  string name;
-  string launch;
-};
 
-template <>
-struct MappingTraits<ExecuteTask> {
-  static void mapping(IO& io, ExecuteTask& c) {
-    io.mapRequired("type", c.type);
-    io.mapRequired("file", c.file);
-    io.mapRequired("line", c.line);
-    io.mapRequired("name", c.name);
-    io.mapRequired("launch", c.launch);
-  }
-};
 
-struct ExecuteMPITask{
-  string type = "execute_mpi_task";
-  string file;
-  uint32_t line;
-  string name;
-};
+// -----------------------------------------------------------------------------
+// flecsi_base
+// Helper.
+// Has type, file, line.
+// -----------------------------------------------------------------------------
 
-template <>
-struct MappingTraits<ExecuteMPITask> {
-  static void mapping(IO& io, ExecuteMPITask& c) {
-    io.mapRequired("type", c.type);
-    io.mapRequired("file", c.file);
-    io.mapRequired("line", c.line);
-    io.mapRequired("name", c.name);
-  }
-};
+namespace llvm {
+namespace yaml {
 
-struct GetHandle{
-  string type = "get_handle";
-  string file;
-  uint32_t line;
-  string nspace;
-  string name;
-};
+struct flecsi_base
+{
+   std::string   type;
+   std::string   file;
+   std::uint32_t line;
 
-template <>
-struct MappingTraits<GetHandle> {
-  static void mapping(IO& io, GetHandle& c) {
-    io.mapRequired("type", c.type);
-    io.mapRequired("file", c.file);
-    io.mapRequired("line", c.line);
-    io.mapRequired("nspace", c.nspace);
-    io.mapRequired("name", c.name);
-  }
-};
+   flecsi_base(
+      const std::string &_type,
+      const clang::Sema *const sema = nullptr,
+      const MacroData *const macdata = nullptr
+   )
+    : type(_type)
+   {
+      if (sema && macdata)
+         line = getFileLine(*sema, *macdata, file);
+   }
 
-struct GetClientHandle{
-  string type = "get_client_handle";
-  string file;
-  uint32_t line;
-  string meshType;
-  string nspace;
-  string name;
-};
-
-template <>
-struct MappingTraits<GetClientHandle> {
-  static void mapping(IO& io, GetClientHandle& c) {
-    io.mapRequired("type", c.type);
-    io.mapRequired("file", c.file);
-    io.mapRequired("line", c.line);
-    io.mapRequired("meshType", c.meshType);
-    io.mapRequired("nspace", c.nspace);
-    io.mapRequired("name", c.name);
-  }
-};
-
-template <class T>
-struct SequenceTraits<std::vector<T>> {
-  static size_t size(IO& io, std::vector<T>& vec) {
-    return vec.size();
-  }
-
-  static T& element(IO& io, std::vector<T>& vec, size_t index) {
-    return vec[index];
-  }
-};
-
-struct FleCSIMetadata{
-  vector<RegisterDataClient> dataClientRegs;
-  vector<RegisterTask> taskRegs;
-  vector<RegisterField> fieldRegs;
-  vector<ExecuteTask> taskExecs;
-  vector<ExecuteMPITask> mpiTaskExecs;
-  vector<GetHandle> handleGets;
-  vector<GetClientHandle> clientHandleGets;
-};
-
-template <>
-struct MappingTraits<FleCSIMetadata> {
-  static void mapping(IO& io, FleCSIMetadata& m) {
-    io.mapRequired("dataClientRegs", m.dataClientRegs);
-    io.mapRequired("taskRegs", m.taskRegs);
-    io.mapRequired("fieldRegs", m.fieldRegs);
-    io.mapRequired("taskExecs", m.taskExecs);
-    io.mapRequired("mpiTaskExecs", m.mpiTaskExecs);
-    io.mapRequired("handleGets", m.handleGets);
-    io.mapRequired("clientHandleGets", m.clientHandleGets);
-  }
+   void boilerplate(llvm::yaml::IO &io)
+   {
+      io.mapRequired("type", type);
+      io.mapRequired("file", file);
+      io.mapRequired("line", line);
+   }
 };
 
 } // namespace yaml
 } // namespace llvm
 
-namespace{
 
-  string str(const clang::Token& token){
-    return token.getIdentifierInfo()->getName().str();
-  }
 
-  FleCSIAnalyzer* _flecsi_analyzer = nullptr;
+// -----------------------------------------------------------------------------
+// SequenceTraits<vector<T>>
+// -----------------------------------------------------------------------------
 
-  struct MacroUse{
-    clang::Token tok;
-    vector<clang::Token> args;
+namespace llvm {
+namespace yaml {
 
-    string arg(size_t i) const{
-      return str(args[i]);
-    }
+template<class T>
+struct SequenceTraits<std::vector<T>>
+{
+   static std::size_t size(IO &, std::vector<T> &vec)
+   {
+      kitsune_debug("size()");
+      return vec.size();
+   }
 
-    SourceLocation loc(size_t i) const{
-      return args[i].getLocation();
-    }
-  };
+   static T &element(IO &, std::vector<T> &vec, const std::size_t index)
+   {
+      kitsune_debug("element()");
+      return vec[index];
+   }
+};
 
-  class PreprocessorAnalyzer : public PPCallbacks{
-  public:
+} // namespace yaml
+} // namespace llvm
 
-    PreprocessorAnalyzer(Sema& sema)
-    : sema_(sema),
-    sourceMgr_(sema_.getSourceManager()){
-      
-      flecsiMacros_ = 
-      {"flecsi_register_data_client",
-       "flecsi_register_task",
-       "flecsi_register_field",
-       "flecsi_execute_task",
-       "flecsi_execute_mpi_task",
-       "flecsi_get_handle",
-       "flecsi_get_client_handle"};
-    }
 
-    ~PreprocessorAnalyzer(){}
 
-    void MacroDefined(const clang::Token& tok, const MacroDirective* md) override{}
+// -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// For several classes X:
+//    X
+//    MappingTraits<X>
+// Then, all together:
+//    FleCSIMetadata
+//    MappingTraits<FleCSIMetadata>
+// -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
-    void MacroExpands(const clang::Token& tok,
-                      const MacroDefinition& md,
-                      SourceRange range,
-                      const MacroArgs* args) override{
-      
-      IdentifierInfo* ii = tok.getIdentifierInfo();
-      SourceLocation loc = tok.getLocation();
+#define kitsune_macro_ctor(cname,mname)  /* class name, macro name */ \
+   cname( \
+      const clang::Sema *const sema = nullptr, \
+      const MacroData   *const data = nullptr \
+   ) : \
+      flecsi_base(#mname, sema, data) \
+   { }
 
-      if(flecsiMacros_.find(ii->getName().str()) != flecsiMacros_.end()){
-        MacroUse use;
-        use.tok = tok;
+#define kitsune_map(field) io.mapRequired(#field, c.field);
 
-        size_t n = args->getNumMacroArguments();
 
-        for(size_t i = 0; i < n; ++i){
-          use.args.push_back(*args->getUnexpArgument(i));
-        }
 
-        auto p = sourceMgr_.getDecomposedExpansionLoc(tok.getLocation());
-        
-        sourceMap_[p.first][p.second] = use;
+// -----------------------------------------------------------------------------
+// From FleCSI's execution.h
+// Task Registration
+// -----------------------------------------------------------------------------
+
+namespace llvm {
+namespace yaml {
+
+// FleCSI macros:
+//
+// flecsi_register_task_simple     ( task,         processor, launch )
+// flecsi_register_task            ( task, nspace, processor, launch )
+// flecsi_register_mpi_task_simple ( task                            )
+// flecsi_register_mpi_task        ( task, nspace                    )
+
+
+
+// flecsi_register_task_simple
+struct FlecsiRegisterTaskSimple : public flecsi_base {
+   kitsune_macro_ctor(FlecsiRegisterTaskSimple, flecsi_register_task_simple)
+   std::string task;
+   std::string processor;
+   std::string launch;
+};
+
+template<>
+struct MappingTraits<FlecsiRegisterTaskSimple> {
+   static void mapping(llvm::yaml::IO &io, FlecsiRegisterTaskSimple &c)
+   {
+      kitsune_debug("mapping(): MappingTraits<FlecsiRegisterTaskSimple>");
+      c.boilerplate(io);
+      kitsune_map(task);
+      kitsune_map(processor);
+      kitsune_map(launch);
+   }
+};
+
+
+
+// flecsi_register_task
+struct FlecsiRegisterTask : public flecsi_base {
+   kitsune_macro_ctor(FlecsiRegisterTask, flecsi_register_task)
+   std::string task;
+   std::string nspace;
+   std::string processor;
+   std::string launch;
+};
+
+template<>
+struct MappingTraits<FlecsiRegisterTask> {
+   static void mapping(llvm::yaml::IO &io, FlecsiRegisterTask &c)
+   {
+      kitsune_debug("mapping(): MappingTraits<FlecsiRegisterTask>");
+      c.boilerplate(io);
+      kitsune_map(task);
+      kitsune_map(nspace);
+      kitsune_map(processor);
+      kitsune_map(launch);
+   }
+};
+
+
+
+// flecsi_register_mpi_task_simple
+struct FlecsiRegisterMPITaskSimple : public flecsi_base {
+   kitsune_macro_ctor(
+      FlecsiRegisterMPITaskSimple,
+      flecsi_register_mpi_task_simple)
+   std::string task;
+};
+
+template<>
+struct MappingTraits<FlecsiRegisterMPITaskSimple> {
+   static void mapping(llvm::yaml::IO &io, FlecsiRegisterMPITaskSimple &c)
+   {
+      kitsune_debug("mapping(): MappingTraits<FlecsiRegisterMPITaskSimple>");
+      c.boilerplate(io);
+      kitsune_map(task);
+   }
+};
+
+
+
+// flecsi_register_mpi_task
+struct FlecsiRegisterMPITask : public flecsi_base {
+   kitsune_macro_ctor(FlecsiRegisterMPITask, flecsi_register_mpi_task)
+   std::string task;
+   std::string nspace;
+};
+
+template<>
+struct MappingTraits<FlecsiRegisterMPITask> {
+   static void mapping(llvm::yaml::IO &io, FlecsiRegisterMPITask &c)
+   {
+      kitsune_debug("mapping(): MappingTraits<FlecsiRegisterMPITask>");
+      c.boilerplate(io);
+      kitsune_map(task);
+      kitsune_map(nspace);
+   }
+};
+
+} // namespace yaml
+} // namespace llvm
+
+
+
+// -----------------------------------------------------------------------------
+// From FleCSI's execution.h
+// Task Execution
+// -----------------------------------------------------------------------------
+
+namespace llvm {
+namespace yaml {
+
+// FleCSI macros:
+//
+// flecsi_execute_task_simple     ( task,         launch, ... )
+// flecsi_execute_task            ( task, nspace, launch, ... )
+// flecsi_execute_mpi_task_simple ( task,                 ... )
+// flecsi_execute_mpi_task        ( task, nspace,         ... )
+
+
+
+// flecsi_execute_task_simple
+struct FlecsiExecuteTaskSimple : public flecsi_base {
+   kitsune_macro_ctor(FlecsiExecuteTaskSimple, flecsi_execute_task_simple)
+   std::string task;
+   std::string launch;
+};
+
+template<>
+struct MappingTraits<FlecsiExecuteTaskSimple> {
+   static void mapping(llvm::yaml::IO &io, FlecsiExecuteTaskSimple &c)
+   {
+      kitsune_debug("mapping(): MappingTraits<FlecsiExecuteTaskSimple>");
+      c.boilerplate(io);
+      kitsune_map(task);
+      kitsune_map(launch);
+   }
+};
+
+
+
+// flecsi_execute_task
+struct FlecsiExecuteTask : public flecsi_base {
+   kitsune_macro_ctor(FlecsiExecuteTask, flecsi_execute_task)
+   std::string task;
+   std::string nspace;
+   std::string launch;
+};
+
+template<>
+struct MappingTraits<FlecsiExecuteTask> {
+   static void mapping(llvm::yaml::IO &io, FlecsiExecuteTask &c)
+   {
+      kitsune_debug("mapping(): MappingTraits<FlecsiExecuteTask>");
+      c.boilerplate(io);
+      kitsune_map(task);
+      kitsune_map(nspace);
+      kitsune_map(launch);
+   }
+};
+
+
+
+// flecsi_execute_mpi_task_simple
+struct FlecsiExecuteMPITaskSimple : public flecsi_base {
+   kitsune_macro_ctor(FlecsiExecuteMPITaskSimple, flecsi_execute_mpi_task_simple)
+   std::string task;
+};
+
+template<>
+struct MappingTraits<FlecsiExecuteMPITaskSimple> {
+   static void mapping(llvm::yaml::IO &io, FlecsiExecuteMPITaskSimple &c)
+   {
+      kitsune_debug("mapping(): MappingTraits<FlecsiExecuteMPITaskSimple>");
+      c.boilerplate(io);
+      kitsune_map(task);
+   }
+};
+
+
+
+// flecsi_execute_mpi_task
+struct FlecsiExecuteMPITask : public flecsi_base {
+   kitsune_macro_ctor(FlecsiExecuteMPITask, flecsi_execute_mpi_task)
+   std::string task;
+   std::string nspace;
+};
+
+template<>
+struct MappingTraits<FlecsiExecuteMPITask> {
+   static void mapping(llvm::yaml::IO &io, FlecsiExecuteMPITask &c)
+   {
+      kitsune_debug("mapping(): MappingTraits<FlecsiExecuteMPITask>");
+      c.boilerplate(io);
+      kitsune_map(task);
+      kitsune_map(nspace);
+   }
+};
+
+} // namespace yaml
+} // namespace llvm
+
+
+
+// -----------------------------------------------------------------------------
+// From FleCSI's data.h
+// Registration
+// -----------------------------------------------------------------------------
+
+namespace llvm {
+namespace yaml {
+
+// FleCSI macros:
+//
+// flecsi_register_data_client
+//    ( client_type, nspace, name )
+// flecsi_register_field
+//    ( client_type, nspace, name, data_type, storage_class, versions, ...)
+// flecsi_register_global
+//    (              nspace, name, data_type,                versions, ...)
+// flecsi_register_color
+//    (              nspace, name, data_type,                versions, ...)
+
+
+
+// flecsi_register_data_client
+struct FlecsiRegisterDataClient : public flecsi_base {
+   kitsune_macro_ctor(FlecsiRegisterDataClient, flecsi_register_data_client)
+   std::string client_type;
+   std::string nspace;
+   std::string name;
+};
+
+template<>
+struct MappingTraits<FlecsiRegisterDataClient> {
+   static void mapping(llvm::yaml::IO &io, FlecsiRegisterDataClient &c)
+   {
+      kitsune_debug("mapping(): MappingTraits<FlecsiRegisterDataClient>");
+      c.boilerplate(io);
+      kitsune_map(client_type);
+      kitsune_map(nspace);
+      kitsune_map(name);
+   }
+};
+
+
+
+// flecsi_register_field
+struct FlecsiRegisterField : public flecsi_base {
+   kitsune_macro_ctor(FlecsiRegisterField, flecsi_register_field)
+   std::string   client_type;
+   std::string   nspace;
+   std::string   name;
+   std::string   data_type;
+   std::string   storage_class;
+   std::uint32_t versions;
+   ///std::uint32_t indexSpace;
+};
+
+template<>
+struct MappingTraits<FlecsiRegisterField> {
+   static void mapping(llvm::yaml::IO &io, FlecsiRegisterField &c)
+   {
+      kitsune_debug("mapping(): MappingTraits<FlecsiRegisterField>");
+      c.boilerplate(io);
+      kitsune_map(client_type);
+      kitsune_map(nspace);
+      kitsune_map(name);
+      kitsune_map(data_type);
+      kitsune_map(storage_class);
+      kitsune_map(versions);
+   }
+};
+
+
+
+// flecsi_register_global
+struct FlecsiRegisterGlobal : public flecsi_base {
+   kitsune_macro_ctor(FlecsiRegisterGlobal, flecsi_register_global)
+   std::string   nspace;
+   std::string   name;
+   std::string   data_type;
+   std::uint32_t versions;
+};
+
+template<>
+struct MappingTraits<FlecsiRegisterGlobal> {
+   static void mapping(llvm::yaml::IO &io, FlecsiRegisterGlobal &c)
+   {
+      kitsune_debug("mapping(): MappingTraits<FlecsiRegisterGlobal>");
+      c.boilerplate(io);
+      kitsune_map(nspace);
+      kitsune_map(name);
+      kitsune_map(data_type);
+      kitsune_map(versions);
+   }
+};
+
+
+
+// flecsi_register_color
+struct FlecsiRegisterColor : public flecsi_base {
+   kitsune_macro_ctor(FlecsiRegisterColor, flecsi_register_color)
+   std::string   nspace;
+   std::string   name;
+   std::string   data_type;
+   std::uint32_t versions;
+};
+
+template<>
+struct MappingTraits<FlecsiRegisterColor> {
+   static void mapping(llvm::yaml::IO &io, FlecsiRegisterColor &c)
+   {
+      kitsune_debug("mapping(): MappingTraits<FlecsiRegisterColor>");
+      c.boilerplate(io);
+      kitsune_map(nspace);
+      kitsune_map(name);
+      kitsune_map(data_type);
+      kitsune_map(versions);
+   }
+};
+
+} // namespace yaml
+} // namespace llvm
+
+
+
+/*
+qqq
+
+// -----------------------------------------------------------------------------
+// GetHandle
+// -----------------------------------------------------------------------------
+
+struct GetHandle : public flecsi_base {
+   GetHandle() : flecsi_base("get_handle") { }
+
+   std::string nspace;
+   std::string name;
+};
+
+template<>
+struct MappingTraits<GetHandle> {
+   static void mapping(llvm::yaml::IO &io, GetHandle &c)
+   {
+      kitsune_debug("mapping(): MappingTraits<GetHandle>");
+
+      c.boilerplate(io);
+      io.mapRequired("nspace", c.nspace);
+      io.mapRequired("name",   c.name);
+   }
+};
+
+
+
+// ------------------------
+// GetClientHandle
+// ------------------------
+
+struct GetClientHandle : public flecsi_base {
+   GetClientHandle() : flecsi_base("get_client_handle") { }
+   std::uint32_t line;
+
+   std::string   meshType;
+   std::string   nspace;
+   std::string   name;
+};
+
+template<>
+struct MappingTraits<GetClientHandle> {
+   static void mapping(llvm::yaml::IO &io, GetClientHandle &c)
+   {
+      kitsune_debug("mapping(): MappingTraits<GetClientHandle>");
+
+      c.boilerplate(io);
+      io.mapRequired("meshType", c.meshType);
+      io.mapRequired("nspace",   c.nspace);
+      io.mapRequired("name",     c.name);
+   }
+};
+*/
+
+
+
+// -----------------------------------------------------------------------------
+// FleCSIMetadata
+// -----------------------------------------------------------------------------
+
+namespace llvm {
+namespace yaml {
+
+struct FleCSIMetadata {
+   #define kitsune_make_vector(name) std::vector<yaml::name> name
+
+   kitsune_make_vector(FlecsiRegisterTaskSimple);
+   kitsune_make_vector(FlecsiRegisterTask);
+   kitsune_make_vector(FlecsiRegisterMPITaskSimple);
+   kitsune_make_vector(FlecsiRegisterMPITask);
+
+   kitsune_make_vector(FlecsiExecuteTaskSimple);
+   kitsune_make_vector(FlecsiExecuteTask);
+   kitsune_make_vector(FlecsiExecuteMPITaskSimple);
+   kitsune_make_vector(FlecsiExecuteMPITask);
+
+   kitsune_make_vector(FlecsiRegisterDataClient);
+   kitsune_make_vector(FlecsiRegisterField);
+   kitsune_make_vector(FlecsiRegisterGlobal);
+   kitsune_make_vector(FlecsiRegisterColor);
+
+   /*
+   // qqq
+   std::vector< yaml::GetHandle>          handleGets;
+   std::vector< yaml::GetClientHandle>    clientHandleGets;
+   */
+
+   #undef kitsune_make_vector
+};
+
+template<>
+struct MappingTraits<FleCSIMetadata> {
+   static void mapping(llvm::yaml::IO &io, FleCSIMetadata &c)
+   {
+      kitsune_debug("mapping(): MappingTraits<FleCSIMetadata>");
+
+      #define kitsune_maprequired(name) io.mapRequired(#name, c.name)
+
+      kitsune_maprequired(FlecsiRegisterTaskSimple);
+      kitsune_maprequired(FlecsiRegisterTask);
+      kitsune_maprequired(FlecsiRegisterMPITaskSimple);
+      kitsune_maprequired(FlecsiRegisterMPITask);
+
+      kitsune_maprequired(FlecsiExecuteTaskSimple);
+      kitsune_maprequired(FlecsiExecuteTask);
+      kitsune_maprequired(FlecsiExecuteMPITaskSimple);
+      kitsune_maprequired(FlecsiExecuteMPITask);
+
+      kitsune_maprequired(FlecsiRegisterDataClient);
+      kitsune_maprequired(FlecsiRegisterField);
+      kitsune_maprequired(FlecsiRegisterGlobal);
+      kitsune_maprequired(FlecsiRegisterColor);
+
+      /*
+      // qqq
+      io.mapRequired("handleGets",       c.handleGets);
+      io.mapRequired("clientHandleGets", c.clientHandleGets);
+      */
+
+      #undef kitsune_maprequired
+   }
+};
+
+} // namespace yaml
+} // namespace llvm
+
+
+
+// -----------------------------------------------------------------------------
+// FleCSIAnalyzer::PreprocessorAnalyzer
+// -----------------------------------------------------------------------------
+
+namespace clang {
+namespace sema {
+
+struct FleCSIAnalyzer::PreprocessorAnalyzer : public clang::PPCallbacks
+{
+   // constructor, destructor
+   PreprocessorAnalyzer(clang::Sema &);
+  ~PreprocessorAnalyzer();
+
+   // PPCallbacks overrides
+   void MacroDefined(
+      const clang::Token &,
+      const clang::MacroDirective *
+   ) override;
+
+   void MacroExpands(
+      const clang::Token &,
+      const clang::MacroDefinition &,
+      clang::SourceRange,
+      const clang::MacroArgs *
+   ) override;
+
+   // accessors
+   MacroData *getMacroData(const clang::SourceLocation);
+   llvm::yaml::FleCSIMetadata &metadata();
+
+private:
+
+   // The FleCSI macros that we'll analyze
+   const std::set<std::string> flecsiMacros_;
+
+   // Miscellaneous information (from clang) that we'll need here and there
+   clang::Sema &sema_;
+   clang::SourceManager &sourceMgr_;
+   const clang::LangOptions &langOpts_;
+
+   // FleCSI macro information
+   std::map<
+      clang::FileID,  // for some file...
+      std::map<
+         std::size_t, // at some location...
+         MacroData    // we'll save information about some Flecsi-related macro
+      >
+   > sourceMap_;
+
+   // It seems that this gets used via Analyzer::md_, which is a reference
+   // that initializes to metadata() (i.e., this).
+   llvm::yaml::FleCSIMetadata metadata_;
+
+}; // class PreprocessorAnalyzer
+
+
+
+// ------------------------
+// Constructor
+// Destructor
+// ------------------------
+
+FleCSIAnalyzer::PreprocessorAnalyzer::PreprocessorAnalyzer(clang::Sema &sema) :
+
+   flecsiMacros_({
+      "flecsi_register_task_simple",
+      "flecsi_register_task",
+      "flecsi_register_mpi_task_simple",
+      "flecsi_register_mpi_task",
+
+      "flecsi_execute_task_simple",
+      "flecsi_execute_task",
+      "flecsi_execute_mpi_task_simple",
+      "flecsi_execute_mpi_task",
+
+      "flecsi_register_data_client",
+      "flecsi_register_field",
+      "flecsi_register_global",
+      "flecsi_register_color"
+
+      /*
+      // qqq
+      "flecsi_get_handle",
+      "flecsi_get_client_handle"
+      */
+   }),
+
+   sema_(sema),
+   sourceMgr_(sema_.getSourceManager()),
+   langOpts_(sema_.getLangOpts())
+{
+   kitsune_debug("PreprocessorAnalyzer::PreprocessorAnalyzer()");
+}
+
+// qqq Never called
+inline FleCSIAnalyzer::PreprocessorAnalyzer::~PreprocessorAnalyzer()
+{
+   kitsune_debug("PreprocessorAnalyzer::~PreprocessorAnalyzer()");
+}
+
+
+
+// ------------------------
+// MacroDefined
+// MacroExpands
+//
+// These override the ones
+// in the base PPCallbacks
+// ------------------------
+
+// MacroDefined
+inline void FleCSIAnalyzer::PreprocessorAnalyzer::MacroDefined(
+   const clang::Token &tok,
+   const clang::MacroDirective *
+) {
+   kitsune_debug("PreprocessorAnalyzer::MacroDefined()");
+   kitsune_debug(std::string("   tok.getName() == \"") + tok.getName() + '"');
+}
+
+
+// MacroExpands
+inline void FleCSIAnalyzer::PreprocessorAnalyzer::MacroExpands(
+   // The following can come in as any old token; we'll care about
+   // and process it here only if it's from one of our macros
+   const clang::Token &mactok,
+
+   const clang::MacroDefinition &md,
+   clang::SourceRange range,
+   const clang::MacroArgs *args
+) {
+   kitsune_debug("PreprocessorAnalyzer::MacroExpands()");
+
+   // Macro's identifier info
+   const clang::IdentifierInfo *macinfo = mactok.getIdentifierInfo();
+
+   // Macro's name
+   const std::string macname = macinfo->getName().str();
+   kitsune_print(macname);
+
+   // If name isn't one of ours, we're done here
+   if (flecsiMacros_.find(macname) == flecsiMacros_.end())
+      return;
+
+   // OK, we've recognized one of our macros; continue.
+   // qqq Say more here.
+   MacroData macdata;
+   macdata.tok = mactok;
+
+   // Number of arguments to the macro
+   const std::size_t narg = args->getNumMacroArguments();
+   kitsune_print(narg);
+
+   // For each macro argument
+   for (std::size_t arg = 0;  arg < narg;  ++arg) {
+      // Pointer to first token of the argument (other tokens will follow)
+      const clang::Token *const tokbegin = args->getUnexpArgument(arg);
+      macdata.args.push_back(*tokbegin);
+
+      // Number of tokens in the argument
+      const std::size_t ntok = args->getArgLength(tokbegin);
+      kitsune_print(ntok);
+
+      for (const clang::Token *t = tokbegin ; t->isNot(tok::eof);  ++t) {
+         ///const clang::Token &t = *tokptr;
+         kitsune_print(clang::Lexer::getSpelling(*t, sourceMgr_, langOpts_));
       }
-    }
+   }
 
-    MacroUse* getMacroUse(SourceLocation loc){
-      auto p = sourceMgr_.getDecomposedExpansionLoc(loc);
-      auto itr = sourceMap_.find(p.first);
-      if(itr == sourceMap_.end()){
-        return nullptr;
+   const std::pair<clang::FileID, unsigned> &pos =
+      sourceMgr_.getDecomposedExpansionLoc(mactok.getLocation());
+   FileID   fileid = pos.first;
+   unsigned offset = pos.second;
+   sourceMap_[fileid].insert(std::make_pair(offset,macdata));
+
+   /*
+   Source Map:
+      FileID --> Macro Data Map
+
+   Macro Data Map:
+      size_t --> Macro Data
+
+   Macro Data:
+      Token tok
+      vector<Token> args
+
+      string arg(i):
+         return str(args[i])
+      SourceLocation loc(i):
+         return args[i].getLocation()
+   */
+}
+
+
+
+// ------------------------
+// getMacroData
+// metadata
+// ------------------------
+
+// getMacroData
+inline MacroData *FleCSIAnalyzer::PreprocessorAnalyzer::getMacroData(
+   const clang::SourceLocation loc
+) {
+   kitsune_debug("PreprocessorAnalyzer::getMacroData()");
+
+   // Extract File ID and Offset from loc
+   std::pair<FileID,unsigned> pos = sourceMgr_.getDecomposedExpansionLoc(loc);
+   FileID   fileid = pos.first;
+   unsigned offset = pos.second;
+
+   // Look for File ID in our map of macro information
+   auto itr = sourceMap_.find(fileid);
+   if (itr == sourceMap_.end()) { // find failed
+      kitsune_debug("getMacroData(): failure 1");
+      return nullptr;
+   }
+
+   // For convenience: reference to nested map (Offset --> MacroData),
+   // given that we just succeeded in finding File ID.
+   std::map<
+      std::size_t,
+      MacroData
+   > &um = itr->second;
+
+   // Look for Offset in our (sub)map for the File ID
+   auto mitr = um.lower_bound(offset);  // first element that's ">=" offset
+   if (mitr == um.end()) { // find failed
+      kitsune_debug("getMacroData(): failure 2");
+      return nullptr;
+   }
+
+   // MacroData for the desired (FileID,Offset)
+   MacroData &macdata = mitr->second;
+
+   /**/
+   kitsune_print(offset);
+   kitsune_print(mitr->first);
+   kitsune_print(macdata.tok.getLength());
+   /**/
+
+   if (offset > mitr->first + macdata.tok.getLength()) {
+      kitsune_debug("getMacroData(): failure 3");
+      return nullptr;
+   }
+
+   return &mitr->second;
+}
+
+
+// metadata
+inline llvm::yaml::FleCSIMetadata &
+FleCSIAnalyzer::PreprocessorAnalyzer::metadata()
+{
+   kitsune_debug("PreprocessorAnalyzer::metadata()");
+   return metadata_;
+}
+
+} // namespace sema
+} // namespace clang
+
+
+
+// -----------------------------------------------------------------------------
+// Analyzer
+// Unnamed namespace ("static"); so constructs are used only in this file.
+// -----------------------------------------------------------------------------
+
+namespace {
+
+class Analyzer : public clang::RecursiveASTVisitor<Analyzer>
+{
+public:
+   Analyzer(
+      clang::Sema &,
+      clang::sema::FleCSIAnalyzer::PreprocessorAnalyzer *const
+   );
+  ~Analyzer();
+
+   bool VisitVarDecl            (const clang::VarDecl  *const);
+   bool VisitCallExpr           (clang::CallExpr *const);
+   bool VisitTranslationUnitDecl(clang::TranslationUnitDecl *const);
+
+///   std::uint32_t getFileLine     (const MacroData &, std::string &) const;
+   std::string   getName         (const clang::NamedDecl *const);
+   std::string   getQualifiedName(const clang::NamedDecl *const);
+
+   const clang::TemplateArgumentList
+   *getTemplateArgs(const clang::FunctionDecl *const);
+   const clang::CXXRecordDecl
+   *getClassDecl   (clang::QualType);
+   const clang::CXXMethodDecl
+   *getMethod      (const clang::CallExpr *const);
+
+   std::int64_t
+   getIntArg (const clang::TemplateArgumentList *const, const std::size_t);
+   std::uint64_t
+   getUIntArg(const clang::TemplateArgumentList *const, const std::size_t);
+   clang::QualType
+   getTypeArg(const clang::TemplateArgumentList *const, const std::size_t);
+
+   const clang::CallExpr *getClassCall( // 3-argument
+      const clang::Expr *const, const std::string &, const std::string &);
+   const clang::CallExpr *getClassCall( // 4-argument
+      const clang::Expr *const, const std::string &, const std::string &,
+      const int);
+   const clang::CallExpr *getClassCall( // 5-argument
+      const clang::Expr *const, const std::string &, const std::string &,
+      const int, const clang::CXXRecordDecl * &);
+   const clang::CallExpr *getClassCall( // 6-argument
+      const clang::Expr *,      const std::string &, const std::string &,
+      const int, const int, const clang::CXXRecordDecl * &);
+
+   const clang::Expr *normExpr(const clang::Expr *const);
+   bool isDerivedFrom(const clang::CXXRecordDecl *const, const std::string &);
+
+private:
+   clang::Sema &sema_;
+   clang::sema::FleCSIAnalyzer::PreprocessorAnalyzer *pa_;
+   llvm::yaml::FleCSIMetadata &md_;  // FleCSIMetadata: see above
+};
+
+
+
+// ------------------------
+// Constructor
+// Destructor
+// ------------------------
+
+// This is only called from within FleCSIAnalyzer::gatherMetadata()
+Analyzer::Analyzer(
+   clang::Sema &sema,
+   clang::sema::FleCSIAnalyzer::PreprocessorAnalyzer *const pa
+)
+ : sema_(sema),
+   pa_(pa),
+   md_(pa_->metadata())
+{
+   kitsune_debug("Analyzer::Analyzer()");
+}
+
+Analyzer::~Analyzer()
+{
+   kitsune_debug("Analyzer::~Analyzer()");
+}
+
+
+
+// -----------------------------------------------------------------------------
+// VisitVarDecl
+// -----------------------------------------------------------------------------
+
+bool Analyzer::VisitVarDecl(const clang::VarDecl *const var)
+{
+   kitsune_debug("Analyzer::VisitVarDecl()");
+   kitsune_print(var->getNameAsString());
+
+   // *_registered
+   if (!var->getName().endswith("_registered"))
+      return true;
+
+   // Associated MacroData
+   const MacroData *const macptr = pa_->getMacroData(var->getLocStart());
+   if (!macptr)
+      return true;
+   const MacroData &macdata = *macptr;
+
+   std::string name = str(macdata.tok);
+   kitsune_print(name);
+   const clang::CXXRecordDecl *rd;
+   (void)rd;//qqq
+
+
+
+   // flecsi_register_task_simple(task, processor, launch)
+   if (name == "flecsi_register_task_simple") {
+      const clang::CallExpr *const call = getClassCall(
+         var->getInit(),
+        "flecsi::execution::task_interface__",
+        "register_task",
+         3,
+         rd
+      );
+
+      if (call != nullptr) {
+         kitsune_debug("found: register task simple");
+         llvm::yaml::FlecsiRegisterTaskSimple c(&sema_,&macdata);
+         int pos = 0;
+
+         c.task      = macdata.arg(pos++);
+         c.processor = macdata.arg(pos++);
+         c.launch    = macdata.arg(pos++);
+         md_.FlecsiRegisterTaskSimple.push_back(c);
+
+         kitsune_print(c.type     );
+         kitsune_print(c.file     );
+         kitsune_print(c.line     );
+         kitsune_print(c.task     );
+         kitsune_print(c.processor);
+         kitsune_print(c.launch   );
       }
+   }
 
-      MacroUseMap& um = itr->second;
-      auto mitr = um.lower_bound(p.second);
-      if(mitr == um.end()){
-        return nullptr;
+
+
+   // flecsi_register_task(task, nspace, processor, launch)
+   if (name == "flecsi_register_task") {
+      const clang::CallExpr *const call = getClassCall(
+         var->getInit(),
+        "flecsi::execution::task_interface__",
+        "register_task",
+         3,
+         rd
+      );
+
+      if (call != nullptr) {
+         kitsune_debug("found: register task");
+         llvm::yaml::FlecsiRegisterTask c(&sema_,&macdata);
+         int pos = 0;
+
+         c.task      = macdata.arg(pos++);
+         c.nspace    = macdata.arg(pos++);
+         c.processor = macdata.arg(pos++);
+         c.launch    = macdata.arg(pos++);
+         md_.FlecsiRegisterTask.push_back(c);
+
+         kitsune_print(c.type     );
+         kitsune_print(c.file     );
+         kitsune_print(c.line     );
+         kitsune_print(c.task     );
+         kitsune_print(c.nspace   );
+         kitsune_print(c.processor);
+         kitsune_print(c.launch   );
       }
+   }
 
-      MacroUse& mu = mitr->second;
-      if(p.second > mitr->first + mu.tok.getLength()){
-        return nullptr;
+
+
+   // flecsi_register_mpi_task_simple(task)
+   if (name == "flecsi_register_mpi_task_simple") {
+      const clang::CallExpr *const call = getClassCall(
+         var->getInit(),
+        "flecsi::execution::task_interface__",
+        "register_task",
+         3,
+         rd
+      );
+
+      if (call != nullptr) {
+         kitsune_debug("found: register mpi task simple");
+         llvm::yaml::FlecsiRegisterMPITaskSimple c(&sema_,&macdata);
+         int pos = 0;
+
+         c.task = macdata.arg(pos++);
+         md_.FlecsiRegisterMPITaskSimple.push_back(c);
+
+         kitsune_print(c.type);
+         kitsune_print(c.file);
+         kitsune_print(c.line);
+         kitsune_print(c.task);
       }
+   }
 
-      return &mitr->second;
-    }
 
-    FleCSIMetadata& metadata(){
-      return metadata_;
-    }
 
-  private:
-    Sema& sema_;
-    SourceManager& sourceMgr_;
+   // flecsi_register_mpi_task(task, nspace)
+   if (name == "flecsi_register_mpi_task") {
+      const clang::CallExpr *const call = getClassCall(
+         var->getInit(),
+        "flecsi::execution::task_interface__",
+        "register_task",
+         3,
+         rd
+      );
 
-    using MacroUseMap = map<size_t, MacroUse>; 
+      if (call != nullptr) {
+         kitsune_debug("found: register mpi task");
+         llvm::yaml::FlecsiRegisterMPITask c(&sema_,&macdata);
+         int pos = 0;
 
-    using SourceMap = map<FileID, MacroUseMap>;
+         c.task   = macdata.arg(pos++);
+         c.nspace = macdata.arg(pos++);
+         md_.FlecsiRegisterMPITask.push_back(c);
 
-    SourceMap sourceMap_;
-
-    set<string> flecsiMacros_;
-
-    FleCSIMetadata metadata_;
-  }; // class PreprocessorAnalyzer
-
-  class Analyzer : public RecursiveASTVisitor<Analyzer>{
-  public:
-    Analyzer(Sema& sema, PreprocessorAnalyzer* pa)
-    : sema_(sema),
-    pa_(pa),
-    md_(pa_->metadata()){}
-
-    uint32_t getFileLine(MacroUse* mu, string& file){
-      SourceManager& srcMgr = sema_.getSourceManager();
-      SourceLocation loc = mu->tok.getLocation();
-      auto p = srcMgr.getDecomposedLoc(loc);
-      file = srcMgr.getFilename(loc).str();
-      return srcMgr.getLineNumber(p.first, p.second);
-    }
-
-    bool VisitCallExpr(CallExpr* ce){
-      Decl* cd = ce->getCalleeDecl();
-      
-      if(!cd){
-        return true;
+         kitsune_print(c.type);
+         kitsune_print(c.file);
+         kitsune_print(c.line);
+         kitsune_print(c.task);
+         kitsune_print(c.nspace);
       }
+   }
 
-      auto fd = dyn_cast<FunctionDecl>(cd);
 
-      if(fd){
-        DeclarationName dn = fd->getDeclName();
 
-        if(!dn){
-          return true;
-        }
+   // flecsi_register_data_client(client_type, nspace, name)
+   else if (name == "flecsi_register_data_client") {
+      const clang::CallExpr *const call = getClassCall(
+         var->getInit(),
+        "flecsi::data::data_client_interface__",
+        "register_data_client",
+         1,
+         rd
+      );
 
-        if(!dn.isIdentifier()){
-          return true;
-        }
+      if (call != nullptr) {
+         kitsune_debug("found: register data client");
 
-        auto mu = pa_->getMacroUse(ce->getLocStart());
+         /**/
+         // Extra checks; ask Nick about why here, not earlier
+         // qqq Understand this sequence: call --> md --> ta --> qt --> cd
+         const clang::CXXMethodDecl *const md = getMethod(call);
+         const clang::TemplateArgumentList *const ta = getTemplateArgs(md);
+         const clang::QualType qt = getTypeArg(ta, 0);
+         const clang::CXXRecordDecl *const cd = getClassDecl(qt);
 
-        if(!mu){
-          return true;
-        }
+         if (!cd || !isDerivedFrom(cd, "flecsi::data::data_client_t")) {
+            sema_.Diag(
+               macdata.loc(0),
+               clang::diag::err_flecsi_not_a_data_client);
+            return true;
+         }
+         /**/
 
-        string name = str(mu->tok);
+         llvm::yaml::FlecsiRegisterDataClient c(&sema_,&macdata);
+         int pos = 0;
 
-        if(name == "flecsi_execute_task"){
-          const CXXRecordDecl* rd;
-          if(getClassCall(ce,
-            "flecsi::execution::task_model__",
-            "execute_task", 3, rd)){
-            ExecuteTask c;
-            c.line = getFileLine(mu, c.file);
-            c.name = mu->arg(0);
-            c.launch = mu->arg(1);
-            md_.taskExecs.push_back(c);            
-          }
-        }
-        else if(name == "flecsi_execute_mpi_task"){
-          const CXXRecordDecl* rd;
-          if(getClassCall(ce,
-            "flecsi::execution::task_model__",
-            "execute_task", 3, rd)){
-            ExecuteMPITask c;
-            c.line = getFileLine(mu, c.file);
-            c.name = mu->arg(0);
-            md_.mpiTaskExecs.push_back(c);
-          }
-        }
-        else if(name == "flecsi_get_handle"){
-          const CXXRecordDecl* rd;
-          if(getClassCall(ce,
+         c.client_type = macdata.arg(pos++);
+         c.nspace      = macdata.arg(pos++);
+         c.name        = macdata.arg(pos++);
+         md_.FlecsiRegisterDataClient.push_back(c);
+      }
+   }
+
+
+
+   // flecsi_register_field(client_type, nspace, name, data_type,
+   //                       storage_class, versions, ...)
+   else if (name == "flecsi_register_field") {
+      const clang::CallExpr *const call = getClassCall(
+         var->getInit(),
+        "flecsi::data::field_interface__",
+        "register_field",
+         1,
+         rd
+      );
+
+      if (call != nullptr) {
+         kitsune_debug("found: register field");
+
+         /**/
+         const clang::CXXMethodDecl        *const md = getMethod(call);
+         const clang::TemplateArgumentList *const ta = getTemplateArgs(md);
+         /**/
+
+         llvm::yaml::FlecsiRegisterField c(&sema_,&macdata);
+         int pos = 0;
+
+         c.client_type   = macdata.arg(pos++);
+         c.nspace        = macdata.arg(pos++);
+         c.name          = macdata.arg(pos++);
+         c.data_type     = macdata.arg(pos++);
+         c.storage_class = macdata.arg(pos++);
+         // qqq Ask Nick: why are the following two (which happen to be at
+         // positions 5 and 6, both as macro arguments and template arguments)
+         // extracted in the following way, as opposed to in our usual way?
+         c.versions      = getUIntArg(ta,5);
+         ///c.indexSpace    = getUIntArg(ta,6);
+
+         md_.FlecsiRegisterField.push_back(c);
+      }
+   }
+
+
+
+   // flecsi_register_global(nspace, name, data_type, versions, ...)
+   else if (name == "flecsi_register_global") {
+      const clang::CallExpr *const call = getClassCall(
+         var->getInit(),
+        "flecsi::data::field_interface__",
+        "register_field",
+         1,
+         rd
+      );
+
+      if (call != nullptr) {
+         kitsune_debug("found: register global");
+
+         /**/
+         const clang::CXXMethodDecl        *const md = getMethod(call);
+         const clang::TemplateArgumentList *const ta = getTemplateArgs(md);
+         /**/
+
+         llvm::yaml::FlecsiRegisterGlobal c(&sema_,&macdata);
+         int pos = 0;
+
+         c.nspace    = macdata.arg(pos++);
+         c.name      = macdata.arg(pos++);
+         c.data_type = macdata.arg(pos++);
+         c.versions  = getUIntArg(ta,5);
+         // qqq For an index_space as before, the macro seems to set things
+         // up so that we have ...::global_is followed by __VA_ARGS__. Think
+         // about how to deal with this. Should we just, for instance, save
+         // the variadic stuff, and consider global_is to be implied by the
+         // fact that we're dealing with (YAML-izing) this macro?
+         // c.indexSpace = getUIntArg(ta,6);
+
+         md_.FlecsiRegisterGlobal.push_back(c);
+      }
+   }
+
+
+
+   // flecsi_register_color(nspace, name, data_type, versions, ...)
+   else if (name == "flecsi_register_color") {
+      kitsune_debug("almost found: register color");
+      const clang::CallExpr *const call = getClassCall(
+         var->getInit(),
+        "flecsi::data::field_interface__",
+        "register_field",
+         1,
+         rd
+      );
+
+      if (call != nullptr) {
+         kitsune_debug("found: register color");
+
+         /**/
+         const clang::CXXMethodDecl        *const md = getMethod(call);
+         const clang::TemplateArgumentList *const ta = getTemplateArgs(md);
+         /**/
+
+         llvm::yaml::FlecsiRegisterColor c(&sema_,&macdata);
+         int pos = 0;
+
+         c.nspace    = macdata.arg(pos++);
+         c.name      = macdata.arg(pos++);
+         c.data_type = macdata.arg(pos++);
+         // qqq same comments as with the macros above...
+         c.versions  = getUIntArg(ta,5);
+         // c.indexSpace = getUIntArg(ta,6);
+
+         md_.FlecsiRegisterColor.push_back(c);
+      }
+   }
+
+
+
+   return true;
+}
+
+
+
+// -----------------------------------------------------------------------------
+// VisitCallExpr
+// -----------------------------------------------------------------------------
+
+// qqq Remark: at the moment, this only ever returns true
+bool Analyzer::VisitCallExpr(clang::CallExpr *const call)
+{
+   kitsune_debug("Analyzer::VisitCallExpr()");
+
+   clang::Decl *cd = call->getCalleeDecl();
+   if (!cd)
+      return true;
+
+   auto fd = clang::dyn_cast<clang::FunctionDecl>(cd);
+   if (!fd)
+      return true;
+
+   clang::DeclarationName dn = fd->getDeclName();
+   if (!dn || !dn.isIdentifier())
+      return true;
+
+   const MacroData *const macptr = pa_->getMacroData(call->getLocStart());
+   if (!macptr)
+      return true;
+   const MacroData &macdata = *macptr;
+
+   std::string name = str(macdata.tok);
+   kitsune_print(name);
+   const clang::CXXRecordDecl *rd;
+   (void)rd;//qqq
+
+
+
+   // flecsi_execute_task_simple(task, launch, ...)
+   if (name == "flecsi_execute_task_simple") {
+      if (getClassCall(
+         call,
+        "flecsi::execution::task_interface__",
+        "execute_task"
+      )) {
+         kitsune_debug("found: execute task simple");
+         llvm::yaml::FlecsiExecuteTaskSimple c(&sema_,&macdata);
+         int pos = 0;
+
+         c.task   = macdata.arg(pos++);
+         c.launch = macdata.arg(pos++);
+         md_.FlecsiExecuteTaskSimple.push_back(c);
+
+         kitsune_print(c.type  );
+         kitsune_print(c.file  );
+         kitsune_print(c.line  );
+         kitsune_print(c.task  );
+         kitsune_print(c.launch);
+      }
+   }
+
+
+
+   // flecsi_execute_task(task, nspace, launch, ...)
+   else if (name == "flecsi_execute_task") {
+      if (getClassCall(
+         call,
+        "flecsi::execution::task_interface__",
+        "execute_task"
+      )) {
+         kitsune_debug("found: execute task");
+         llvm::yaml::FlecsiExecuteTask c(&sema_,&macdata);
+         int pos = 0;
+
+         c.task   = macdata.arg(pos++);
+         c.nspace = macdata.arg(pos++);
+         c.launch = macdata.arg(pos++);
+         md_.FlecsiExecuteTask.push_back(c);
+
+         kitsune_print(c.type  );
+         kitsune_print(c.file  );
+         kitsune_print(c.line  );
+         kitsune_print(c.task  );
+         kitsune_print(c.nspace);
+         kitsune_print(c.launch);
+      }
+   }
+
+
+
+   // flecsi_execute_mpi_task_simple(task, ...)
+   else if (name == "flecsi_execute_mpi_task_simple") {
+      if (getClassCall(
+         call,
+        "flecsi::execution::task_interface__",
+        "execute_task"
+      )) {
+         kitsune_debug("found: execute mpi task simple");
+         llvm::yaml::FlecsiExecuteMPITaskSimple c(&sema_,&macdata);
+         int pos = 0;
+
+         c.task = macdata.arg(pos++);
+         md_.FlecsiExecuteMPITaskSimple.push_back(c);
+
+         kitsune_print(c.type);
+         kitsune_print(c.file);
+         kitsune_print(c.line);
+         kitsune_print(c.task);
+      }
+   }
+
+
+
+   // flecsi_execute_mpi_task(task, nspace, ...)
+   else if (name == "flecsi_execute_mpi_task") {
+      if (getClassCall(
+         call,
+        "flecsi::execution::task_interface__",
+        "execute_task"
+      )) {
+         kitsune_debug("found: execute mpi task");
+         llvm::yaml::FlecsiExecuteMPITask c(&sema_,&macdata);
+         int pos = 0;
+
+         c.task   = macdata.arg(pos++);
+         c.nspace = macdata.arg(pos++);
+         md_.FlecsiExecuteMPITask.push_back(c);
+
+         kitsune_print(c.type  );
+         kitsune_print(c.file  );
+         kitsune_print(c.line  );
+         kitsune_print(c.task  );
+         kitsune_print(c.nspace);
+      }
+   }
+
+
+/*
+   // flecsi_get_handle
+   else if (name == "flecsi_get_handle") {
+      if (getClassCall(
+             call,
             "flecsi::data::field_data__",
-            "get_handle", 1, rd)){
-            GetHandle c;
-            c.line = getFileLine(mu, c.file);
-            c.nspace = mu->arg(1);
-            c.name = mu->arg(2);
-            md_.handleGets.push_back(c);
-          }
-        }
-        else if(name == "flecsi_get_client_handle"){
-          const CXXRecordDecl* rd;
-          if(getClassCall(ce,
+            "get_handle", 1, rd)
+      ) {
+         llvm::yaml::GetHandle c;
+         c.line   = getFileLine(macdata, c.file);
+         // qqq Should these really be 1 and 2, or perhaps 0 and 1?
+         c.nspace = macdata.arg(1);
+         c.name   = macdata.arg(2);
+         md_.handleGets.push_back(c);
+      }
+   }
+*/
+
+/*
+   // flecsi_get_client_handle
+   else if (name == "flecsi_get_client_handle") {
+      if (getClassCall(
+             call,
             "flecsi::data::client_data__",
-            "get_client_handle", 0, rd)){
-            
-            const CXXMethodDecl* md = getMethod(ce);
+            "get_client_handle", 0, rd
+      )) {
+         const clang::CXXMethodDecl *md = getMethod(call);
+         const clang::TemplateArgumentList *templateArgs = getTemplateArgs(md);
+         clang::QualType qt = getTypeArg(templateArgs, 0);
+         const clang::CXXRecordDecl *cd = getClassDecl(qt);
 
-            const TemplateArgumentList* templateArgs = getTemplateArgs(md);
+         if (!cd || !isDerivedFrom(cd, "flecsi::data::data_client_t")) {
+            sema_.Diag(macdata.loc(0), clang::diag::err_flecsi_not_a_data_client);
+            return true;
+         }
 
-            QualType qt = getTypeArg(templateArgs, 0);
-
-            const CXXRecordDecl* cd = getClassDecl(qt);
-
-            if(!cd || !isDerivedFrom(cd, "flecsi::data::data_client_t")){
-              sema_.Diag(mu->loc(0),
-                diag::err_flecsi_not_a_data_client);
-              return true;
-            }
-
-            GetClientHandle c;
-            c.line = getFileLine(mu, c.file);
-            c.meshType = mu->arg(0);
-            c.nspace = mu->arg(1);
-            c.name = mu->arg(2);
-            md_.clientHandleGets.push_back(c);
-          }
-        }
+         llvm::yaml::GetClientHandle c;
+         c.line     = getFileLine(macdata, c.file);
+         c.meshType = macdata.arg(0);
+         c.nspace   = macdata.arg(1);
+         c.name     = macdata.arg(2);
+         md_.clientHandleGets.push_back(c);
       }
+   }
+*/
 
+   return true;
+}
+
+
+
+// -----------------------------------------------------------------------------
+// VisitTranslationUnitDecl
+// -----------------------------------------------------------------------------
+
+bool Analyzer::VisitTranslationUnitDecl(clang::TranslationUnitDecl *const d)
+{
+   kitsune_debug("Analyzer::VisitTranslationUnitDecl()");
+
+   for (auto di : d->decls())
+      TraverseDecl(di);
+   return true;
+}
+
+
+
+// ------------------------
+///// getFileLine
+// getName
+// getQualifiedName
+// ------------------------
+
+/*
+// Gets both the file and the line number. The file is returned in the second
+// parameter, while the line number is returned as the function's return value.
+std::uint32_t Analyzer::getFileLine(const MacroData &macdata, std::string &file) const
+{
+   kitsune_debug("Analyzer::getFileLine()");
+
+   clang::SourceManager &srcMgr = sema_.getSourceManager();
+   clang::SourceLocation loc = macdata.tok.getLocation();
+
+   auto p = srcMgr.getDecomposedLoc(loc);
+   file = srcMgr.getFilename(loc).str();
+
+   return srcMgr.getLineNumber(p.first, p.second);
+}
+*/
+
+
+
+std::string Analyzer::getName(const clang::NamedDecl *const nd)
+{
+   kitsune_debug("Analyzer::getName()");
+
+   clang::DeclarationName dn = nd->getDeclName();
+   if (!dn|| !dn.isIdentifier())
+      return "";
+   return dn.getAsString();
+}
+
+
+
+std::string Analyzer::getQualifiedName(const clang::NamedDecl *const nd)
+{
+   kitsune_debug("Analyzer::getQualifiedName()");
+
+   return nd->getQualifiedNameAsString();
+}
+
+
+
+// ------------------------
+// getTemplateArgs
+// getClassDecl
+// getMethod
+// ------------------------
+
+const clang::TemplateArgumentList *Analyzer::getTemplateArgs(
+   const clang::FunctionDecl *const fd
+) {
+   kitsune_debug("Analyzer::getTemplateArgs()");
+
+   return fd->getTemplateSpecializationArgs();
+}
+
+
+
+const clang::CXXRecordDecl *Analyzer::getClassDecl(clang::QualType qt)
+{
+   kitsune_debug("Analyzer::getClassDecl()");
+
+   const clang::Type *t = qt.getTypePtr();
+
+   const clang::RecordType *rt = clang::dyn_cast<clang::RecordType>(t);
+   if (!rt)
+      return nullptr;
+
+   const clang::RecordDecl *rd = rt->getDecl();
+   const clang::CXXRecordDecl *cd = clang::dyn_cast<clang::CXXRecordDecl>(rd);
+   if (!cd)
+      return nullptr;
+
+   return cd;
+}
+
+
+
+const clang::CXXMethodDecl *
+Analyzer::getMethod(const clang::CallExpr *const call)
+{
+   kitsune_debug("Analyzer::getMethod()");
+
+   const clang::Decl *cd = call->getCalleeDecl();
+   if (!cd)
+      return nullptr;
+
+   auto md = clang::dyn_cast<clang::CXXMethodDecl>(cd);
+   if (!md)
+      return nullptr;
+
+   return md;
+}
+
+
+
+// ------------------------
+// getIntArg
+// getUIntArg
+// getTypeArg
+// ------------------------
+
+std::int64_t Analyzer::getIntArg(
+   const clang::TemplateArgumentList *const args,
+   const std::size_t param
+) {
+   kitsune_debug("Analyzer::getIntArg()");
+
+   const clang::TemplateArgument &arg = args->get(param);
+   assert(arg.getKind() == clang::TemplateArgument::Integral);
+   return arg.getAsIntegral().getSExtValue();
+}
+
+std::uint64_t Analyzer::getUIntArg(
+   const clang::TemplateArgumentList *const args,
+   const std::size_t param
+) {
+   kitsune_debug("Analyzer::getUIntArg()");
+
+   const clang::TemplateArgument &arg = args->get(param);
+   assert(arg.getKind() == clang::TemplateArgument::Integral);
+   return arg.getAsIntegral().getZExtValue();
+}
+
+clang::QualType Analyzer::getTypeArg(
+   const clang::TemplateArgumentList *const args,
+   const std::size_t param
+) {
+   kitsune_debug("Analyzer::getTypeArg()");
+
+   const clang::TemplateArgument &arg = args->get(param);
+   assert(arg.getKind() == clang::TemplateArgument::Type);
+   return arg.getAsType();
+}
+
+
+
+// ------------------------
+// getClassCall
+// ------------------------
+
+// 3-argument: Expr, string, string
+const clang::CallExpr *Analyzer::getClassCall(
+   const clang::Expr *const e,
+   const std::string &className,
+   const std::string &call
+) {
+   kitsune_debug("Analyzer::getClassCall(), 3-argument");
+
+   const clang::CXXRecordDecl *rd;
+   return getClassCall( // 6-arg
+      e, className, call,
+      std::numeric_limits<int>::min(),
+      std::numeric_limits<int>::max(),
+      rd
+   );
+}
+
+
+
+// 4-argument: Expr, string, string, int
+const clang::CallExpr *Analyzer::getClassCall(
+   const clang::Expr *const e,
+   const std::string &className,
+   const std::string &call,
+   const int numArgs
+) {
+   kitsune_debug("Analyzer::getClassCall(), 4-argument");
+
+   const clang::CXXRecordDecl *rd;
+   return getClassCall( // 5-arg
+      e, className, call,
+      numArgs, rd
+   );
+}
+
+
+
+// 5-argument: Expr, string, string, int, CXXRecordDecl
+const clang::CallExpr *Analyzer::getClassCall(
+   const clang::Expr *const e,
+   const std::string &className,
+   const std::string &call,
+   const int numArgs,
+   const clang::CXXRecordDecl * &rd
+) {
+   kitsune_debug("Analyzer::getClassCall(), 5-argument");
+
+   return getClassCall( // 6-arg
+      e, className, call,
+      numArgs, numArgs, rd
+   );
+}
+
+
+
+// 6-argument: Expr, string, string, int, int, CXXRecordDecl
+const clang::CallExpr *Analyzer::getClassCall(
+   const clang::Expr *e,
+   const std::string &className,
+   const std::string &call,
+   const int minArgs,
+   const int maxArgs,
+   const clang::CXXRecordDecl * &rd
+) {
+   kitsune_debug("Analyzer::getClassCall(), 6-argument");
+
+   if (!e)
+      return nullptr;
+   e = normExpr(e);
+
+   auto callexpr = clang::dyn_cast<clang::CallExpr>(e);
+   if (!callexpr)
+      return nullptr;
+
+   const clang::CXXMethodDecl *md = getMethod(callexpr);
+   if (!md)
+      return nullptr;
+
+   rd = md->getParent();
+
+   int numArgs = callexpr->getNumArgs();
+   kitsune_print(numArgs);
+   if (numArgs < minArgs || numArgs > maxArgs)
+      return nullptr;
+
+   kitsune_debug(std::string("string 1: ") + className);
+   kitsune_debug(std::string("string 2: ") + getQualifiedName(rd));
+   kitsune_debug(std::string("string 3: ") + call);
+   kitsune_debug(std::string("string 4: ") + getName(md));
+
+   return className == getQualifiedName(rd) && call == getName(md)
+      ? callexpr
+      : nullptr;
+}
+
+
+
+// ------------------------
+// normExpr
+// isDerivedFrom
+// ------------------------
+
+const clang::Expr *Analyzer::normExpr(const clang::Expr *const e)
+{
+   kitsune_debug("Analyzer::normExpr()");
+
+   if (auto ec = clang::dyn_cast<clang::ExprWithCleanups>(e))
+      return ec->getSubExpr();
+   return e;
+}
+
+
+bool Analyzer::isDerivedFrom(
+   const clang::CXXRecordDecl *const cd,
+   const std::string &qualifiedBaseName
+) {
+   kitsune_debug("Analyzer::isDerivedFrom()");
+
+   if (getQualifiedName(cd) == qualifiedBaseName)
       return true;
-    }
 
-    bool VisitTranslationUnitDecl(TranslationUnitDecl* d){
-      for(auto di : d->decls()){
-        TraverseDecl(di);
-      }
+   for (auto bi : cd->bases()) {
+      const clang::CXXRecordDecl *bcd =
+         bi.getType().getTypePtr()->getAsCXXRecordDecl();
+      if (bcd && isDerivedFrom(bcd, qualifiedBaseName))
+         return true;
+   }
 
-      return true;
-    }
-
-    const CallExpr* getClassCall(const Expr* e,
-                                 const string& className,
-                                 const string& call){
-      const CXXRecordDecl* rd;
-      return getClassCall(e, className, call,
-        numeric_limits<int>::min(), numeric_limits<int>::max(), rd);
-    }
-
-    const CallExpr* getClassCall(const Expr* e,
-                                 const string& className,
-                                 const string& call,
-                                 int numArgs){
-      const CXXRecordDecl* rd;
-      return getClassCall(e, className, call, numArgs, rd);
-    }
-
-    const CXXMethodDecl* getMethod(const CallExpr* ce){
-      const Decl* cd = ce->getCalleeDecl();
-      if(!cd){
-        return nullptr;
-      }
-
-      auto md = dyn_cast<CXXMethodDecl>(cd);
-      if(!md){
-        return nullptr;
-      }
-
-      return md;      
-    }
-
-    const CallExpr* getClassCall(const Expr* e,
-                                 const string& className,
-                                 const string& call,
-                                 int numArgs,
-                                 const CXXRecordDecl*& rd){
-      return getClassCall(e, className, call, numArgs, numArgs, rd);
-    }     
-
-    const CallExpr* getClassCall(const Expr* e,
-                                 const string& className,
-                                 const string& call,
-                                 int minArgs,
-                                 int maxArgs,
-                                 const CXXRecordDecl*& rd){
-
-      if(!e){
-        return nullptr;
-      }
-
-      e = normExpr(e);
-
-      auto ce = dyn_cast<CallExpr>(e);
-      if(!ce){
-        return nullptr;
-      }
-
-      const CXXMethodDecl* md = getMethod(ce);
-      if(!md){
-        return nullptr;
-      }
-
-      rd = md->getParent();
-
-      int numArgs = ce->getNumArgs();
-
-      if(numArgs < minArgs || numArgs > maxArgs){
-        return nullptr;
-      }
-
-      return className == getQualifiedName(rd) && call == getName(md) ?
-        ce : nullptr;
-    }
-
-    string getName(const NamedDecl* nd){
-      DeclarationName dn = nd->getDeclName();
-      if(!dn){
-        return "";
-      }
-
-      if(!dn.isIdentifier()){
-        return "";
-      }
-
-      return dn.getAsString();
-    }
-
-    string getQualifiedName(const NamedDecl* nd){
-      return nd->getQualifiedNameAsString();
-    }
-
-    const Expr* normExpr(const Expr* e){
-      if(auto ec = dyn_cast<ExprWithCleanups>(e)){
-        return ec->getSubExpr();
-      }
-
-      return e;
-    }
-
-    const TemplateArgumentList* getTemplateArgs(const FunctionDecl* fd){
-      return fd->getTemplateSpecializationArgs();
-    }
-
-    uint64_t getUIntArg(const TemplateArgumentList* args, size_t param){
-      const TemplateArgument& arg = args->get(param);
-      assert(arg.getKind() == TemplateArgument::Integral);
-      return arg.getAsIntegral().getZExtValue();      
-    }
-
-    int64_t getIntArg(const TemplateArgumentList* args, size_t param){
-      const TemplateArgument& arg = args->get(param);
-      assert(arg.getKind() == TemplateArgument::Integral);
-      return arg.getAsIntegral().getSExtValue();      
-    }
-
-    QualType getTypeArg(const TemplateArgumentList* args, size_t param){
-      const TemplateArgument& arg = args->get(param);
-      assert(arg.getKind() == TemplateArgument::Type);
-      return arg.getAsType();      
-    }
-
-    const CXXRecordDecl* getClassDecl(QualType qt){
-      const clang::Type* t = qt.getTypePtr();
-      
-      const RecordType* rt = dyn_cast<RecordType>(t);
-      if(!rt){
-        return nullptr;
-      }
-
-      const RecordDecl* rd = rt->getDecl();            
-      const CXXRecordDecl* cd = dyn_cast<CXXRecordDecl>(rd);
-      if(!cd){
-        return nullptr;
-      }
-
-      return cd;  
-    }
-
-    bool isDerivedFrom(const CXXRecordDecl* cd,
-                       const string& qualifiedBaseName){
-      if(getQualifiedName(cd) == qualifiedBaseName){
-        return true;
-      }
-
-      for(auto bi : cd->bases()){
-        const CXXRecordDecl* bcd = 
-          bi.getType().getTypePtr()->getAsCXXRecordDecl();
-
-        if(bcd && isDerivedFrom(bcd, qualifiedBaseName)){
-          return true;
-        }
-      }
-
-      return false;
-    }
-
-    bool VisitVarDecl(VarDecl* vd){
-      if(vd->getName().endswith("_registered")){
-        auto mu = pa_->getMacroUse(vd->getLocStart());
-        if(!mu){
-          return true;
-        }
-
-        string name = str(mu->tok);
-
-        if(name == "flecsi_register_task"){
-          const CXXRecordDecl* rd;
-          const CallExpr* ce = getClassCall(vd->getInit(),
-            "flecsi::execution::task_model__",
-            "register_task", 3, rd);
-
-          if(ce){
-            RegisterTask c;
-            c.line = getFileLine(mu, c.file);
-            c.name = mu->arg(0);
-            c.processor = mu->arg(1);
-            c.launch = mu->arg(2);
-            md_.taskRegs.push_back(c);
-          }
-        }
-        else if(name == "flecsi_register_field"){
-          const CXXRecordDecl* rd;
-          const CallExpr* ce = getClassCall(vd->getInit(),
-            "flecsi::data::field_data__", "register_field", 1, rd);
-
-          if(ce){
-            const CXXMethodDecl* md = getMethod(ce);
-
-            const TemplateArgumentList* templateArgs = getTemplateArgs(md);
-
-            RegisterField c;
-            c.line = getFileLine(mu, c.file);
-            c.meshType = mu->arg(0);
-            c.nspace = mu->arg(1);
-            c.name = mu->arg(2);
-            c.dataType = mu->arg(3);
-            c.storageType = mu->arg(4);
-            c.versions = getUIntArg(templateArgs, 5);
-            c.indexSpace = getUIntArg(templateArgs, 6);
-            md_.fieldRegs.push_back(c);            
-          }
-        }
-        else if(name == "flecsi_register_data_client"){
-          const CXXRecordDecl* rd;
-          const CallExpr* ce = getClassCall(vd->getInit(),
-            "flecsi::data::client_data__",
-            "register_data_client", 1, rd);
-          
-          if(ce){
-            const CXXMethodDecl* md = getMethod(ce);
-
-            const TemplateArgumentList* templateArgs = getTemplateArgs(md);
-
-            QualType qt = getTypeArg(templateArgs, 0);
-
-            const CXXRecordDecl* cd = getClassDecl(qt);
-
-            if(!cd || !isDerivedFrom(cd, "flecsi::data::data_client_t")){
-              sema_.Diag(mu->loc(0),
-                diag::err_flecsi_not_a_data_client);
-              return true;
-            }
-
-            RegisterDataClient c;
-            c.line = getFileLine(mu, c.file);
-            c.meshType = mu->arg(0);
-            c.nspace = mu->arg(1);
-            c.name = mu->arg(2);
-            md_.dataClientRegs.push_back(c);            
-          }
-        }
-      }
-
-      return true;
-    }
-
-  private:
-    Sema& sema_;
-    PreprocessorAnalyzer* pa_;
-    FleCSIMetadata& md_;
-  };
+   return false;
+}
 
 } // namespace
 
-void FleCSIAnalyzer::init(Sema& sema){
-  _flecsi_analyzer = new FleCSIAnalyzer(sema);
+
+
+// -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// Definitions
+// For FleCSIAnalyzer member functions.
+// See FleCSIAnalyzer.h
+// -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+
+namespace clang {
+namespace sema {
+
+// instance
+// static
+FleCSIAnalyzer &FleCSIAnalyzer::instance(Sema *const sema)
+{
+   kitsune_debug("FleCSIAnalyzer::instance()");
+   static FleCSIAnalyzer obj(*sema);
+   return obj;
 }
 
-FleCSIAnalyzer* FleCSIAnalyzer::get(){
-  assert(_flecsi_analyzer);
-  return _flecsi_analyzer;
+
+
+// constructor
+FleCSIAnalyzer::FleCSIAnalyzer(Sema &sema)
+ : sema_(sema),
+   pa_(new PreprocessorAnalyzer(sema))
+{
+   kitsune_debug("FleCSIAnalyzer::FleCSIAnalyzer() begin");
+   sema_.getPreprocessor().addPPCallbacks(
+      std::unique_ptr<PreprocessorAnalyzer>(pa_));
+   kitsune_debug("FleCSIAnalyzer::FleCSIAnalyzer() end");
 }
 
-FleCSIAnalyzer::FleCSIAnalyzer(Sema& sema)
-: sema_(sema){
-  auto pa = new PreprocessorAnalyzer(sema);
-  
-  sema_.getPreprocessor().addPPCallbacks(
-    unique_ptr<PreprocessorAnalyzer>(pa));
-  pa_ = pa;
+
+
+// gatherMetadata
+// Seems to be called many times
+void FleCSIAnalyzer::gatherMetadata(Decl *decl)
+{
+   kitsune_debug("FleCSIAnalyzer::gatherMetadata()");
+
+   Analyzer analyzer(sema_, pa_);
+   kitsune_debug("call TraverseDecl()");
+   analyzer.TraverseDecl(decl);
+   kitsune_debug("done TraverseDecl()");
 }
 
-void FleCSIAnalyzer::gatherMetadata(Decl* decl){
-  auto pa = static_cast<PreprocessorAnalyzer*>(pa_);
-  Analyzer analyzer(sema_, pa);
-  analyzer.TraverseDecl(decl);
+
+
+// finalizeMetadata
+// Seems to be called just once
+void FleCSIAnalyzer::finalizeMetadata(const CompilerInstance &)
+{
+   kitsune_debug("FleCSIAnalyzer::finalizeMetadata()");
+
+   // get metadata
+   llvm::yaml::FleCSIMetadata &meta = pa_->metadata();
+
+   // write metadata to string
+   std::string str;
+   llvm::raw_string_ostream raw(str);
+   llvm::yaml::Output yout(raw);
+   yout << meta;
+
+   raw.flush(); // <-- necessary
+   kitsune_print(str);
+
+   // open file
+   // qqq Eventually, figure out where this goes (w/o the full path,
+   // which we obviously don't really want).
+   ///std::ofstream ofs("/home/staley/llvm/f/.flecsi-analyzer");
+   std::ofstream ofs(".flecsi-analyzer");
+
+   // write string to file
+   ofs << raw.str();
 }
 
-void FleCSIAnalyzer::finalizeMetadata(CompilerInstance& ci){
-  auto pa = static_cast<PreprocessorAnalyzer*>(pa_);
-  FleCSIMetadata& md = pa->metadata();
 
-  //yaml::Output out(llvm::outs());
-  //out << md;
+
+// destructor
+FleCSIAnalyzer::~FleCSIAnalyzer()
+{
+   kitsune_debug("FleCSIAnalyzer::~FleCSIAnalyzer()");
 }
+
+} // namespace sema
+} // namespace clang

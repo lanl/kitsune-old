@@ -151,7 +151,7 @@ void clang::ParseAST(Sema &S, bool PrintStats, bool SkipFunctionBodies) {
   bool isFleCSI = P.getLangOpts().FleCSI;
 
   if(isFleCSI){
-    sema::FleCSIAnalyzer::init(S);
+    (void)sema::FleCSIAnalyzer::instance(&S);
   }    
   // +=============
 
@@ -164,7 +164,7 @@ void clang::ParseAST(Sema &S, bool PrintStats, bool SkipFunctionBodies) {
     // +===== Kitsune
     if(isFleCSI){
       for(Decl* di : ADecl.get()){
-        sema::FleCSIAnalyzer::get()->gatherMetadata(di);
+        sema::FleCSIAnalyzer::instance().gatherMetadata(di);
       }
     }
     // +=============

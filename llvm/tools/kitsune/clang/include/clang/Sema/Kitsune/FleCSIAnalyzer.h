@@ -50,29 +50,38 @@
 
 #include "clang/Frontend/CompilerInstance.h"
 
-namespace clang{
 
-class Sema;
 
-namespace sema{
+// -----------------------------------------------------------------------------
+// FleCSIAnalyzer
+// Implemented as a singleton
+// -----------------------------------------------------------------------------
 
-class FleCSIAnalyzer{
+namespace clang {
+namespace sema {
+
+class FleCSIAnalyzer {
 public:
-
-  void gatherMetadata(Decl *D);
-
-  static void init(Sema& sema);
-
-  static FleCSIAnalyzer* get();
-
-  void finalizeMetadata(CompilerInstance& ci);
+   class PreprocessorAnalyzer;
+   static FleCSIAnalyzer &instance(Sema *const = nullptr);
+   void gatherMetadata(Decl *);
+   void finalizeMetadata(const CompilerInstance &);
+   Sema &getSema() { return sema_; }
 
 private:
-  FleCSIAnalyzer(Sema& sema);
+   // data
+   Sema &sema_;
+   PreprocessorAnalyzer *const pa_;
 
-  Sema& sema_;
-  void* pa_;
-};
+   // singleton ==> private ctor/dtor/assignment
+   FleCSIAnalyzer(Sema &);
+  ~FleCSIAnalyzer();
+   FleCSIAnalyzer &operator=(const FleCSIAnalyzer &)
+   {
+      assert(false);
+      return *this;
+   }
+}; // class FleCSIAnalyzer
 
 } // namespace sema
 } // namespace clang
