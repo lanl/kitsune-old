@@ -66,8 +66,9 @@
 // Helper constructs for debugging
 // -----------------------------------------------------------------------------
 
-#define KITSUNE_DEBUG
+#define noKITSUNE_DEBUG
 
+// includes
 #ifdef KITSUNE_DEBUG
    #include <iostream>
    #include <typeinfo>
@@ -82,7 +83,7 @@
    #define kitsune_print(arg)
 #endif
 
-#ifdef KITSUNE_DEBUG
+
 
 namespace {
 
@@ -102,19 +103,23 @@ inline void kitsune_debug(const std::string &str, const bool newline = true)
 // print_type(name)
 inline void print_type(const char *const name)
 {
-   kitsune_debug(boost::core::demangle(name));
+   #ifdef KITSUNE_DEBUG
+      kitsune_debug(boost::core::demangle(name));
+   #else
+      (void)name;
+   #endif
 }
 
 // print_type<T>()
 template<class T>
 inline void print_type()
 {
-   print_type(typeid(T).name());
+   #ifdef KITSUNE_DEBUG
+      print_type(typeid(T).name());
+   #endif
 }
 
 } // namespace
-
-#endif
 
 
 
@@ -889,7 +894,7 @@ inline void FleCSIAnalyzer::PreprocessorAnalyzer::MacroExpands(
 
       // Number of tokens in the argument
       const std::size_t ntok = args->getArgLength(tokbegin);
-      kitsune_print(ntok);
+      kitsune_print(ntok); (void)ntok;
 
       for (const clang::Token *t = tokbegin ; t->isNot(tok::eof);  ++t) {
          ///const clang::Token &t = *tokptr;
@@ -1024,8 +1029,10 @@ public:
 
    std::int64_t
    getIntArg (const clang::TemplateArgumentList *const, const std::size_t);
+
    std::uint64_t
    getUIntArg(const clang::TemplateArgumentList *const, const std::size_t);
+
    clang::QualType
    getTypeArg(const clang::TemplateArgumentList *const, const std::size_t);
 
@@ -1098,7 +1105,6 @@ bool Analyzer::VisitVarDecl(const clang::VarDecl *const var)
    std::string name = str(macdata.tok);
    kitsune_print(name);
    const clang::CXXRecordDecl *rd;
-   (void)rd;//qqq
 
 
 
@@ -1235,21 +1241,16 @@ bool Analyzer::VisitVarDecl(const clang::VarDecl *const var)
       if (call != nullptr) {
          kitsune_debug("found: register data client");
 
-         /**/
-         // Extra checks; ask Nick about why here, not earlier
-         // qqq Understand this sequence: call --> md --> ta --> qt --> cd
          const clang::CXXMethodDecl *const md = getMethod(call);
          const clang::TemplateArgumentList *const ta = getTemplateArgs(md);
          const clang::QualType qt = getTypeArg(ta, 0);
          const clang::CXXRecordDecl *const cd = getClassDecl(qt);
-
          if (!cd || !isDerivedFrom(cd, "flecsi::data::data_client_t")) {
             sema_.Diag(
                macdata.loc(0),
                clang::diag::err_flecsi_not_a_data_client);
             return true;
          }
-         /**/
 
          llvm::yaml::FlecsiRegisterDataClient c(&sema_,&macdata);
          int pos = 0;
@@ -1277,11 +1278,8 @@ bool Analyzer::VisitVarDecl(const clang::VarDecl *const var)
       if (call != nullptr) {
          kitsune_debug("found: register field");
 
-         /**/
          const clang::CXXMethodDecl        *const md = getMethod(call);
          const clang::TemplateArgumentList *const ta = getTemplateArgs(md);
-         /**/
-
          llvm::yaml::FlecsiRegisterField c(&sema_,&macdata);
          int pos = 0;
 
@@ -1290,9 +1288,6 @@ bool Analyzer::VisitVarDecl(const clang::VarDecl *const var)
          c.name          = macdata.arg(pos++);
          c.data_type     = macdata.arg(pos++);
          c.storage_class = macdata.arg(pos++);
-         // qqq Ask Nick: why are the following two (which happen to be at
-         // positions 5 and 6, both as macro arguments and template arguments)
-         // extracted in the following way, as opposed to in our usual way?
          c.versions      = getUIntArg(ta,5);
          ///c.indexSpace    = getUIntArg(ta,6);
 
@@ -1315,11 +1310,8 @@ bool Analyzer::VisitVarDecl(const clang::VarDecl *const var)
       if (call != nullptr) {
          kitsune_debug("found: register global");
 
-         /**/
          const clang::CXXMethodDecl        *const md = getMethod(call);
          const clang::TemplateArgumentList *const ta = getTemplateArgs(md);
-         /**/
-
          llvm::yaml::FlecsiRegisterGlobal c(&sema_,&macdata);
          int pos = 0;
 
@@ -1354,18 +1346,14 @@ bool Analyzer::VisitVarDecl(const clang::VarDecl *const var)
       if (call != nullptr) {
          kitsune_debug("found: register color");
 
-         /**/
          const clang::CXXMethodDecl        *const md = getMethod(call);
          const clang::TemplateArgumentList *const ta = getTemplateArgs(md);
-         /**/
-
          llvm::yaml::FlecsiRegisterColor c(&sema_,&macdata);
          int pos = 0;
 
          c.nspace    = macdata.arg(pos++);
          c.name      = macdata.arg(pos++);
          c.data_type = macdata.arg(pos++);
-         // qqq same comments as with the macros above...
          c.versions  = getUIntArg(ta,5);
          // c.indexSpace = getUIntArg(ta,6);
 
