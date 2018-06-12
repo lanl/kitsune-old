@@ -183,6 +183,13 @@ Constant *createRuntimeFunction(OpenMPRuntimeFunction Function,
     RTLFn = M->getOrInsertFunction("__kmpc_barrier", FnTy);
     break;
   }
+  case OMPRTL__kmpc_global_num_threads: {
+    Type *TypeParams[] = {IdentTyPtrTy};
+    FunctionType *FnTy =
+        FunctionType::get(Int32Ty, TypeParams, /*isVarArg=*/false);
+    RTLFn = M->getOrInsertFunction("__kmpc_global_num_threads", FnTy);
+    break;
+  }
   }
   return RTLFn;
 }
@@ -267,7 +274,7 @@ Type *getOrCreateIdentTy(Module *M) {
       IdentTy->setBody(ArrayRef<llvm::Type*>({Int32Ty /* reserved_1 */,
                                    Int32Ty /* flags */, Int32Ty /* reserved_2 */,
                                    Int32Ty /* reserved_3 */,
-                                   Int8PtrTy /* psource */}), true /* was -- "ident_t" */);
+                                   Int8PtrTy /* psource */}), false);
   }
   return IdentTy;
 }
@@ -343,23 +350,35 @@ Value *getOrCreateDefaultLocation(Module *M) {
 
 //##############################################################################
 
-llvm::tapir::OpenMPABI::OpenMPABI() {}
+llvm::OpenMPABI::OpenMPABI() {}
 
+static const StringRef worker8_name = "__omp_wc8"; 
 /// \brief Get/Create the worker count for the spawning function.
-Value* llvm::tapir::OpenMPABI::GetOrCreateWorker8(Function &F) {
-  /*
-  // Value* W8 = F.getValueSymbolTable()->lookup(worker8_name);
-  // if (W8) return W8;
+Value *llvm::OpenMPABI::GetOrCreateWorker8(Function &F) {
+  // TODO?: Figure out better place for these calls, but needed here due to
+  // this function being called before other initialization points
+  getOrCreateIdentTy(F.getParent());
+  getOrCreateDefaultLocation(F.getParent());
+
+  Value* W8 = F.getValueSymbolTable()->lookup(worker8_name);
+  if (W8) return W8;
   IRBuilder<> B(F.getEntryBlock().getFirstNonPHIOrDbgOrLifetime());
-  Value *P0 = B.CreateCall(CILKRTS_FUNC(get_nworkers, *F.getParent()));
-  Value *P8 = B.CreateMul(P0, ConstantInt::get(P0->getType(), 8), worker8_name);
-  return P8;
-  */
-  assert(0 && "OpenMP for loop / worker count not supported");
-  return nullptr;
+  auto NTFn = createRuntimeFunction(
+      OpenMPRuntimeFunction::OMPRTL__kmpc_global_num_threads, F.getParent());
+  Value *nworkers = emitRuntimeCall(NTFn, {DefaultOpenMPLocation}, "", B);
+
+  // num_threads returns 0 if not in parallel region, so need to add 1 to avoid
+  // dividing by zero later in the case of fast-openmp
+  // `nworkers += nworkers == 0`
+  Type *i32 = IntegerType::get(F.getContext(), 32); 
+  Value *eq = B.CreateICmpEQ(nworkers, ConstantInt::get(i32,0)); 
+  Value *eqi = B.CreateIntCast(eq, i32, false); 
+  Value *pnw = B.CreateAdd(nworkers, eqi, "nworkers");
+  Value *P8 = B.CreateMul(pnw, ConstantInt::get(i32, 8), worker8_name);
+  return P8; 
 }
 
-void llvm::tapir::OpenMPABI::createSync(SyncInst &SI, ValueToValueMapTy &DetachCtxToStackFrame) {
+void llvm::OpenMPABI::createSync(SyncInst &SI, ValueToValueMapTy &DetachCtxToStackFrame) {
   std::vector<Value *> Args = {DefaultOpenMPLocation,
                             getThreadID(SI.getParent()->getParent())};
   IRBuilder<> builder(&SI);
@@ -570,9 +589,9 @@ Function* formatFunctionToTask(Function* extracted, CallInst* cal) {
   return OutlinedFn;
 }
 
-Function *llvm::tapir::OpenMPABI::createDetach(DetachInst &detach,
-                                   ValueToValueMapTy &DetachCtxToStackFrame,
-                                   DominatorTree &DT, AssumptionCache &AC) {
+Function *llvm::OpenMPABI::createDetach(DetachInst &detach,
+                                        ValueToValueMapTy &DetachCtxToStackFrame,
+                                        DominatorTree &DT, AssumptionCache &AC) {
   BasicBlock *detB = detach.getParent();
   // unused -- Function &F = *(detB->getParent());
 
@@ -600,7 +619,7 @@ Function *llvm::tapir::OpenMPABI::createDetach(DetachInst &detach,
   return extracted;
 }
 
-void llvm::tapir::OpenMPABI::preProcessFunction(Function &F) {
+void llvm::OpenMPABI::preProcessFunction(Function &F) {
   auto M = (Module *)F.getParent();
   getOrCreateIdentTy(M);
   getOrCreateDefaultLocation(M);
@@ -609,7 +628,7 @@ void llvm::tapir::OpenMPABI::preProcessFunction(Function &F) {
 
 cl::opt<bool> fastOpenMP("fast-openmp", cl::init(false), cl::Hidden,
                        cl::desc("Attempt faster OpenMP implementation, assuming parallel outside set"));
-void llvm::tapir::OpenMPABI::postProcessFunction(Function &F) {
+void llvm::OpenMPABI::postProcessFunction(Function &F) {
   if (fastOpenMP) return;
 
   auto& Context = F.getContext();
@@ -790,5 +809,8 @@ void llvm::tapir::OpenMPABI::postProcessFunction(Function &F) {
   RegionFn->eraseFromParent();
 }
 
-void llvm::tapir::OpenMPABI::postProcessHelper(Function &F) {
+void llvm::OpenMPABI::postProcessHelper(Function &F) {}
+
+bool llvm::OpenMPABI::processMain(Function &F) { 
+  return false; 
 }

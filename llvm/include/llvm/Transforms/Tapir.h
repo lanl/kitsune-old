@@ -26,7 +26,13 @@ class FunctionPass;
 //
 // LoopSpawning - Create a loop spawning pass.
 //
-Pass *createLoopSpawningPass(tapir::TapirTarget*);
+Pass *createLoopSpawningPass(TapirTarget*);
+
+//===----------------------------------------------------------------------===//
+//
+// NestedDetachMotion - Do NestedDetachMotion Pass
+//
+FunctionPass *createNestedDetachMotionPass();
 
 //===----------------------------------------------------------------------===//
 //
@@ -54,15 +60,15 @@ FunctionPass *createSpawnRestructurePass();
 
 //===----------------------------------------------------------------------===//
 //
-// SpawnUnswitch - Do SpawnUnswitch Pass
+// DetachUnswitch - Do DetachUnswitch Pass
 //
-FunctionPass *createSpawnUnswitchPass();
+FunctionPass *createDetachUnswitchPass();
 
 //===----------------------------------------------------------------------===//
 //
-// PromoteDetachToCilk
+// LowerTapirToTarget
 //
-ModulePass *createLowerTapirToTargetPass(tapir::TapirTarget*);
+ModulePass *createLowerTapirToTargetPass(TapirTarget*);
 
 } // End llvm namespace
 

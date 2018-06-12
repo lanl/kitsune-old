@@ -58,6 +58,7 @@
 #include "llvm/Transforms/Tapir/TapirUtils.h"
 #include "llvm/Transforms/Tapir/CilkABI.h"
 #include "llvm/Transforms/Tapir/OpenMPABI.h"
+#include "llvm/Transforms/Tapir/QthreadsABI.h"
 #include "llvm/Transforms/Utils/NameAnonGlobals.h"
 #include "llvm/Transforms/Utils/SymbolRewriter.h"
 #include <memory>
@@ -506,15 +507,18 @@ void EmitAssemblyHelper::CreatePasses(legacy::PassManager &MPM,
   PMBuilder.OptLevel = CodeGenOpts.OptimizationLevel;
 
   switch(LangOpts.Tapir){
-    case tapir::TapirTargetType::Cilk:
-      PMBuilder.tapirTarget = new llvm::tapir::CilkABI();
+    case TapirTargetType::Cilk:
+      PMBuilder.tapirTarget = new llvm::CilkABI();
       break;
-    case tapir::TapirTargetType::OpenMP:
-      PMBuilder.tapirTarget = new llvm::tapir::OpenMPABI();
+    case TapirTargetType::OpenMP:
+      PMBuilder.tapirTarget = new llvm::OpenMPABI();
       break;
-    case tapir::TapirTargetType::Serial:
+    case TapirTargetType::Qthreads:
+      PMBuilder.tapirTarget = new llvm::QthreadsABI();
+      break;
+    case TapirTargetType::Serial:
       assert(0 && "TODO MAKE OTHER TAPIR OPTS");
-    case tapir::TapirTargetType::None:
+    case TapirTargetType::None:
       PMBuilder.tapirTarget = nullptr;
       break;
   }

@@ -63,6 +63,7 @@
 #include "llvm/Transforms/Tapir/TapirUtils.h"
 #include "llvm/Transforms/Tapir/CilkABI.h"
 #include "llvm/Transforms/Tapir/OpenMPABI.h"
+#include "llvm/Transforms/Tapir/PTXABI.h"
 // ==============
 
 using namespace clang;
@@ -290,6 +291,17 @@ static void addEfficiencySanitizerPass(const PassManagerBuilder &Builder,
   PM.add(createEfficiencySanitizerPass(Opts));
 }
 
+static void addCilkSanitizerPass(const PassManagerBuilder &Builder,
+                                 legacy::PassManagerBase &PM) {
+  PM.add(createCilkSanitizerPass());
+}
+
+static void
+addComprehensiveStaticInstrumentationPass(const PassManagerBuilder &Builder,
+                                          PassManagerBase &PM) {
+  PM.add(createComprehensiveStaticInstrumentationPass());
+}
+
 static TargetLibraryInfoImpl *createTLII(llvm::Triple &TargetTriple,
                                          const CodeGenOptions &CodeGenOpts) {
   TargetLibraryInfoImpl *TLII = new TargetLibraryInfoImpl(TargetTriple);
@@ -499,15 +511,18 @@ void EmitAssemblyHelper::CreatePasses(legacy::PassManager &MPM,
   // +===== Kitsune
   if(LangOpts.FleCSI || LangOpts.Kokkos){
     switch(LangOpts.Tapir){
-      case tapir::TapirTargetType::Cilk:
-        PMBuilder.tapirTarget = new llvm::tapir::CilkABI();
+      case TapirTargetType::Cilk:
+        PMBuilder.tapirTarget = new llvm::CilkABI();
         break;
-      case tapir::TapirTargetType::OpenMP:
-        PMBuilder.tapirTarget = new llvm::tapir::OpenMPABI();
+      case TapirTargetType::OpenMP:
+        PMBuilder.tapirTarget = new llvm::OpenMPABI();
         break;
-      case tapir::TapirTargetType::Serial:
+      case TapirTargetType::PTX:
+        PMBuilder.tapirTarget = new llvm::PTXABI();
+        break;
+      case TapirTargetType::Serial:
         assert(0 && "TODO MAKE OTHER TAPIR OPTS");
-      case tapir::TapirTargetType::None:
+      case TapirTargetType::None:
         PMBuilder.tapirTarget = nullptr;
         break;
     }
@@ -603,6 +618,25 @@ void EmitAssemblyHelper::CreatePasses(legacy::PassManager &MPM,
                            addEfficiencySanitizerPass);
     PMBuilder.addExtension(PassManagerBuilder::EP_EnabledOnOptLevel0,
                            addEfficiencySanitizerPass);
+  }
+
+  if (LangOpts.Sanitize.has(SanitizerKind::Cilk)) {
+    // PMBuilder.InstrumentCilk = true;
+    // PMBuilder.addExtension(PassManagerBuilder::EP_OptimizerLast,
+    //                        addThreadSanitizerPass);
+    // PMBuilder.addExtension(PassManagerBuilder::EP_EnabledOnOptLevel0,
+    //                        addThreadSanitizerPass);
+    PMBuilder.addExtension(PassManagerBuilder::EP_TapirLate,
+                           addCilkSanitizerPass);
+    PMBuilder.addExtension(PassManagerBuilder::EP_EnabledOnOptLevel0,
+                           addCilkSanitizerPass);
+  }
+
+  if (LangOpts.ComprehensiveStaticInstrumentation) {
+    PMBuilder.addExtension(PassManagerBuilder::EP_TapirLate,
+                           addComprehensiveStaticInstrumentationPass);
+    PMBuilder.addExtension(PassManagerBuilder::EP_EnabledOnOptLevel0,
+                           addComprehensiveStaticInstrumentationPass);
   }
 
   // Set up the per-function pass manager.

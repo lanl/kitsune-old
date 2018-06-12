@@ -21,12 +21,16 @@
 #include "llvm/InitializePasses.h"
 #include "llvm/IR/LegacyPassManager.h"
 
+#define TapirTarget_of(tt) ((TapirTarget*)tt)
+
 using namespace llvm;
 
 /// initializeTapirOpts - Initialize all passes linked into the
 /// TapirOpts library.
 void llvm::initializeTapirOpts(PassRegistry &Registry) {
   initializeLoopSpawningPass(Registry);
+  initializeDetachUnswitchPass(Registry);
+  initializeNestedDetachMotionPass(Registry);
   initializeLowerTapirToTargetPass(Registry);
 }
 
@@ -34,12 +38,14 @@ void LLVMInitializeTapirOpts(LLVMPassRegistryRef R) {
   initializeTapirOpts(*unwrap(R));
 }
 
-/*
-void LLVMAddLoopSpawningPass(LLVMPassManagerRef PM, TapirTargetType tapirType) {
-  unwrap(PM)->add(createLoopSpawningPass(tapirType));
+void LLVMAddLowerTapirToCilk(LLVMPassManagerRef PM,
+                             TapirTargetRef tt)
+{
+    unwrap(PM)->add(createLowerTapirToTargetPass(TapirTarget_of(tt)));
 }
 
-void LLVMAddLowerTapirToTargetPass(LLVMPassManagerRef PM, TapirTargetType tapirType) {
-  unwrap(PM)->add(createLowerTapirToTargetPass(tapirType));
+void LLVMAddLoopSpawning(LLVMPassManagerRef PM,
+                         TapirTargetRef tt)
+{
+    unwrap(PM)->add(createLoopSpawningPass(TapirTarget_of(tt)));
 }
-*/

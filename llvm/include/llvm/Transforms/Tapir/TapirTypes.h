@@ -16,15 +16,19 @@
 #define TAPIR_TYPES_H_
 
 namespace llvm {
-namespace tapir {
-class TapirTarget;
-enum class TapirTargetType : int {
+
+enum class TapirTargetType {
   None = 0,
   Serial = 1,
   Cilk = 2,
-  OpenMP = 3
+  OpenMP = 3,
+  CilkR = 4,
+  Qthreads = 5,
+  // +===== Kitsune
+  PTX = 6
+  // ==============
 };
-}
-}
+
+} // end namespace llvm
 
 #endif

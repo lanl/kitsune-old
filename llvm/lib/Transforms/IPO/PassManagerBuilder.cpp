@@ -487,7 +487,7 @@ void PassManagerBuilder::populateModulePassManager(
   bool RerunAfterTapirLowering = false;
   bool TapirHasBeenLowered = (tapirTarget == nullptr);
 
-  if (tapirTarget && DisableTapirOpts) {// -fdetach
+  if (tapirTarget && DisableTapirOpts) { // -fdetach
     MPM.add(createLowerTapirToTargetPass(tapirTarget));
     TapirHasBeenLowered = true;
   }
@@ -628,7 +628,7 @@ void PassManagerBuilder::populateModulePassManager(
   if (EnableLoopFuse)
     MPM.add(createLoopFusePass());
 
-  MPM.add(createLoopVectorizePass(DisableUnrollLoops, LoopVectorize));
+  MPM.add(createLoopVectorizePass(DisableUnrollLoops, LoopVectorize, Rhino));
 
   // Eliminate loads by forwarding stores from the previous iteration to loads
   // of the current iteration.
@@ -711,6 +711,12 @@ void PassManagerBuilder::populateModulePassManager(
   // LoopSink (and other loop passes since the last simplifyCFG) might have
   // resulted in single-entry-single-exit or empty blocks. Clean up the CFG.
   MPM.add(createCFGSimplificationPass());
+  if (Rhino) {
+    MPM.add(createNestedDetachMotionPass());
+    MPM.add(createCFGSimplificationPass());
+    MPM.add(createDetachUnswitchPass());
+    MPM.add(createCFGSimplificationPass());
+  }
 
   if (RerunAfterTapirLowering || (tapirTarget == nullptr))
     // Add passes to run just before Tapir lowering.
@@ -865,7 +871,7 @@ void PassManagerBuilder::addLTOOptimizationPasses(legacy::PassManagerBase &PM) {
 
   if (!DisableUnrollLoops)
     PM.add(createSimpleLoopUnrollPass(OptLevel));   // Unroll small loops
-  PM.add(createLoopVectorizePass(true, LoopVectorize));
+  PM.add(createLoopVectorizePass(true, LoopVectorize, Rhino));
   // The vectorizer may have significantly shortened a loop body; unroll again.
   if (!DisableUnrollLoops)
     PM.add(createLoopUnrollPass(OptLevel));

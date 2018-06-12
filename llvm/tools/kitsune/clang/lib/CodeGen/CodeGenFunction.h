@@ -2578,6 +2578,8 @@ public:
   void EmitCaseStmtRange(const CaseStmt &S);
   void EmitAsmStmt(const AsmStmt &S);
 
+  bool GenerateStartOfCilkSpawn();
+
   void EmitObjCForCollectionStmt(const ObjCForCollectionStmt &S);
   void EmitObjCAtTryStmt(const ObjCAtTryStmt &S);
   void EmitObjCAtThrowStmt(const ObjCAtThrowStmt &S);
@@ -2606,8 +2608,21 @@ public:
   void ExitSEHTryStmt(const SEHTryStmt &S);
 
   // +===== Kitsune
-  llvm::Instruction *EmitSyncRegionStart();
-  
+  /// In Cilk, flag indicating whether the current call/invoke is spawned.
+  bool IsSpawned;
+
+  /// \brief RAII object to set/unset CodeGenFunction::IsSpawned.
+  class IsSpawnedScope {
+    CodeGenFunction *CGF;
+    bool OldIsSpawned;
+
+  public:
+    IsSpawnedScope(CodeGenFunction *CGF);
+    ~IsSpawnedScope();
+    bool OldScopeIsSpawned();
+    void RestoreOldScope();
+  };
+
   void EmitForallStmt(const ForallStmt &S,
                       ArrayRef<const Attr *> ForAttrs = None);
 
@@ -2649,6 +2664,8 @@ public:
   void PushSyncRegion() {
     CurSyncRegion = new SyncRegion(*this);
   }
+  
+  llvm::Instruction *EmitSyncRegionStart();
 
   void PopSyncRegion() {
     delete CurSyncRegion;

@@ -86,7 +86,7 @@ install_dir := $(build_dir)/kitsune/
 
 cmake_flags := -C $(src_dir)/cmake/DefaultCache.cmake \
                -DKITSUNE_CLANG=ON -DCMAKE_INSTALL_PREFIX=$(install_dir) \
-               -DLLVM_TARGETS_TO_BUILD="X86" -DCMAKE_BUILD_TYPE=Release
+               -DLLVM_TARGETS_TO_BUILD="X86" -DCMAKE_BUILD_TYPE=Debug -DLLVM_USE_LINKER=gold
 
 #cmake_flags := -C $(src_dir)/cmake/DefaultCache.cmake \
 #                -DCMAKE_INSTALL_PREFIX=$(install_dir)

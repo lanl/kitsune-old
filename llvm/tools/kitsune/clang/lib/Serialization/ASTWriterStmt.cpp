@@ -247,7 +247,7 @@ void ASTStmtWriter::VisitGCCAsmStmt(GCCAsmStmt *S) {
   Record.AddStmt(S->getAsmString());
 
   // Outputs
-  for (unsigned I = 0, N = S->getNumOutputs(); I != N; ++I) {      
+  for (unsigned I = 0, N = S->getNumOutputs(); I != N; ++I) {
     Record.AddIdentifierRef(S->getOutputIdentifier(I));
     Record.AddStmt(S->getOutputConstraintLiteral(I));
     Record.AddStmt(S->getOutputExpr(I));
@@ -991,7 +991,7 @@ void ASTStmtWriter::VisitObjCDictionaryLiteral(ObjCDictionaryLiteral *E) {
       Record.push_back(NumExpansions);
     }
   }
-    
+
   Record.AddDeclRef(E->getDictWithObjectsMethod());
   Record.AddSourceRange(E->getSourceRange());
   Code = serialization::EXPR_OBJC_DICTIONARY_LITERAL;
@@ -1055,7 +1055,7 @@ void ASTStmtWriter::VisitObjCPropertyRefExpr(ObjCPropertyRefExpr *E) {
     Record.push_back(2);
     Record.AddDeclRef(E->getClassReceiver());
   }
-  
+
   Code = serialization::EXPR_OBJC_PROPERTY_REF_EXPR;
 }
 
@@ -1066,7 +1066,7 @@ void ASTStmtWriter::VisitObjCSubscriptRefExpr(ObjCSubscriptRefExpr *E) {
   Record.AddStmt(E->getKeyExpr());
   Record.AddDeclRef(E->getAtIndexMethodDecl());
   Record.AddDeclRef(E->setAtIndexMethodDecl());
-  
+
   Code = serialization::EXPR_OBJC_SUBSCRIPT_REF_EXPR;
 }
 
@@ -1732,6 +1732,43 @@ void ASTStmtWriter::VisitAsTypeExpr(AsTypeExpr *E) {
   Record.AddSourceLocation(E->getRParenLoc());
   Record.AddStmt(E->getSrcExpr());
   Code = serialization::EXPR_ASTYPE;
+}
+
+//===----------------------------------------------------------------------===//
+// Cilk spawn, Cilk sync, Cilk for
+//===----------------------------------------------------------------------===//
+void ASTStmtWriter::VisitCilkSpawnStmt(CilkSpawnStmt *S) {
+  VisitStmt(S);
+  Record.AddSourceLocation(S->getSpawnLoc());
+  Record.AddStmt(S->getSpawnedStmt());
+  Code = serialization::STMT_CILKSPAWN;
+}
+
+void ASTStmtWriter::VisitCilkSpawnExpr(CilkSpawnExpr *E) {
+  VisitExpr(E);
+  Record.AddSourceLocation(E->getSpawnLoc());
+  Record.AddStmt(E->getSpawnedExpr());
+  Code = serialization::EXPR_CILKSPAWN;
+}
+
+void ASTStmtWriter::VisitCilkSyncStmt(CilkSyncStmt *S) {
+  VisitStmt(S);
+  Record.AddSourceLocation(S->getSyncLoc());
+  Code = serialization::STMT_CILKSYNC;
+}
+
+void ASTStmtWriter::VisitCilkForStmt(CilkForStmt *S) {
+  VisitStmt(S);
+  Record.AddStmt(S->getInit());
+  Record.AddStmt(S->getCond());
+  // Record.AddDeclRef(S->getConditionVariable());
+  Record.AddStmt(S->getInc());
+  Record.AddDeclRef(S->getLoopVariable());
+  Record.AddStmt(S->getBody());
+  Record.AddSourceLocation(S->getCilkForLoc());
+  Record.AddSourceLocation(S->getLParenLoc());
+  Record.AddSourceLocation(S->getRParenLoc());
+  Code = serialization::STMT_CILKFOR;
 }
 
 //===----------------------------------------------------------------------===//

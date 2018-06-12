@@ -3220,6 +3220,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
 
   // +===== Kokkos
   Args.AddLastArg(CmdArgs, options::OPT_fkokkos);
+  Args.AddLastArg(CmdArgs, options::OPT_fgpu);
   // ==============
 
   // Forward flags for OpenMP. We don't do this if the current action is an

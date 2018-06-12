@@ -32,6 +32,16 @@ if(NOT DEFINED LLVM_VERSION_SUFFIX)
   set(LLVM_VERSION_SUFFIX "")
 endif()
 
+if(NOT DEFINED TAPIR_VERSION_MAJOR)
+  set(TAPIR_VERSION_MAJOR 1)
+endif()
+if(NOT DEFINED TAPIR_VERSION_MINOR)
+  set(TAPIR_VERSION_MINOR 0)
+endif()
+if(NOT DEFINED TAPIR_VERSION_PATCH)
+  set(TAPIR_VERSION_PATCH 0)
+endif()
+
 if (POLICY CMP0048)
   cmake_policy(SET CMP0048 NEW)
   set(cmake_3_0_PROJ_VERSION
@@ -214,7 +224,7 @@ endif()
 
 set(PACKAGE_NAME LLVM)
 set(PACKAGE_STRING "${PACKAGE_NAME} ${PACKAGE_VERSION}")
-set(PACKAGE_BUGREPORT "http://llvm.org/bugs/")
+set(PACKAGE_BUGREPORT "https://github.com/wsmoses/Tapir-LLVM/issues")
 
 set(BUG_REPORT_URL "${PACKAGE_BUGREPORT}" CACHE STRING
   "Default URL where bug reports are to be submitted.")
@@ -514,7 +524,7 @@ option (LLVM_BUILD_DOCS "Build the llvm documentation." OFF)
 option (LLVM_INCLUDE_DOCS "Generate build targets for llvm documentation." ON)
 option (LLVM_ENABLE_DOXYGEN "Use doxygen to generate llvm API documentation." OFF)
 option (LLVM_ENABLE_SPHINX "Use Sphinx to generate llvm documentation." OFF)
-option (LLVM_ENABLE_OCAMLDOC "Build OCaml bindings documentation." ON)
+option (LLVM_ENABLE_OCAMLDOC "Build OCaml bindings documentation." OFF)
 
 set(LLVM_INSTALL_DOXYGEN_HTML_DIR "share/doc/llvm/doxygen-html"
     CACHE STRING "Doxygen-generated HTML documentation install directory")
@@ -536,7 +546,7 @@ if(NOT DEFINED LLVM_DYLIB_COMPONENTS)
 endif()
 option(LLVM_LINK_LLVM_DYLIB "Link tools against the libllvm dynamic library" OFF)
 option(LLVM_BUILD_LLVM_C_DYLIB "Build libllvm-c re-export library (Darwin Only)" OFF)
-set(LLVM_BUILD_LLVM_DYLIB_default OFF)
+set(LLVM_BUILD_LLVM_DYLIB_default ON)
 if(LLVM_LINK_LLVM_DYLIB OR LLVM_BUILD_LLVM_C_DYLIB)
   set(LLVM_BUILD_LLVM_DYLIB_default ON)
 endif()

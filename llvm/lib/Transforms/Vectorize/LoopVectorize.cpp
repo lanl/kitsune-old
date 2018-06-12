@@ -105,6 +105,7 @@ using namespace llvm;
 using namespace llvm::PatternMatch;
 
 #define LV_NAME "loop-vectorize"
+#define LV_RHINO_NAME "loop-vectorize-rhino"
 #define DEBUG_TYPE LV_NAME
 
 STATISTIC(LoopsVectorized, "Number of loops vectorized");
@@ -434,7 +435,7 @@ protected:
 
   /// Create a new induction variable inside L.
   PHINode *createInductionVariable(Loop *L, Value *Start, Value *End,
-                                   Value *Step, Instruction *DL);
+                                   Value *Step, Instruction *DL, bool nuw, bool nsw);
 
   /// Handle all cross-iteration phis in the header.
   void fixCrossIterationPHIs();
@@ -1567,8 +1568,8 @@ public:
       const TargetTransformInfo *TTI,
       std::function<const LoopAccessInfo &(Loop &)> *GetLAA, LoopInfo *LI,
       OptimizationRemarkEmitter *ORE, LoopVectorizationRequirements *R,
-      LoopVectorizeHints *H)
-      : NumPredStores(0), TheLoop(L), PSE(PSE), TLI(TLI), TTI(TTI), DT(DT),
+      LoopVectorizeHints *H, bool Rhino)
+      : Rhino(Rhino), NumPredStores(0), TheLoop(L), PSE(PSE), TLI(TLI), TTI(TTI), DT(DT),
         GetLAA(GetLAA), LAI(nullptr), ORE(ORE), InterleaveInfo(PSE, L, DT, LI),
         PrimaryInduction(nullptr), WidestIndTy(nullptr), HasFunNoNaNAttr(false),
         Requirements(R), Hints(H) {}
@@ -1584,6 +1585,9 @@ public:
   /// RecurrenceSet contains the phi nodes that are recurrences other than
   /// inductions and reductions.
   typedef SmallPtrSet<const PHINode *, 8> RecurrenceSet;
+
+  /// Whether to allow Rhino optimizations.
+  bool Rhino;
 
   /// Returns true if it is legal to vectorize this loop.
   /// This does not mean that it is profitable to vectorize this
@@ -2319,15 +2323,22 @@ static void addAcyclicInnerLoop(Loop &L, SmallVectorImpl<Loop *> &V) {
 }
 
 /// The LoopVectorize Pass.
-struct LoopVectorize : public FunctionPass {
+template <bool Rhino>
+struct LoopVectorizeCommonPass : public FunctionPass {
   /// Pass identification, replacement for typeid
   static char ID;
 
-  explicit LoopVectorize(bool NoUnrolling = false, bool AlwaysVectorize = true)
+  explicit LoopVectorizeCommonPass(bool NoUnrolling = false, bool AlwaysVectorize = true)
       : FunctionPass(ID) {
     Impl.DisableUnrolling = NoUnrolling;
     Impl.AlwaysVectorize = AlwaysVectorize;
-    initializeLoopVectorizePass(*PassRegistry::getPassRegistry());
+    Impl.Rhino = Rhino;
+
+    if (Rhino) {
+        initializeLoopVectorizeRhinoPass(*PassRegistry::getPassRegistry());
+    } else {
+        initializeLoopVectorizePass(*PassRegistry::getPassRegistry());
+    }
   }
 
   LoopVectorizePass Impl;
@@ -3174,7 +3185,7 @@ void InnerLoopVectorizer::scalarizeInstruction(Instruction *Instr,
 
 PHINode *InnerLoopVectorizer::createInductionVariable(Loop *L, Value *Start,
                                                       Value *End, Value *Step,
-                                                      Instruction *DL) {
+                                                      Instruction *DL, bool nuw, bool nsw) {
   BasicBlock *Header = L->getHeader();
   BasicBlock *Latch = L->getLoopLatch();
   // As we're just creating this loop, it's possible no latch exists
@@ -3191,7 +3202,7 @@ PHINode *InnerLoopVectorizer::createInductionVariable(Loop *L, Value *Start,
   setDebugLocFromInst(Builder, OldInst);
 
   // Create i+1 and fill the PHINode.
-  Value *Next = Builder.CreateAdd(Induction, Step, "index.next");
+  Value *Next = Builder.CreateAdd(Induction, Step, "index.next", nuw, nsw);
   Induction->addIncoming(Start, L->getLoopPreheader());
   Induction->addIncoming(Next, Latch);
   // Create the compare.
@@ -3483,11 +3494,32 @@ void InnerLoopVectorizer::createVectorizedLoopSkeleton() {
   // Generate the induction variable.
   // The loop step is equal to the vectorization factor (num of SIMD elements)
   // times the unroll factor (num of SIMD instructions).
+  bool nuw = false, nsw = false;
+
+  if (OldInduction) {
+    for(Use& val : OldInduction->incoming_values()) {
+      if (BinaryOperator* binop = dyn_cast<BinaryOperator>(val)) {
+        bool recur = false;
+        for(auto& op : binop->operands()) {
+          if (op == OldInduction) {
+            recur = true;
+            break;
+          }
+        }
+        if (recur) {
+          nuw = binop->hasNoUnsignedWrap();
+          nsw = binop->hasNoUnsignedWrap();
+          break;
+        }
+      }
+    }
+  }
+
   Value *CountRoundDown = getOrCreateVectorTripCount(Lp);
   Constant *Step = ConstantInt::get(IdxTy, VF * UF);
   Induction =
       createInductionVariable(Lp, StartIdx, CountRoundDown, Step,
-                              getDebugLocFromInstOrOperands(OldInduction));
+                              getDebugLocFromInstOrOperands(OldInduction), nuw, nsw);
 
   // We are going to resume the execution of the scalar loop.
   // Go over all of the induction variables that we found and fix the
@@ -3546,8 +3578,38 @@ void InnerLoopVectorizer::createVectorizedLoopSkeleton() {
   ReplaceInstWithInst(MiddleBlock->getTerminator(),
                       BranchInst::Create(ExitBlock, ScalarPH, CmpN));
 
-  // Get ready to start creating new instructions into the vectorized body.
-  Builder.SetInsertPoint(&*VecBody->getFirstInsertionPt());
+  if (!OrigLoop->isCanonicalParallelLoop()) {
+    // Get ready to start creating new instructions into the vectorized body.
+    Builder.SetInsertPoint(&*VecBody->getFirstInsertionPt());
+  } else {
+    // Recreate the detach-reattach canonical parallel loop structure
+    // in the vector loop.
+    BasicBlock *VecBodyInc = VecBody->splitBasicBlock(VecBody->getTerminator(), "vec.inc");
+    Lp->addBasicBlockToLoop(VecBodyInc, *LI);
+
+    // Creates the detached actual body block.
+    BasicBlock *VecBodyDetached = BasicBlock::Create(VecBody->getContext(),
+      "vec.detached", VecBody->getParent(), VecBodyInc);
+    Lp->addBasicBlockToLoop(VecBodyDetached, *LI);
+
+    // Creates the "detach" instruction.
+    DetachInst *OrigBodyDetach = dyn_cast<DetachInst>(OldBasicBlock->getTerminator());
+    assert(OrigBodyDetach != nullptr && "Cannot find original detach instruction");
+    Value *SyncRegion = OrigBodyDetach->getSyncRegion();
+    DetachInst *VecBodyDetach = DetachInst::Create(VecBodyDetached, VecBodyInc, SyncRegion);
+    ReplaceInstWithInst(VecBody->getTerminator(), VecBodyDetach);
+
+    // Creates the "reattach instruction".
+    ReattachInst::Create(VecBodyInc, SyncRegion, VecBodyDetached);
+
+    // Fixes DT analysis
+    DT->addNewBlock(VecBody, Lp->getLoopPreheader());
+    DT->addNewBlock(VecBodyDetached, VecBody);
+    DT->addNewBlock(VecBodyInc, VecBody);
+
+    // Get ready to start creating new instructions into the vectorized body.
+    Builder.SetInsertPoint(&*VecBodyDetached->getFirstInsertionPt());
+  }
 
   // Save the state.
   LoopVectorPreHeader = Lp->getLoopPreheader();
@@ -4560,8 +4622,15 @@ InnerLoopVectorizer::createBlockInMask(BasicBlock *BB) {
 
   VectorParts BlockMask(UF);
 
+  BasicBlock *EntryBlock;
+  if (OrigLoop->isCanonicalParallelLoop()) {
+    EntryBlock = OrigLoop->getParallelEntryBlock();
+  } else {
+    EntryBlock = OrigLoop->getHeader();
+  }
+
   // Loop incoming mask is all-one.
-  if (OrigLoop->getHeader() == BB) {
+  if (EntryBlock == BB) {
     Value *C = ConstantInt::get(IntegerType::getInt1Ty(BB->getContext()), 1);
     for (unsigned Part = 0; Part < UF; ++Part)
       BlockMask[Part] = getOrCreateVectorValue(C, Part);
@@ -5023,8 +5092,16 @@ void InnerLoopVectorizer::updateAnalysis() {
   assert(DT->properlyDominates(LoopBypassBlocks.front(), LoopExitBlock) &&
          "Entry does not dominate exit.");
 
-  DT->addNewBlock(LI->getLoopFor(LoopVectorBody)->getHeader(),
-                  LoopVectorPreHeader);
+  // TODO (jiahao): Fix this. Reason that this needs to be skipped for parallel
+  // loops is that the block was already added earlier in
+  // createVectorizedLoopSkeleton.
+  //
+  // Very not elegant...
+  if (!OrigLoop->isCanonicalParallelLoop()) {
+    DT->addNewBlock(LI->getLoopFor(LoopVectorBody)->getHeader(),
+                    LoopVectorPreHeader);
+  }
+
   DT->addNewBlock(LoopMiddleBlock,
                   LI->getLoopFor(LoopVectorBody)->getLoopLatch());
   DT->addNewBlock(LoopScalarPreHeader, LoopBypassBlocks[0]);
@@ -5075,9 +5152,10 @@ bool LoopVectorizationLegality::canVectorizeWithIfConvert() {
 
   // Collect the blocks that need predication.
   BasicBlock *Header = TheLoop->getHeader();
-  for (BasicBlock *BB : TheLoop->blocks()) {
+  for (BasicBlock *BB : TheLoop->getBodyBlocks()) {
     // We don't support switch statements inside loops.
-    if (!isa<BranchInst>(BB->getTerminator())) {
+    if (!isa<BranchInst>(BB->getTerminator()) &&
+        !isa<ReattachInst>(BB->getTerminator())) {
       ORE->emit(createMissedAnalysis("LoopContainsSwitch", BB->getTerminator())
                 << "loop contains a switch statement");
       return false;
@@ -5165,8 +5243,16 @@ bool LoopVectorizationLegality::canVectorize() {
   DEBUG(dbgs() << "LV: Found a loop: " << TheLoop->getHeader()->getName()
                << '\n');
 
+  if (TheLoop->isCanonicalParallelLoop() && !Rhino) {
+    DEBUG(dbgs() << "LV: Tapir loop not vectorized since Rhino is not enabled.\n");
+    if (ORE->allowExtraAnalysis())
+      Result = false;
+    else
+      return false;
+  }
+
   // Check if we can if-convert non-single-bb loops.
-  unsigned NumBlocks = TheLoop->getNumBlocks();
+  unsigned NumBlocks = TheLoop->getBodyBlocks().size();
   if (NumBlocks != 1 && !canVectorizeWithIfConvert()) {
     DEBUG(dbgs() << "LV: Can't if-convert the loop.\n");
     if (ORE->allowExtraAnalysis())
@@ -5566,7 +5652,7 @@ void LoopVectorizationCostModel::collectLoopScalars(unsigned VF) {
   // stores will be scalar as long as the memory accesses is not a gather or
   // scatter operation. The value operand of a store will remain scalar if the
   // store is scalarized.
-  for (auto *BB : TheLoop->blocks())
+  for (auto *BB : TheLoop->getBodyBlocks())
     for (auto &I : *BB) {
       if (auto *Load = dyn_cast<LoadInst>(&I)) {
         evaluatePtrUse(Load, Load->getPointerOperand());
@@ -5775,7 +5861,7 @@ void LoopVectorizationCostModel::collectLoopUniforms(unsigned VF) {
   // memory instructions. For example, if a loop loads and stores from the same
   // location, but the store is conditional, the store will be scalarized, and
   // the getelementptr won't remain uniform.
-  for (auto *BB : TheLoop->blocks())
+  for (auto *BB : TheLoop->getBodyBlocks())
     for (auto &I : *BB) {
 
       // If there's no pointer operand, there's nothing to do.
@@ -6444,7 +6530,7 @@ LoopVectorizationCostModel::getSmallestAndWidestTypes() {
   const DataLayout &DL = TheFunction->getParent()->getDataLayout();
 
   // For each block.
-  for (BasicBlock *BB : TheLoop->blocks()) {
+  for (BasicBlock *BB : TheLoop->getBodyBlocks()) {
     // For each instruction in the loop.
     for (Instruction &I : *BB) {
       Type *T = I.getType();
@@ -6822,7 +6908,7 @@ void LoopVectorizationCostModel::collectInstsToScalarize(unsigned VF) {
   // Find all the instructions that are scalar with predication in the loop and
   // determine if it would be better to not if-convert the blocks they are in.
   // If so, we also record the instructions to scalarize.
-  for (BasicBlock *BB : TheLoop->blocks()) {
+  for (BasicBlock *BB : TheLoop->getBodyBlocks()) {
     if (!Legal->blockNeedsPredication(BB))
       continue;
     for (Instruction &I : *BB)
@@ -7196,7 +7282,7 @@ LoopVectorizationCostModel::getInstructionCost(Instruction *I, unsigned VF) {
 void LoopVectorizationCostModel::setCostBasedWideningDecision(unsigned VF) {
   if (VF == 1)
     return;
-  for (BasicBlock *BB : TheLoop->blocks()) {
+  for (BasicBlock *BB : TheLoop->getBodyBlocks()) {
     // For each instruction in the old loop.
     for (Instruction &I : *BB) {
       Value *Ptr = getPointerOperand(&I);
@@ -7275,7 +7361,7 @@ void LoopVectorizationCostModel::setCostBasedWideningDecision(unsigned VF) {
 
   // Start with all scalar pointer uses.
   SmallPtrSet<Instruction *, 8> AddrDefs;
-  for (BasicBlock *BB : TheLoop->blocks())
+  for (BasicBlock *BB : TheLoop->getBodyBlocks())
     for (Instruction &I : *BB) {
       Instruction *PtrDef =
         dyn_cast_or_null<Instruction>(getPointerOperand(&I));
@@ -7553,6 +7639,11 @@ unsigned LoopVectorizationCostModel::getInstructionCost(Instruction *I,
       return std::min(CallCost, getVectorIntrinsicCost(CI, VF, TTI, TLI));
     return CallCost;
   }
+  case Instruction::Detach:
+  case Instruction::Reattach: {
+    // TODO (jiahao): Revisit the cost model here
+    return 0;
+  }
   default:
     // The cost of executing VF copies of the scalar instruction. This opcode
     // is unknown. Assume that it is the same as 'mul'.
@@ -7561,6 +7652,9 @@ unsigned LoopVectorizationCostModel::getInstructionCost(Instruction *I,
   } // end of switch.
 }
 
+using LoopVectorize = LoopVectorizeCommonPass<false>;
+
+template<>
 char LoopVectorize::ID = 0;
 static const char lv_name[] = "Loop Vectorization";
 INITIALIZE_PASS_BEGIN(LoopVectorize, LV_NAME, lv_name, false, false)
@@ -7578,9 +7672,33 @@ INITIALIZE_PASS_DEPENDENCY(DemandedBitsWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(OptimizationRemarkEmitterWrapperPass)
 INITIALIZE_PASS_END(LoopVectorize, LV_NAME, lv_name, false, false)
 
+using LoopVectorizeRhino = LoopVectorizeCommonPass<true>;
+
+template<>
+char LoopVectorizeRhino::ID = 0;
+static const char lv_rhino_name[] = "Loop Vectorization with Rhino";
+INITIALIZE_PASS_BEGIN(LoopVectorizeRhino, LV_RHINO_NAME, lv_rhino_name, false, false)
+INITIALIZE_PASS_DEPENDENCY(TargetTransformInfoWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(BasicAAWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(AAResultsWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(GlobalsAAWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(AssumptionCacheTracker)
+INITIALIZE_PASS_DEPENDENCY(BlockFrequencyInfoWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(ScalarEvolutionWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(LoopInfoWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(LoopAccessLegacyAnalysis)
+INITIALIZE_PASS_DEPENDENCY(DemandedBitsWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(OptimizationRemarkEmitterWrapperPass)
+INITIALIZE_PASS_END(LoopVectorizeRhino, LV_RHINO_NAME, lv_rhino_name, false, false)
+
 namespace llvm {
-Pass *createLoopVectorizePass(bool NoUnrolling, bool AlwaysVectorize) {
-  return new LoopVectorize(NoUnrolling, AlwaysVectorize);
+Pass *createLoopVectorizePass(bool NoUnrolling, bool AlwaysVectorize, bool Rhino) {
+  if (Rhino) {
+    return new LoopVectorizeRhino(NoUnrolling, AlwaysVectorize);
+  } else {
+    return new LoopVectorize(NoUnrolling, AlwaysVectorize);
+  }
 }
 }
 
@@ -7675,10 +7793,28 @@ void LoopVectorizationPlanner::executePlan(InnerLoopVectorizer &ILV) {
 
   // Vectorize all instructions in the original loop that will not become
   // trivially dead when vectorized.
-  for (BasicBlock *BB : make_range(DFS.beginRPO(), DFS.endRPO()))
-    for (Instruction &I : *BB)
-      if (!DeadInstructions.count(&I))
+  for (BasicBlock *BB : make_range(DFS.beginRPO(), DFS.endRPO())) {
+    Instruction *Skip1 = nullptr;
+    Instruction *Skip2 = nullptr;
+
+    if (OrigLoop->isCanonicalParallelLoop()) {
+      // We need to skip the detach/reattach instructions.
+      Skip1 = OrigLoop->getHeader()->getTerminator();
+      assert(isa<DetachInst>(Skip1) && "Unexpected canonical parallel loop form. ");
+      Skip2 = OrigLoop->getLoopLatch()->getSingleReattachPredecessor()->getTerminator();
+      assert(isa<ReattachInst>(Skip2) && "Unexpected canonical parallel loop form. ");
+    }
+
+    for (Instruction &I : *BB) {
+      if (&I == Skip1 || &I == Skip2) {
+        continue;
+      }
+
+      if (!DeadInstructions.count(&I)) {
         ILV.vectorizeInstruction(I);
+      }
+    }
+  }
 
   // 3. Fix the vectorized code: take care of header phi's, live-outs,
   //    predication, updating analyses.
@@ -7815,7 +7951,7 @@ bool LoopVectorizePass::processLoop(Loop *L) {
   // Check if it is legal to vectorize the loop.
   LoopVectorizationRequirements Requirements(*ORE);
   LoopVectorizationLegality LVL(L, PSE, DT, TLI, AA, F, TTI, GetLAA, LI, ORE,
-                                &Requirements, &Hints);
+                                &Requirements, &Hints, Rhino);
   if (!LVL.canVectorize()) {
     DEBUG(dbgs() << "LV: Not vectorizing: Cannot prove legality.\n");
     emitMissedWarning(F, L, Hints, ORE);

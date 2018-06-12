@@ -2620,7 +2620,7 @@ void CodeGenFunction::EmitOMPParallelForDirective(
   if (S.getInit())
     EmitStmt(S.getInit());
 
-  assert(S.getCond() && "_Cilk_for loop has no condition");
+  assert(S.getCond() && "omp loop has no condition");
 
   // Start the loop with a block that tests the condition.
   // If there's an increment, the continue scope will be overwritten
@@ -2636,7 +2636,7 @@ void CodeGenFunction::EmitOMPParallelForDirective(
                  SourceLocToDebugLoc(R.getEnd()));
 
   const Expr *Inc = S.getInc();
-  assert(Inc && "_Cilk_for loop has no increment");
+  assert(Inc && "omp loop has no increment");
   //llvm::BasicBlock *Preattach = createBasicBlock("pfor.preattach");
   //llvm::errs() << (void*) Preattach << "\n";
   JumpDest Preattach = getJumpDestInCurrentScope("ompfor.preattach");
@@ -4201,8 +4201,194 @@ void CodeGenFunction::EmitOMPTargetParallelDirective(
 }
 
 void CodeGenFunction::EmitOMPTargetParallelForDirective(
-    const OMPTargetParallelForDirective &S) {
-  // TODO: codegen for target parallel for.
+    const OMPTargetParallelForDirective &OS) {
+  const ForStmt S = cast<ForStmt>(*OS.getAssociatedStmt()); 
+
+  JumpDest LoopExit = getJumpDestInCurrentScope("ompfor.end");
+
+  PushSyncRegion();
+  llvm::Instruction *SyncRegionStart = EmitSyncRegionStart();
+  CurSyncRegion->setSyncRegionStart(SyncRegionStart);
+
+  LexicalScope ForScope(*this, S.getSourceRange());
+
+  if (S.getInit())
+    EmitStmt(S.getInit());
+
+  assert(S.getCond() && "omp loop has no condition");
+
+  // Start the loop with a block that tests the condition.
+  // If there's an increment, the continue scope will be overwritten
+  // later.
+  JumpDest Continue = getJumpDestInCurrentScope("ompfor.cond");
+  llvm::BasicBlock *CondBlock = Continue.getBlock();
+  EmitBlock(CondBlock);
+
+  LoopStack.setSpawnStrategy(LoopAttributes::GPU);
+  const SourceRange &R = S.getSourceRange();
+  LoopStack.push(CondBlock, CGM.getContext(), None,
+                 SourceLocToDebugLoc(R.getBegin()),
+                 SourceLocToDebugLoc(R.getEnd()));
+
+  const Expr *Inc = S.getInc();
+  assert(Inc && "omp loop has no increment");
+  //llvm::BasicBlock *Preattach = createBasicBlock("pfor.preattach");
+  //llvm::errs() << (void*) Preattach << "\n";
+  JumpDest Preattach = getJumpDestInCurrentScope("ompfor.preattach");
+  Continue = getJumpDestInCurrentScope("ompfor.inc");
+
+  // Store the blocks to use for break and continue.
+  BreakContinueStack.push_back(BreakContinue(Preattach, Preattach));
+
+  // Create a cleanup scope for the condition variable cleanups.
+  LexicalScope ConditionScope(*this, S.getSourceRange());
+
+  // Save the old alloca insert point.
+  llvm::AssertingVH<llvm::Instruction> OldAllocaInsertPt = AllocaInsertPt;
+  // Save the old EH state.
+  llvm::BasicBlock *OldEHResumeBlock = EHResumeBlock;
+  llvm::Value *OldExceptionSlot = ExceptionSlot;
+  llvm::AllocaInst *OldEHSelectorSlot = EHSelectorSlot;
+
+  llvm::BasicBlock *SyncContinueBlock = createBasicBlock("ompfor.end.continue");
+  bool madeSync = false;
+  const VarDecl *LoopVar = S.getConditionVariable();
+
+  RValue LoopVarInitRV;
+  llvm::BasicBlock *DetachBlock;
+  llvm::BasicBlock *ForBodyEntry;
+  llvm::BasicBlock *ForBody;
+  {
+    // // If the for statement has a condition scope, emit the local variable
+    // // declaration.
+    // if (S.getConditionVariable()) {
+    //   EmitAutoVarDecl(*S.getConditionVariable());
+    // }
+
+    llvm::BasicBlock *ExitBlock = LoopExit.getBlock();
+    // If there are any cleanups between here and the loop-exit scope,
+    // create a block to stage a loop exit along.
+    if (ForScope.requiresCleanups())
+      ExitBlock = createBasicBlock("ompfor.cond.cleanup");
+
+    // As long as the condition is true, iterate the loop.
+    DetachBlock = createBasicBlock("ompfor.detach");
+    // Emit extra entry block for detached body, to ensure that this detached
+    // entry block has just one predecessor.
+    ForBodyEntry = createBasicBlock("ompfor.body.entry");
+    ForBody = createBasicBlock("ompfor.body");
+
+    // C99 6.8.5p2/p4: The first substatement is executed if the expression
+    // compares unequal to 0.  The condition must be a scalar type.
+    llvm::Value *BoolCondVal = EvaluateExprAsBool(S.getCond());
+    Builder.CreateCondBr(
+        BoolCondVal, DetachBlock, ExitBlock,
+        createProfileWeightsForLoop(S.getCond(), getProfileCount(S.getBody())));
+
+    if (ExitBlock != LoopExit.getBlock()) {
+      EmitBlock(ExitBlock);
+      Builder.CreateSync(SyncContinueBlock, SyncRegionStart);
+      EmitBlock(SyncContinueBlock);
+      PopSyncRegion();
+      madeSync = true;
+      EmitBranchThroughCleanup(LoopExit);
+    }
+
+    EmitBlock(DetachBlock);
+
+    // Get the value of the loop variable initialization before we emit the
+    // detach.
+    if (LoopVar)
+      LoopVarInitRV = EmitAnyExprToTemp(LoopVar->getInit());
+
+    Builder.CreateDetach(ForBodyEntry, Continue.getBlock(), SyncRegionStart);
+
+    // Create a new alloca insert point.
+    llvm::Value *Undef = llvm::UndefValue::get(Int32Ty);
+    AllocaInsertPt = new llvm::BitCastInst(Undef, Int32Ty, "", ForBodyEntry);
+    // Set up nested EH state.
+    EHResumeBlock = nullptr;
+    ExceptionSlot = nullptr;
+    EHSelectorSlot = nullptr;
+
+    EmitBlock(ForBodyEntry);
+  }
+
+  // Create a cleanup scope for the loop-variable cleanups.
+  RunCleanupsScope DetachCleanupsScope(*this);
+  EHStack.pushCleanup<RethrowCleanup>(EHCleanup);
+
+  // Inside the detached block, create the loop variable, setting its value to
+  // the saved initialization value.
+  if (LoopVar) {
+    AutoVarEmission LVEmission = EmitAutoVarAlloca(*LoopVar);
+    QualType type = LoopVar->getType();
+    Address Loc = LVEmission.getObjectAddress(*this);
+    LValue LV = MakeAddrLValue(Loc, type);
+    LV.setNonGC(true);
+    EmitStoreThroughLValue(LoopVarInitRV, LV, true);
+    EmitAutoVarCleanups(LVEmission);
+  }
+
+  Builder.CreateBr(ForBody);
+
+  EmitBlock(ForBody);
+
+  incrementProfileCounter(&S);
+
+  {
+    // Create a separate cleanup scope for the body, in case it is not
+    // a compound statement.
+    RunCleanupsScope BodyScope(*this);
+    EmitStmt(S.getBody());
+    Builder.CreateBr(Preattach.getBlock());
+  }
+
+  // Finish detached body and emit the reattach.
+  {
+    EmitBlock(Preattach.getBlock());
+
+    DetachCleanupsScope.ForceCleanup();
+
+    Builder.CreateReattach(Continue.getBlock(), SyncRegionStart);
+  }
+
+  // Restore CGF state after detached region.
+  {
+    // Restore the alloca insertion point.
+    llvm::Instruction *Ptr = AllocaInsertPt;
+    AllocaInsertPt = OldAllocaInsertPt;
+    Ptr->eraseFromParent();
+
+    // Restore the EH state.
+    EmitIfUsed(*this, EHResumeBlock);
+    EHResumeBlock = OldEHResumeBlock;
+    ExceptionSlot = OldExceptionSlot;
+    EHSelectorSlot = OldEHSelectorSlot;
+  }
+
+  // Emit the increment next.
+  EmitBlock(Continue.getBlock());
+  EmitStmt(Inc);
+
+  BreakContinueStack.pop_back();
+
+  ConditionScope.ForceCleanup();
+
+  EmitStopPoint(&S);
+  EmitBranch(CondBlock);
+
+  ForScope.ForceCleanup();
+
+  LoopStack.pop();
+  // Emit the fall-through block.
+  EmitBlock(LoopExit.getBlock(), true);
+  if (!madeSync) {
+    Builder.CreateSync(SyncContinueBlock, SyncRegionStart);
+    EmitBlock(SyncContinueBlock);
+    PopSyncRegion();
+  }
+  
 }
 
 /// Emit a helper variable and return corresponding lvalue.

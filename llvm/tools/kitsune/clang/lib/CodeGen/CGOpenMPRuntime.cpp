@@ -26,6 +26,8 @@
 #include "llvm/IR/Value.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
+#include "clang/AST/ExprCilk.h"
+#include "clang/AST/StmtCilk.h"
 #include <cassert>
 
 using namespace clang;
