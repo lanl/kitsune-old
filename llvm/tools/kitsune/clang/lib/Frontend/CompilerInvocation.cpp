@@ -2720,16 +2720,10 @@ bool CompilerInvocation::CreateFromArgs(CompilerInvocation &Res,
 
   LangOpts.GPU = Args.hasArg(OPT_fgpu);
 
-  /*
   if (LangOpts.GPU) {
     LangOpts.Tapir = llvm::TapirTargetType::PTX;    
   }
   else if (LangOpts.FleCSI) {
-    LangOpts.Tapir = llvm::TapirTargetType::Cilk;    
-  }
-  */
-
-  if (LangOpts.FleCSI) {
     LangOpts.Tapir = llvm::TapirTargetType::Cilk;    
   }
 
