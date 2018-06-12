@@ -70,11 +70,8 @@ CodeGenFunction::CodeGenFunction(CodeGenModule &cgm, bool suppressNewContext)
       BlockPointer(nullptr), LambdaThisCaptureField(nullptr),
       NormalCleanupDest(nullptr), NextCleanupDestIndex(1),
       FirstBlockInfo(nullptr), EHResumeBlock(nullptr), ExceptionSlot(nullptr),
-      EHSelectorSlot(nullptr),
-      // +===== Kitsune
-      CurSyncRegion(nullptr), CurDetachScope(nullptr),
-      // ==============
-      DebugInfo(CGM.getModuleDebugInfo()),
+      EHSelectorSlot(nullptr), IsSpawned(false), CurSyncRegion(nullptr),
+      CurDetachScope(nullptr), DebugInfo(CGM.getModuleDebugInfo()),
       DisableDebugInfo(false), DidCallStackSave(false), IndirectBranch(nullptr),
       PGO(cgm), SwitchInsn(nullptr), SwitchWeights(nullptr),
       CaseRangeBlock(nullptr), UnreachableBlock(nullptr), NumReturnExprs(0),
