@@ -1626,7 +1626,7 @@ void LoopSpawningImpl::ProcessGPULoop(Loop* L){
 
   b.CreateRetVoid();
 
-  PTXModule.dump();
+  //PTXModule.dump();
 
   // L->dump();
   // for(auto B : L->blocks()){
