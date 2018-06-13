@@ -65,8 +65,6 @@
 #include <set>
 #include <sstream>
 
-// +===== Kitsune
-
 #define np(X)                                                            \
  std::cout << __FILE__ << ":" << __LINE__ << ": " << __PRETTY_FUNCTION__ \
            << ": " << #X << " = " << (X) << std::endl
@@ -75,9 +73,20 @@
 #include <set>
 #include <sstream>
 
-// ==============
-
 using namespace llvm;
+
+namespace{
+
+  template<class F>
+  Function* getFunction(Module& M, const char* name){
+    //TypeBuilder<F, false>::get(M.getContext())->dump();
+
+    return cast<Function>(M.getOrInsertFunction(name,
+      TypeBuilder<F, false>::get(M.getContext())));
+  } 
+  
+} // namespace
+
 
 //##############################################################################
 
@@ -138,6 +147,8 @@ bool PTXABI::processMain(Function &F) {
 
 bool PTXABILoopSpawning::processLoop(){
   Loop *L = OrigLoop;
+
+  //L->dumpVerbose();
 
   //  code generation is currently limited to a simple canonical loop structure
   //  whereby we make the following assumptions and check assertions below
@@ -252,6 +263,39 @@ bool PTXABILoopSpawning::processLoop(){
   }
 
   BasicBlock* br = BasicBlock::Create(c, "entry", f);
+  
+  b.SetInsertPoint(br);
+
+  using sregFunc = uint32_t();
+
+  getFunction<sregFunc>(PTXModule,
+      "llvm.nvvm.read.ptx.sreg.tid.x")->dump();
+
+  Value* threadIdx = b.CreateCall(getFunction<sregFunc>(PTXModule,
+    "llvm.nvvm.read.ptx.sreg.tid.x"));
+  
+  Value* blockIdx = b.CreateCall(getFunction<sregFunc>(PTXModule,
+    "llvm.nvvm.read.ptx.sreg.ctaid.x"));
+  
+  Value* blockDim = b.CreateCall(getFunction<sregFunc>(PTXModule,
+    "llvm.nvvm.read.ptx.sreg.ntid.x"));
+
+  Value* threadId = 
+    b.CreateAdd(threadIdx, b.CreateMul(blockIdx, blockDim), "threadId");
+
+  auto t1 = dyn_cast<IntegerType>(threadId->getType());
+  auto t2 = dyn_cast<IntegerType>(loopNode->getType());
+  assert(t2 && "expected loop variable as integer type");
+
+  if(t1->getBitWidth() > t2->getBitWidth()){
+    threadId = b.CreateTrunc(threadId, loopNode->getType(), "threadId");
+  }
+  else if(t1->getBitWidth() < t2->getBitWidth()){
+    threadId = b.CreateZExt(threadId, loopNode->getType(), "threadId");
+  }
+
+  loopNode->replaceAllUsesWith(threadId);
+
   BasicBlock::InstListType& il = br->getInstList();
 
   // clone instructions of the body basic block,  remapping values as needed
@@ -271,16 +315,9 @@ bool PTXABILoopSpawning::processLoop(){
     m[&ii] = ic;
   }
 
-  b.SetInsertPoint(br);
-
   b.CreateRetVoid();
 
   //PTXModule.dump();
-
-  // L->dump();
-  // for(auto B : L->blocks()){
-  //   B->dump();
-  // }
 
   return true;
 }
