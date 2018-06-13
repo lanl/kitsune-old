@@ -537,7 +537,9 @@ bool llvm::isDACFor(Loop* L) {
   // TODO: Use a more precise detection of cilk_for loops.
   for (BasicBlock* BB : L->blocks())
     if (isa<DetachInst>(BB->getTerminator()))
-      return LoopSpawningHints(L).getStrategy() == LoopSpawningHints::ST_DAC;
+      return LoopSpawningHints(L).getStrategy() == LoopSpawningHints::ST_DAC
+    //====== Kitsune 
+    || LoopSpawningHints::ST_GPU;
   return false;
 }
 
