@@ -60,6 +60,8 @@
 #include "llvm/Transforms/Utils/EscapeEnumerator.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
+#include "llvm/Transforms/Scalar/GVN.h"
+#include "llvm/Transforms/Vectorize.h"
 #include "llvm/Target/TargetSubtargetInfo.h"
 #include "llvm/Target/TargetMachine.h"           
 #include "llvm/Support/TargetRegistry.h"    
@@ -158,6 +160,7 @@ bool PTXABILoopSpawning::processLoop(){
   //  loops
 
   using TypeVec = std::vector<Type*>;
+  using ValueVec = std::vector<Value*>;
 
   LLVMContext& c = L->getHeader()->getContext();
 
@@ -165,6 +168,7 @@ bool PTXABILoopSpawning::processLoop(){
 
   Type* voidTy = Type::getVoidTy(c);
   IntegerType* i32Ty = Type::getInt32Ty(c);
+  PointerType* voidPtrTy = Type::getInt8PtrTy(c);
 
   //  and LLVM transformation is able in some cases to transform the loop to 
   //  contain a phi node that exists at the entry block
@@ -199,6 +203,10 @@ bool PTXABILoopSpawning::processLoop(){
   assert(loopEnd && "expected canonical loop end");
 
   BasicBlock* entryBlock = L->getBlocks()[0];
+
+  Function* hostFunc = entryBlock->getParent();
+
+  Module& hostModule = *hostFunc->getParent();
 
   // assume a detach exists here  and this basic block contains the body
   //  of the kernel function we will be generating
@@ -246,10 +254,10 @@ bool PTXABILoopSpawning::processLoop(){
 
   FunctionType* funcTy = FunctionType::get(voidTy, paramTypes, false);
 
-  Module PTXModule("PTXModule", c);
+  Module ptxModule("ptxModule", c);
 
   Function* f = Function::Create(funcTy,
-    Function::ExternalLinkage, "run", &PTXModule);
+    Function::ExternalLinkage, "run", &ptxModule);
 
   auto aitr = f->arg_begin();
 
@@ -273,15 +281,15 @@ bool PTXABILoopSpawning::processLoop(){
   
   b.SetInsertPoint(br);
 
-  using sregFunc = uint32_t();
+  using SREGFunc = uint32_t();
 
-  Value* threadIdx = b.CreateCall(getFunction<sregFunc>(PTXModule,
+  Value* threadIdx = b.CreateCall(getFunction<SREGFunc>(ptxModule,
     "llvm.nvvm.read.ptx.sreg.tid.x"));
   
-  Value* blockIdx = b.CreateCall(getFunction<sregFunc>(PTXModule,
+  Value* blockIdx = b.CreateCall(getFunction<SREGFunc>(ptxModule,
     "llvm.nvvm.read.ptx.sreg.ctaid.x"));
   
-  Value* blockDim = b.CreateCall(getFunction<sregFunc>(PTXModule,
+  Value* blockDim = b.CreateCall(getFunction<SREGFunc>(ptxModule,
     "llvm.nvvm.read.ptx.sreg.ntid.x"));
 
   Value* threadId = 
@@ -298,7 +306,7 @@ bool PTXABILoopSpawning::processLoop(){
     threadId = b.CreateZExt(threadId, loopNode->getType(), "threadId");
   }
 
-  loopNode->replaceAllUsesWith(threadId);
+  m[loopNode] = threadId;
 
   BasicBlock::InstListType& il = br->getInstList();
 
@@ -338,15 +346,15 @@ bool PTXABILoopSpawning::processLoop(){
   b.CreateRetVoid();
 
   NamedMDNode* annotations = 
-    PTXModule.getOrInsertNamedMetadata("nvvm.annotations");
+    ptxModule.getOrInsertNamedMetadata("nvvm.annotations");
   
   SmallVector<Metadata*, 3> av;
 
   av.push_back(ValueAsMetadata::get(f));    
-  av.push_back(MDString::get(PTXModule.getContext(), "kernel"));
+  av.push_back(MDString::get(ptxModule.getContext(), "kernel"));
   av.push_back(ValueAsMetadata::get(llvm::ConstantInt::get(i32Ty, 1)));
 
-  annotations->addOperand(MDNode::get(PTXModule.getContext(), av));
+  annotations->addOperand(MDNode::get(ptxModule.getContext(), av));
 
   const Target* target = nullptr;
 
@@ -354,6 +362,7 @@ bool PTXABILoopSpawning::processLoop(){
       itrEnd =  TargetRegistry::targets().end(); itr != itrEnd; ++itr){
     if(std::string(itr->getName()) == "nvptx64"){
       target = &*itr;
+      break;
     }
   }
 
@@ -377,21 +386,17 @@ bool PTXABILoopSpawning::processLoop(){
     "64:64-f32:32:32-f64:64:64-v16:16:16-v32:32:32-v64:"
     "64:64-v128:128:128-n16:32:64");
 
-  PTXModule.setDataLayout(layout);
+  ptxModule.setDataLayout(layout);
 
   legacy::PassManager* passManager = new legacy::PassManager;
 
   passManager->add(createVerifierPass());
 
-  StringMap<int> ReflectParams;
-  //ReflectParams["__CUDA_FTZ"] = 1;
-  //passManager->add(createNVVMReflectPass(ReflectParams));
-
   passManager->add(createInstructionCombiningPass());
   passManager->add(createReassociatePass());
-  //passManager->add(createGVNPass());
+  passManager->add(createGVNPass());
   passManager->add(createCFGSimplificationPass());
-  //passManager->add(createSLPVectorizePass());
+  passManager->add(createSLPVectorizerPass());
   passManager->add(createBreakCriticalEdgesPass());
   passManager->add(createConstantPropagationPass());
   passManager->add(createDeadInstEliminationPass());
@@ -410,15 +415,71 @@ bool PTXABILoopSpawning::processLoop(){
 
   assert(!fail && "failed to emit PTX");
   
-  passManager->run(PTXModule);
+  passManager->run(ptxModule);
       
   delete passManager;
 
   std::string ptx = ostr.str().str();
 
+  Constant* pcs = ConstantDataArray::getString(c, ptx);
+  
+  GlobalVariable* ptxGlobal = 
+    new GlobalVariable(hostModule,
+                       pcs->getType(),
+                       true,
+                       GlobalValue::PrivateLinkage,
+                       pcs,
+                       "ptx");
+
+  Value* kernelId = ConstantInt::get(i32Ty, nextKernelId_++);
+
+  Value* ptxStr = b.CreateBitCast(ptxGlobal, voidPtrTy);
+
+  using FinishFunc = void();
+
+  using InitKernelFunc = void(const char*, const char*);
+
+  using InitFieldFunc = 
+    void(const char*, const char*, const char*, uint32_t, uint64_t, uint8_t);
+
+  using RunKernelFunc = void(const char*);
+
+  ValueVec args = {kernelId, ptxStr};
+  
+  BasicBlock* predecessor = L->getLoopPreheader();
+  BasicBlock* hostBlock = BasicBlock::Create(c, "host.func", hostFunc);
+
+  BasicBlock* successor = exitBlock->getSingleSuccessor();
+
+  unlinkLoop();
+
+  b.SetInsertPoint(predecessor->getTerminator());
+  b.CreateBr(hostBlock);
+  predecessor->getTerminator()->removeFromParent();
+  predecessor->dump();
+
+  b.SetInsertPoint(hostBlock);
+  b.CreateBr(successor);
+
+  for(BasicBlock* bi : L->blocks()){
+    for(Instruction& ii : *bi){
+      ii.dropAllReferences();
+      ii.removeFromParent();
+    }
+
+    bi->dropAllReferences();
+    bi->removeFromParent();
+  }
+
+  //Value* blockDim = b.CreateCall(getFunction<SREGFunc>(ptxModule,
+  //  "llvm.nvvm.read.ptx.sreg.ntid.x"));
+
+
+  hostModule.dump();
+
   //np(ptx);
 
-  //PTXModule.dump();
+  //ptxModule.dump();
 
   return true;
 }
