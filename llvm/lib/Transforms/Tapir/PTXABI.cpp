@@ -60,6 +60,10 @@
 #include "llvm/Transforms/Utils/EscapeEnumerator.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
+#include "llvm/Target/TargetMachine.h"           
+#include "llvm/Support/TargetRegistry.h"    
+#include "llvm/IR/LegacyPassManager.h"
 
 #include <iostream>
 #include <set>
@@ -79,8 +83,6 @@ namespace{
 
   template<class F>
   Function* getFunction(Module& M, const char* name){
-    //TypeBuilder<F, false>::get(M.getContext())->dump();
-
     return cast<Function>(M.getOrInsertFunction(name,
       TypeBuilder<F, false>::get(M.getContext())));
   } 
@@ -162,6 +164,7 @@ bool PTXABILoopSpawning::processLoop(){
   IRBuilder<> b(c);
 
   Type* voidTy = Type::getVoidTy(c);
+  IntegerType* i32Ty = Type::getInt32Ty(c);
 
   //  and LLVM transformation is able in some cases to transform the loop to 
   //  contain a phi node that exists at the entry block
@@ -232,7 +235,11 @@ bool PTXABILoopSpawning::processLoop(){
   TypeVec paramTypes;
 
   for(Value* v : extValues){
-    paramTypes.push_back(v->getType());
+    auto pt = dyn_cast<PointerType>(v->getType());
+    assert(pt && "expected a pointer type");
+    // global address space
+    //paramTypes.push_back(PointerType::get(pt, 1));
+    paramTypes.push_back(pt);
   }
 
   // create the GPU function
@@ -241,8 +248,8 @@ bool PTXABILoopSpawning::processLoop(){
 
   Module PTXModule("PTXModule", c);
 
-  llvm::Function* f = llvm::Function::Create(funcTy,
-    llvm::Function::ExternalLinkage, "run", &PTXModule);
+  Function* f = Function::Create(funcTy,
+    Function::ExternalLinkage, "run", &PTXModule);
 
   auto aitr = f->arg_begin();
 
@@ -267,9 +274,6 @@ bool PTXABILoopSpawning::processLoop(){
   b.SetInsertPoint(br);
 
   using sregFunc = uint32_t();
-
-  getFunction<sregFunc>(PTXModule,
-      "llvm.nvvm.read.ptx.sreg.tid.x")->dump();
 
   Value* threadIdx = b.CreateCall(getFunction<sregFunc>(PTXModule,
     "llvm.nvvm.read.ptx.sreg.tid.x"));
@@ -300,9 +304,25 @@ bool PTXABILoopSpawning::processLoop(){
 
   // clone instructions of the body basic block,  remapping values as needed
 
+  std::set<Value*> extReads;
+  std::set<Value*> extWrites;
+
   for(Instruction& ii : *Body){
     if(dyn_cast<ReattachInst>(&ii)){
       continue;
+    }
+
+    if(auto li = dyn_cast<LoadInst>(&ii)){
+      Value* v = li->getPointerOperand();
+      if(extValues.find(v) != extValues.end()){
+        extReads.insert(v);
+      }
+    }
+    else if(auto si = dyn_cast<StoreInst>(&ii)){
+      Value* v = si->getPointerOperand();
+      if(extValues.find(v) != extValues.end()){
+        extWrites.insert(v);
+      }
     }
 
     Instruction* ic = ii.clone();
@@ -316,6 +336,87 @@ bool PTXABILoopSpawning::processLoop(){
   }
 
   b.CreateRetVoid();
+
+  NamedMDNode* annotations = 
+    PTXModule.getOrInsertNamedMetadata("nvvm.annotations");
+  
+  SmallVector<Metadata*, 3> av;
+
+  av.push_back(ValueAsMetadata::get(f));    
+  av.push_back(MDString::get(PTXModule.getContext(), "kernel"));
+  av.push_back(ValueAsMetadata::get(llvm::ConstantInt::get(i32Ty, 1)));
+
+  annotations->addOperand(MDNode::get(PTXModule.getContext(), av));
+
+  const Target* target = nullptr;
+
+  for(TargetRegistry::iterator itr =  TargetRegistry::targets().begin(),
+      itrEnd =  TargetRegistry::targets().end(); itr != itrEnd; ++itr){
+    if(std::string(itr->getName()) == "nvptx64"){
+      target = &*itr;
+    }
+  }
+
+  assert(target && "failed to find NVPTX target");
+
+  Triple triple(sys::getDefaultTargetTriple());
+  triple.setArch(Triple::nvptx64);
+    
+  TargetMachine* targetMachine =  
+      target->createTargetMachine(triple.getTriple(),
+                                  //"sm_35",
+                                  //"sm_70",
+                                  "sm_60",
+                                  "",
+                                  TargetOptions(),
+                                  Reloc::Static,
+                                  CodeModel::Default,
+                                  CodeGenOpt::Aggressive);
+
+  DataLayout layout("e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:"
+    "64:64-f32:32:32-f64:64:64-v16:16:16-v32:32:32-v64:"
+    "64:64-v128:128:128-n16:32:64");
+
+  PTXModule.setDataLayout(layout);
+
+  legacy::PassManager* passManager = new legacy::PassManager;
+
+  passManager->add(createVerifierPass());
+
+  StringMap<int> ReflectParams;
+  //ReflectParams["__CUDA_FTZ"] = 1;
+  //passManager->add(createNVVMReflectPass(ReflectParams));
+
+  passManager->add(createInstructionCombiningPass());
+  passManager->add(createReassociatePass());
+  //passManager->add(createGVNPass());
+  passManager->add(createCFGSimplificationPass());
+  //passManager->add(createSLPVectorizePass());
+  passManager->add(createBreakCriticalEdgesPass());
+  passManager->add(createConstantPropagationPass());
+  passManager->add(createDeadInstEliminationPass());
+  passManager->add(createDeadStoreEliminationPass());
+  passManager->add(createInstructionCombiningPass());
+  passManager->add(createCFGSimplificationPass());
+
+  SmallVector<char, 65536> buf;
+  raw_svector_ostream ostr(buf);
+  
+  bool fail =
+  targetMachine->addPassesToEmitFile(*passManager,
+                                     ostr,
+                                     TargetMachine::CGFT_AssemblyFile,
+                                     false);
+
+  assert(!fail && "failed to emit PTX");
+  
+  passManager->run(PTXModule);
+      
+  delete passManager;
+
+  std::string ptx = ostr.str().str();
+
+  //np(ptx);
 
   //PTXModule.dump();
 
