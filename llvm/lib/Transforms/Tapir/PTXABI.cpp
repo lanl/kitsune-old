@@ -447,35 +447,44 @@ bool PTXABILoopSpawning::processLoop(){
   ValueVec args = {kernelId, ptxStr};
   
   BasicBlock* predecessor = L->getLoopPreheader();
-  BasicBlock* hostBlock = BasicBlock::Create(c, "host.func", hostFunc);
-
+  entryBlock->removePredecessor(predecessor);
   BasicBlock* successor = exitBlock->getSingleSuccessor();
 
-  unlinkLoop();
+  BasicBlock* hostBlock = BasicBlock::Create(c, "host.func", hostFunc);
 
   b.SetInsertPoint(predecessor->getTerminator());
   b.CreateBr(hostBlock);
   predecessor->getTerminator()->removeFromParent();
-  predecessor->dump();
+
+  successor->removePredecessor(exitBlock);
 
   b.SetInsertPoint(hostBlock);
   b.CreateBr(successor);
 
-  for(BasicBlock* bi : L->blocks()){
-    for(Instruction& ii : *bi){
-      ii.dropAllReferences();
-      ii.removeFromParent();
-    }
+  {
+    std::set<BasicBlock*> visited;
+    visited.insert(exitBlock);
 
-    bi->dropAllReferences();
-    bi->removeFromParent();
+    std::vector<BasicBlock*> next;
+    next.push_back(entryBlock);
+
+    while(!next.empty()){
+      BasicBlock* b = next.back();
+      next.pop_back();
+
+      for(BasicBlock* bn : b->getTerminator()->successors()){
+        if(visited.find(bn) == visited.end()){
+          next.push_back(bn);
+        } 
+      }
+      b->removeFromParent();
+      visited.insert(b);
+    }
   }
 
-  //Value* blockDim = b.CreateCall(getFunction<SREGFunc>(ptxModule,
-  //  "llvm.nvvm.read.ptx.sreg.ntid.x"));
+  exitBlock->removeFromParent();
 
-
-  hostModule.dump();
+  //hostModule.dump();
 
   //np(ptx);
 
