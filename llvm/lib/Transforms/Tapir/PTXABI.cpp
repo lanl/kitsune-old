@@ -259,8 +259,13 @@ bool PTXABILoopSpawning::processLoop(){
 
   Module ptxModule("ptxModule", c);
 
+  size_t kernelRunId = nextKernelId_++;
+
+  std::stringstream kstr;
+  kstr << "run" << kernelRunId;
+
   Function* f = Function::Create(funcTy,
-    Function::ExternalLinkage, "run", &ptxModule);
+    Function::ExternalLinkage, kstr.str().c_str(), &ptxModule);
 
   auto aitr = f->arg_begin();
 
@@ -473,11 +478,16 @@ bool PTXABILoopSpawning::processLoop(){
                        pcs,
                        "ptx");
 
-  Value* kernelId = ConstantInt::get(i32Ty, nextKernelId_++);
+  Value* kernelId = ConstantInt::get(i32Ty, kernelRunId);
 
   Value* ptxStr = b.CreateBitCast(ptxGlobal, voidPtrTy);
 
   b.SetInsertPoint(hostBlock);
+
+  using InitCUDAFunc = void();
+
+  b.CreateCall(getFunction<InitCUDAFunc>(hostModule,
+      "__kitsune_cuda_init"), {});
 
   using InitKernelFunc = void(uint32_t, const char*);
 
