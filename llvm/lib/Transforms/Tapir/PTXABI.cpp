@@ -167,7 +167,10 @@ bool PTXABILoopSpawning::processLoop(){
   IRBuilder<> b(c);
 
   Type* voidTy = Type::getVoidTy(c);
+  IntegerType* i8Ty = Type::getInt8Ty(c);
+  IntegerType* i16Ty = Type::getInt16Ty(c);
   IntegerType* i32Ty = Type::getInt32Ty(c);
+  IntegerType* i64Ty = Type::getInt64Ty(c);
   PointerType* voidPtrTy = Type::getInt8PtrTy(c);
 
   //  and LLVM transformation is able in some cases to transform the loop to 
@@ -356,6 +359,45 @@ bool PTXABILoopSpawning::processLoop(){
 
   annotations->addOperand(MDNode::get(ptxModule.getContext(), av));
 
+  BasicBlock* predecessor = L->getLoopPreheader();
+  entryBlock->removePredecessor(predecessor);
+  BasicBlock* successor = exitBlock->getSingleSuccessor();
+
+  BasicBlock* hostBlock = BasicBlock::Create(c, "host.block", hostFunc);
+
+  b.SetInsertPoint(predecessor->getTerminator());
+  b.CreateBr(hostBlock);
+  predecessor->getTerminator()->removeFromParent();
+
+  successor->removePredecessor(exitBlock);
+
+  {
+    std::set<BasicBlock*> visited;
+    visited.insert(exitBlock);
+
+    std::vector<BasicBlock*> next;
+    next.push_back(entryBlock);
+
+    while(!next.empty()){
+      BasicBlock* b = next.back();
+      next.pop_back();
+
+      for(BasicBlock* bn : b->getTerminator()->successors()){
+        if(visited.find(bn) == visited.end()){
+          next.push_back(bn);
+        } 
+      }
+
+      b->dropAllReferences();
+      b->removeFromParent();
+      visited.insert(b);
+    }
+  }
+
+  exitBlock->dropAllReferences();
+  exitBlock->removeFromParent();
+
+
   const Target* target = nullptr;
 
   for(TargetRegistry::iterator itr =  TargetRegistry::targets().begin(),
@@ -435,58 +477,87 @@ bool PTXABILoopSpawning::processLoop(){
 
   Value* ptxStr = b.CreateBitCast(ptxGlobal, voidPtrTy);
 
-  using FinishFunc = void();
-
-  using InitKernelFunc = void(const char*, const char*);
-
-  using InitFieldFunc = 
-    void(const char*, const char*, const char*, uint32_t, uint64_t, uint8_t);
-
-  using RunKernelFunc = void(const char*);
-
-  ValueVec args = {kernelId, ptxStr};
-  
-  BasicBlock* predecessor = L->getLoopPreheader();
-  entryBlock->removePredecessor(predecessor);
-  BasicBlock* successor = exitBlock->getSingleSuccessor();
-
-  BasicBlock* hostBlock = BasicBlock::Create(c, "host.func", hostFunc);
-
-  b.SetInsertPoint(predecessor->getTerminator());
-  b.CreateBr(hostBlock);
-  predecessor->getTerminator()->removeFromParent();
-
-  successor->removePredecessor(exitBlock);
-
   b.SetInsertPoint(hostBlock);
-  b.CreateBr(successor);
 
-  {
-    std::set<BasicBlock*> visited;
-    visited.insert(exitBlock);
+  using InitKernelFunc = void(uint32_t, const char*);
 
-    std::vector<BasicBlock*> next;
-    next.push_back(entryBlock);
+  b.CreateCall(getFunction<InitKernelFunc>(hostModule,
+      "__kitsune_gpu_init_kernel"), {kernelId, ptxStr});
 
-    while(!next.empty()){
-      BasicBlock* b = next.back();
-      next.pop_back();
+  for(Value* v : extValues){
+    // TODO: fix
+    // this is a temporary hack to get the size of the field
+    // it will currently only work for a limited case
 
-      for(BasicBlock* bn : b->getTerminator()->successors()){
-        if(visited.find(bn) == visited.end()){
-          next.push_back(bn);
-        } 
-      }
-      b->removeFromParent();
-      visited.insert(b);
+    auto bc = dyn_cast<BitCastInst>(v);
+    assert(bc && "unable to detect field size");
+    
+    auto ci = dyn_cast<CallInst>(bc->getOperand(0));
+    assert(ci && "unable to detect field size");
+
+    Value* bytes = ci->getOperand(0);
+    assert(bytes->getType()->isIntegerTy(64));
+
+    auto pt = dyn_cast<PointerType>(v->getType());
+    auto it = dyn_cast<IntegerType>(pt->getElementType());
+    assert(it && "expected integer type");
+
+    Constant* fn = ConstantDataArray::getString(c, ci->getName());
+
+    GlobalVariable* fieldNameGlobal = 
+      new GlobalVariable(hostModule,
+                         fn->getType(),
+                         true,
+                         GlobalValue::PrivateLinkage,
+                         fn,
+                         "ptx");
+
+    Value* fieldName = 
+      b.CreateBitCast(fieldNameGlobal, voidPtrTy);
+
+    Value* vptr = b.CreateBitCast(v, voidPtrTy);
+
+    Value* elementSize = ConstantInt::get(i32Ty, it->getBitWidth());
+
+    uint8_t m = 0;
+    if(extReads.find(v) != extReads.end()){
+      m |= 0b01;
     }
+
+    if(extWrites.find(v) != extWrites.end()){
+      m |= 0b10;
+    }
+
+    Value* size =
+      b.CreateUDiv(bytes, ConstantInt::get(i64Ty, it->getBitWidth()));
+
+    Value* mode = ConstantInt::get(i8Ty, it->getBitWidth());
+
+    TypeVec params = {i32Ty, voidPtrTy, voidPtrTy, i32Ty, i64Ty, i8Ty};
+
+    Function* initFieldFunc =
+      llvm::Function::Create(FunctionType::get(voidTy, params, false),
+                             llvm::Function::ExternalLinkage,
+                             "__kitsune_gpu_init_field",
+                             &hostModule);
+
+    b.CreateCall(initFieldFunc,
+      {kernelId, fieldName, vptr, elementSize, size, mode});
   }
 
-  exitBlock->removeFromParent();
+  using RunKernelFunc = void(uint32_t);
+
+  b.CreateCall(getFunction<RunKernelFunc>(hostModule,
+    "__kitsune_gpu_run_kernel"), {kernelId});
+
+  using FinishFunc = void();
+
+  b.CreateCall(getFunction<FinishFunc>(hostModule,
+    "__kitsune_gpu_finish"), {});
+
+  b.CreateBr(successor);
 
   //hostModule.dump();
-
-  //np(ptx);
 
   //ptxModule.dump();
 
