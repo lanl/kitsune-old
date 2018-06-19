@@ -102,5 +102,10 @@ extern "C" {
     GPURuntime* runtime = GPURuntime::get();
     runtime->runKernel(kernelId);
   }
+
+  void __kitsune_gpu_set_run_size(uint32_t kernelId, uint64_t size){
+    GPURuntime* runtime = GPURuntime::get();
+    runtime->setRunSize(kernelId, size);
+  }
   
 } // extern "C"

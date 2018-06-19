@@ -83,6 +83,8 @@ public:
                          uint8_t mode) = 0;
 
   virtual void runKernel(uint32_t kernelId) = 0;
+
+  virtual void setRunSize(uint32_t kernelId, uint64_t size) = 0;
 };
 
 } // end namespace kitsune

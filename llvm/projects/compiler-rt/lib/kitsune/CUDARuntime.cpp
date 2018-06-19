@@ -67,7 +67,7 @@ using namespace kitsune;
 static const uint8_t FIELD_READ = 0x01;
 static const uint8_t FIELD_WRITE = 0x02;
 
-static const size_t DEFAULT_THREADS = 128;
+static const size_t DEFAULT_BLOCK_SIZE = 128;
 
 static bool _initialized = false;
 
@@ -180,7 +180,7 @@ public:
         commonData_(commonData),
         function_(function),
         ready_(false),
-        numThreads_(DEFAULT_THREADS){
+        blockSize_(DEFAULT_BLOCK_SIZE){
       
     }
 
@@ -190,8 +190,8 @@ public:
       }
     }
     
-    void setNumThreads(size_t numThreads){
-      numThreads_ = numThreads;
+    void setblockSize(size_t blockSize){
+      blockSize_ = blockSize;
     }
 
     void addField(const char* fieldName,
@@ -227,9 +227,13 @@ public:
         }
       }
 
-      err = cuLaunchKernel(function_, 1, 1, 1,
-                           numThreads_, 1, 1, 
-                           0, NULL, kernelParams_.data(), NULL);
+      assert(runSize_ != 0 && "run size has not been set");
+
+      size_t gridDimX = (runSize_ + blockSize_ - 1)/blockSize_;
+
+      err = cuLaunchKernel(function_, gridDimX, 1, 1,
+                           blockSize_, 1, 1, 
+                           0, nullptr, kernelParams_.data(), nullptr);
       check(err);
 
       for(auto& itr : fieldMap_){
@@ -254,6 +258,10 @@ public:
     bool ready(){
       return ready_;
     }
+
+    void setRunSize(uint64_t size){
+      runSize_ = size;
+    }
     
   private:    
     typedef map<string, Field*> FieldMap_;
@@ -265,7 +273,8 @@ public:
     bool ready_;
     FieldMap_ fieldMap_;
     KernelParams_ kernelParams_;
-    size_t numThreads_;
+    size_t blockSize_;
+    size_t runSize_ = 0;
   };
 
   CUDARuntime(){
@@ -300,7 +309,7 @@ public:
       cuDeviceGetAttribute(&threadsPerBlock,
                            CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK, device_);
     check(err);
-    numThreads_ = threadsPerBlock;
+    blockSize_ = threadsPerBlock;
   }
 
   void initKernel(uint32_t kernelId,
@@ -322,7 +331,7 @@ public:
     }
 
     Kernel* kernel = module->createKernel(kernelId, &commonData_);
-    kernel->setNumThreads(numThreads_);
+    kernel->setblockSize(blockSize_);
     kernelMap_.insert({kernelId, kernel});
   }
 
@@ -359,13 +368,19 @@ public:
     kernel->run();
   }
 
+  void setRunSize(uint32_t kernelId, uint64_t size) override{
+    auto itr = kernelMap_.find(kernelId);
+    assert(itr != kernelMap_.end() && "invalid kernelId");
+    itr->second->setRunSize(size);
+  }
+
 private:
   typedef map<const char*, PTXModule*> ModuleMap_;
   typedef map<uint32_t, Kernel*> KernelMap_;
 
   CUdevice device_;
   CUcontext context_;
-  size_t numThreads_;
+  size_t blockSize_;
 
   ModuleMap_ moduleMap_;
   KernelMap_ kernelMap_;
