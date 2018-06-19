@@ -52,6 +52,10 @@ if(COMPILER_RT_BUILD_LIBFUZZER)
 endif()
 
 # +===== Kitsune
-# currently disabled while sorting out CUDA dependencies
-# compiler_rt_build_runtime(kitsune)
+find_package(CUDA)
+
+if(CUDA_FOUND)
+  compiler_rt_build_runtime(kitsune)
+endif()
+
 # ==============
