@@ -117,7 +117,7 @@ public:
         return itr->second;
       }
 
-      return 0;
+      return nullptr;
     }
 
     CommonField* addField(const char* name,
@@ -321,7 +321,7 @@ public:
       moduleMap_[ptx] = module;
     }
 
-    Kernel* kernel = module->createKernel(kernelId, nullptr);
+    Kernel* kernel = module->createKernel(kernelId, &commonData_);
     kernel->setNumThreads(numThreads_);
     kernelMap_.insert({kernelId, kernel});
   }
@@ -361,7 +361,6 @@ public:
 
 private:
   typedef map<const char*, PTXModule*> ModuleMap_;
-  typedef map<const char*, CommonData*> MeshMap_;
   typedef map<uint32_t, Kernel*> KernelMap_;
 
   CUdevice device_;
@@ -370,6 +369,7 @@ private:
 
   ModuleMap_ moduleMap_;
   KernelMap_ kernelMap_;
+  CommonData commonData_;
 };
 
 CUDARuntime::Kernel* 
