@@ -555,6 +555,13 @@ bool PTXABILoopSpawning::processLoop(){
       {kernelId, fieldName, vptr, elementSize, size, mode});
   }
 
+  using SetRunSizeFunc = void(uint32_t, uint64_t);
+
+  Value* runSize = b.CreateSub(loopEnd, loopStart, "run.size");
+
+  b.CreateCall(getFunction<SetRunSizeFunc>(hostModule,
+    "__kitsune_gpu_set_run_size"), {kernelId, runSize});
+
   using RunKernelFunc = void(uint32_t);
 
   b.CreateCall(getFunction<RunKernelFunc>(hostModule,

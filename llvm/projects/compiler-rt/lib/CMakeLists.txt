@@ -57,5 +57,4 @@ find_package(CUDA)
 if(CUDA_FOUND)
   compiler_rt_build_runtime(kitsune)
 endif()
-
 # ==============
