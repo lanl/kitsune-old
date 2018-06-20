@@ -256,6 +256,9 @@ bool PTXABILoopSpawning::processLoop(){
 
   Module ptxModule("ptxModule", c);
 
+  // each kernel function is assigned a unique ID by which the kernel
+  // entry point function is named e.g. run0 for kernel ID 0
+
   size_t kernelRunId = nextKernelId_++;
 
   std::stringstream kstr;
@@ -264,6 +267,8 @@ bool PTXABILoopSpawning::processLoop(){
   Function* f = Function::Create(funcTy,
     Function::ExternalLinkage, kstr.str().c_str(), &ptxModule);
 
+  // the first parameter defines the extent of the index space
+  // i.e. number of threads to launch
   auto aitr = f->arg_begin();
   aitr->setName("runSize");
   Value* runSizeParam = aitr;
@@ -285,11 +290,17 @@ bool PTXABILoopSpawning::processLoop(){
     ++i;
   }
 
+  // create the entry block which will be used to compute the thread ID
+  // and simply return if the thread ID is beyond the run size
+
   BasicBlock* br = BasicBlock::Create(c, "entry", f);
   
   b.SetInsertPoint(br);
 
   using SREGFunc = uint32_t();
+
+  // calls to NVPTX intrinsics to get the thread index, block size,
+  // and grid dimensions
 
   Value* threadIdx = b.CreateCall(getFunction<SREGFunc>(ptxModule,
     "llvm.nvvm.read.ptx.sreg.tid.x"));
@@ -307,12 +318,16 @@ bool PTXABILoopSpawning::processLoop(){
   auto t2 = dyn_cast<IntegerType>(loopNode->getType());
   assert(t2 && "expected loop variable as integer type");
 
+  // convert the thread ID into the proper integer type of the loop variable
+
   if(t1->getBitWidth() > t2->getBitWidth()){
     threadId = b.CreateTrunc(threadId, loopNode->getType(), "threadId");
   }
   else if(t1->getBitWidth() < t2->getBitWidth()){
     threadId = b.CreateZExt(threadId, loopNode->getType(), "threadId");
   }
+
+  // return block to exit if thread ID is greater than or equal to run size
 
   BasicBlock* rb = BasicBlock::Create(c, "exit", f);
   BasicBlock* bb = BasicBlock::Create(c, "body", f);
@@ -324,6 +339,9 @@ bool PTXABILoopSpawning::processLoop(){
   b.CreateRetVoid();
 
   b.SetInsertPoint(bb);
+
+  // map the thread ID into the new values as we clone the instructions
+  // of the function
 
   m[loopNode] = threadId;
 
@@ -340,6 +358,9 @@ bool PTXABILoopSpawning::processLoop(){
       continue;
     }
 
+    // determine if we are reading or writing the external variables 
+    // i.e. those passed as CUDA arrays
+
     if(auto li = dyn_cast<LoadInst>(&ii)){
       Value* v = li->getPointerOperand();
       auto itr = extVars.find(v);
@@ -354,6 +375,8 @@ bool PTXABILoopSpawning::processLoop(){
         extWrites.insert(itr->second);
       }
     }
+    // if this is a GEP  into one of the external variables then keep track of
+    // which external variable it originally came from
     else if(auto gi = dyn_cast<GetElementPtrInst>(&ii)){
       Value* v = gi->getPointerOperand();
       if(extValues.find(v) != extValues.end()){
@@ -362,6 +385,8 @@ bool PTXABILoopSpawning::processLoop(){
     }
 
     Instruction* ic = ii.clone();
+
+    // remap values as we are cloning the instructions
 
     for(auto& itr : m){
       ic->replaceUsesOfWith(itr.first, itr.second);
@@ -373,6 +398,8 @@ bool PTXABILoopSpawning::processLoop(){
 
   b.CreateRetVoid();
 
+  // add the necessary NVPTX to mark the global function
+
   NamedMDNode* annotations = 
     ptxModule.getOrInsertNamedMetadata("nvvm.annotations");
   
@@ -383,6 +410,8 @@ bool PTXABILoopSpawning::processLoop(){
   av.push_back(ValueAsMetadata::get(llvm::ConstantInt::get(i32Ty, 1)));
 
   annotations->addOperand(MDNode::get(ptxModule.getContext(), av));
+
+  // remove the basic blocks corresponding to the original LLVM loop
 
   BasicBlock* predecessor = L->getLoopPreheader();
   entryBlock->removePredecessor(predecessor);
@@ -422,6 +451,7 @@ bool PTXABILoopSpawning::processLoop(){
   exitBlock->dropAllReferences();
   exitBlock->removeFromParent();
 
+  // find the NVPTX module pass which will create the PTX code
 
   const Target* target = nullptr;
 
@@ -438,6 +468,9 @@ bool PTXABILoopSpawning::processLoop(){
   Triple triple(sys::getDefaultTargetTriple());
   triple.setArch(Triple::nvptx64);
     
+  // TODO:  the version of LLVM that we are using currently only supports
+  // up to SM_60 – we need SM_70 for Volta architectures
+
   TargetMachine* targetMachine =  
       target->createTargetMachine(triple.getTriple(),
                                   //"sm_35",
@@ -458,6 +491,8 @@ bool PTXABILoopSpawning::processLoop(){
   legacy::PassManager* passManager = new legacy::PassManager;
 
   passManager->add(createVerifierPass());
+
+  // add in our optimization passes
 
   passManager->add(createInstructionCombiningPass());
   passManager->add(createReassociatePass());
@@ -489,7 +524,9 @@ bool PTXABILoopSpawning::processLoop(){
   std::string ptx = ostr.str().str();
 
   Constant* pcs = ConstantDataArray::getString(c, ptx);
-  
+
+  // create a global string to hold the PTX code
+
   GlobalVariable* ptxGlobal = 
     new GlobalVariable(hostModule,
                        pcs->getType(),
@@ -503,6 +540,8 @@ bool PTXABILoopSpawning::processLoop(){
   Value* ptxStr = b.CreateBitCast(ptxGlobal, voidPtrTy);
 
   b.SetInsertPoint(hostBlock);
+
+  // finally, replace where the original loop was with calls to the GPU runtime
 
   using InitCUDAFunc = void();
 
