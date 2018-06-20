@@ -48,10 +48,6 @@
   *
   ***************************************************************************/
 
-#define np(X)                                                            \
- std::cout << __FILE__ << ":" << __LINE__ << ": " << __PRETTY_FUNCTION__ \
-           << ": " << #X << " = " << (X) << std::endl
-
 #include "llvm/Transforms/Tapir/PTXABI.h"
 #include "llvm/Analysis/ScalarEvolutionExpander.h"
 #include "llvm/IR/DebugInfoMetadata.h"
@@ -322,22 +318,31 @@ bool PTXABILoopSpawning::processLoop(){
 
   std::set<Value*> extReads;
   std::set<Value*> extWrites;
+  std::map<Value*, Value*> extVars;
 
   for(Instruction& ii : *Body){
     if(dyn_cast<ReattachInst>(&ii)){
       continue;
     }
-
+    
     if(auto li = dyn_cast<LoadInst>(&ii)){
       Value* v = li->getPointerOperand();
-      if(extValues.find(v) != extValues.end()){
-        extReads.insert(v);
+      auto itr = extVars.find(v);
+      if(itr != extVars.end()){
+        extReads.insert(itr->second);
       }
     }
     else if(auto si = dyn_cast<StoreInst>(&ii)){
       Value* v = si->getPointerOperand();
+      auto itr = extVars.find(v);
+      if(itr != extVars.end()){
+        extWrites.insert(itr->second);
+      }
+    }
+    else if(auto gi = dyn_cast<GetElementPtrInst>(&ii)){
+      Value* v = gi->getPointerOperand();
       if(extValues.find(v) != extValues.end()){
-        extWrites.insert(v);
+        extVars[gi] = v; 
       }
     }
 
@@ -541,7 +546,7 @@ bool PTXABILoopSpawning::processLoop(){
     Value* size =
       b.CreateUDiv(bytes, ConstantInt::get(i64Ty, it->getBitWidth()));
 
-    Value* mode = ConstantInt::get(i8Ty, it->getBitWidth());
+    Value* mode = ConstantInt::get(i8Ty, m);
 
     TypeVec params = {i32Ty, voidPtrTy, voidPtrTy, i32Ty, i64Ty, i8Ty};
 
