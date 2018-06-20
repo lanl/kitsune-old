@@ -240,6 +240,7 @@ bool PTXABILoopSpawning::processLoop(){
   }
 
   TypeVec paramTypes;
+  paramTypes.push_back(i64Ty);
 
   for(Value* v : extValues){
     auto pt = dyn_cast<PointerType>(v->getType());
@@ -264,6 +265,9 @@ bool PTXABILoopSpawning::processLoop(){
     Function::ExternalLinkage, kstr.str().c_str(), &ptxModule);
 
   auto aitr = f->arg_begin();
+  aitr->setName("runSize");
+  Value* runSizeParam = aitr;
+  ++aitr;
 
   std::map<Value*, Value*> m;
 
@@ -310,9 +314,20 @@ bool PTXABILoopSpawning::processLoop(){
     threadId = b.CreateZExt(threadId, loopNode->getType(), "threadId");
   }
 
+  BasicBlock* rb = BasicBlock::Create(c, "exit", f);
+  BasicBlock* bb = BasicBlock::Create(c, "body", f);
+
+  Value* cond = b.CreateICmpUGE(threadId, runSizeParam);
+  b.CreateCondBr(cond, rb, bb);
+
+  b.SetInsertPoint(rb);
+  b.CreateRetVoid();
+
+  b.SetInsertPoint(bb);
+
   m[loopNode] = threadId;
 
-  BasicBlock::InstListType& il = br->getInstList();
+  BasicBlock::InstListType& il = bb->getInstList();
 
   // clone instructions of the body basic block,  remapping values as needed
 
@@ -324,7 +339,7 @@ bool PTXABILoopSpawning::processLoop(){
     if(dyn_cast<ReattachInst>(&ii)){
       continue;
     }
-    
+
     if(auto li = dyn_cast<LoadInst>(&ii)){
       Value* v = li->getPointerOperand();
       auto itr = extVars.find(v);

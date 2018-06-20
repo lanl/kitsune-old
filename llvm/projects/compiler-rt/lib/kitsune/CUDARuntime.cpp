@@ -211,6 +211,8 @@ public:
 
     void run(){
       if(!ready_){
+        kernelParams_.push_back(&runSize_);
+        
         for(auto& itr : fieldMap_){
           Field* field = itr.second;
           CommonField* commonField = field->commonField;
@@ -278,7 +280,7 @@ public:
     FieldMap_ fieldMap_;
     KernelParams_ kernelParams_;
     size_t blockSize_;
-    size_t runSize_ = 0;
+    uint64_t runSize_ = 0;
   };
 
   CUDARuntime(){
