@@ -61,6 +61,10 @@
 
 #include <cuda.h>
 
+#define np(X)                                                            \
+ std::cout << __FILE__ << ":" << __LINE__ << ": " << __PRETTY_FUNCTION__ \
+           << ": " << #X << " = " << (X) << std::endl
+
 using namespace std;
 using namespace kitsune;
 
@@ -278,13 +282,10 @@ public:
   };
 
   CUDARuntime(){
-
+    commonData_ = new CommonData;
   }
 
   ~CUDARuntime(){
-    CUresult err = cuCtxDestroy(context_);
-    check(err);
-
     for(auto& itr : kernelMap_){
       delete itr.second;
     }
@@ -292,6 +293,11 @@ public:
     for(auto& itr : moduleMap_){
       delete itr.second;
     }
+
+    delete commonData_;
+
+    CUresult err = cuCtxDestroy(context_);
+    check(err);
   }
 
   void init(){
@@ -330,7 +336,7 @@ public:
       moduleMap_[ptx] = module;
     }
 
-    Kernel* kernel = module->createKernel(kernelId, &commonData_);
+    Kernel* kernel = module->createKernel(kernelId, commonData_);
     kernel->setblockSize(blockSize_);
     kernelMap_.insert({kernelId, kernel});
   }
@@ -384,7 +390,7 @@ private:
 
   ModuleMap_ moduleMap_;
   KernelMap_ kernelMap_;
-  CommonData commonData_;
+  CommonData* commonData_;
 };
 
 CUDARuntime::Kernel* 
