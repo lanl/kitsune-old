@@ -84,6 +84,24 @@ namespace{
     return cast<Function>(M.getOrInsertFunction(name,
       TypeBuilder<F, false>::get(M.getContext())));
   } 
+
+  template<class B>
+  Value* convertInteger(B& b, Value* from, Value* to, const std::string& name){
+    auto ft = dyn_cast<IntegerType>(from->getType());
+    assert(ft && "expected from type as integer type");
+
+    auto tt = dyn_cast<IntegerType>(to->getType());
+    assert(tt && "expected to type as integer type");
+
+    if(ft->getBitWidth() > tt->getBitWidth()){
+      return b.CreateTrunc(from, tt, name);
+    }
+    else if(ft->getBitWidth() < tt->getBitWidth()){
+      return b.CreateZExt(from, tt, name);
+    }
+
+    return from;
+  }
   
 } // namespace
 
@@ -148,7 +166,7 @@ bool PTXABI::processMain(Function &F) {
 bool PTXABILoopSpawning::processLoop(){
   Loop *L = OrigLoop;
 
-  //L->dumpVerbose();
+  // L->dumpVerbose();
 
   //  code generation is currently limited to a simple canonical loop structure
   //  whereby we make the following assumptions and check assertions below
@@ -177,8 +195,11 @@ bool PTXABILoopSpawning::processLoop(){
 
   //  only handle loops where the induction variable is initialized to a constant
 
-  ConstantInt* loopStart = dyn_cast<ConstantInt>(loopNode->getIncomingValue(0));
+  Value* loopStart = loopNode->getIncomingValue(0);
   assert(loopStart && "expected canonical loop start");
+
+  auto cs = dyn_cast<ConstantInt>(loopStart);
+  bool startsAtZero = cs && cs->isZero();
 
   BasicBlock* exitBlock = L->getUniqueExitBlock();
   assert(exitBlock && "expected canonical exit block");
@@ -198,8 +219,18 @@ bool PTXABILoopSpawning::processLoop(){
   CmpInst* cmp = dyn_cast<CmpInst>(endBranchCond);
   assert(cmp && "expected canonical comparison instruction");
 
-  ConstantInt* loopEnd = dyn_cast<ConstantInt>(cmp->getOperand(1));
+  Value* loopEnd = cmp->getOperand(1);
   assert(loopEnd && "expected canonical loop end");
+
+  BasicBlock* latchBlock = L->getLoopLatch();
+  Instruction* li = latchBlock->getFirstNonPHI();
+  unsigned op = li->getOpcode();
+  assert(op == Instruction::Add || op == Instruction::Sub &&
+         "expected add or sub in loop latch");
+  assert(li->getOperand(0)== loopNode);
+  Value* stride = li->getOperand(1);
+  cs = dyn_cast<ConstantInt>(stride);
+  bool isUnitStride = cs && cs->isOne();
 
   BasicBlock* entryBlock = L->getBlocks()[0];
 
@@ -241,6 +272,8 @@ bool PTXABILoopSpawning::processLoop(){
 
   TypeVec paramTypes;
   paramTypes.push_back(i64Ty);
+  paramTypes.push_back(i64Ty);
+  paramTypes.push_back(i64Ty);
 
   for(Value* v : extValues){
     auto pt = dyn_cast<PointerType>(v->getType());
@@ -272,6 +305,14 @@ bool PTXABILoopSpawning::processLoop(){
   auto aitr = f->arg_begin();
   aitr->setName("runSize");
   Value* runSizeParam = aitr;
+  ++aitr;
+
+  aitr->setName("runStart");
+  Value* runStartParam = aitr;
+  ++aitr;
+
+  aitr->setName("runStride");
+  Value* runStrideParam = aitr;
   ++aitr;
 
   std::map<Value*, Value*> m;
@@ -314,17 +355,16 @@ bool PTXABILoopSpawning::processLoop(){
   Value* threadId = 
     b.CreateAdd(threadIdx, b.CreateMul(blockIdx, blockDim), "threadId");
 
-  auto t1 = dyn_cast<IntegerType>(threadId->getType());
-  auto t2 = dyn_cast<IntegerType>(loopNode->getType());
-  assert(t2 && "expected loop variable as integer type");
-
   // convert the thread ID into the proper integer type of the loop variable
 
-  if(t1->getBitWidth() > t2->getBitWidth()){
-    threadId = b.CreateTrunc(threadId, loopNode->getType(), "threadId");
+  threadId = convertInteger(b, threadId, loopNode, "threadId");
+
+  if(!isUnitStride){
+    threadId = b.CreateMul(threadId, runStrideParam);
   }
-  else if(t1->getBitWidth() < t2->getBitWidth()){
-    threadId = b.CreateZExt(threadId, loopNode->getType(), "threadId");
+
+  if(!startsAtZero){
+    threadId = b.CreateAdd(threadId, runStartParam);
   }
 
   // return block to exit if thread ID is greater than or equal to run size
@@ -614,12 +654,16 @@ bool PTXABILoopSpawning::processLoop(){
       {kernelId, fieldName, vptr, elementSize, size, mode});
   }
 
-  using SetRunSizeFunc = void(uint32_t, uint64_t);
+  using SetRunSizeFunc = void(uint32_t, uint64_t, uint64_t, uint64_t);
 
-  Value* runSize = b.CreateSub(loopEnd, loopStart, "run.size");
+  Value* runSize = b.CreateSub(loopEnd, loopStart);
+
+  runSize = convertInteger(b, runSize, threadId, "run.size");
+
+  Value* runStart = convertInteger(b, loopStart, threadId, "run.start");
 
   b.CreateCall(getFunction<SetRunSizeFunc>(hostModule,
-    "__kitsune_gpu_set_run_size"), {kernelId, runSize});
+    "__kitsune_gpu_set_run_size"), {kernelId, runSize, runStart, runStart});
 
   using RunKernelFunc = void(uint32_t);
 
@@ -635,7 +679,7 @@ bool PTXABILoopSpawning::processLoop(){
 
   //hostModule.dump();
 
-  //ptxModule.dump();
+  // ptxModule.dump();
 
   return true;
 }

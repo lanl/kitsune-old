@@ -212,6 +212,8 @@ public:
     void run(){
       if(!ready_){
         kernelParams_.push_back(&runSize_);
+        kernelParams_.push_back(&runStart_);
+        kernelParams_.push_back(&runStart_);
         
         for(auto& itr : fieldMap_){
           Field* field = itr.second;
@@ -265,8 +267,10 @@ public:
       return ready_;
     }
 
-    void setRunSize(uint64_t size){
+    void setRunSize(uint64_t size, uint64_t start, uint64_t stride){
       runSize_ = size;
+      runStart_ = start;
+      runStride_ = stride;
     }
     
   private:    
@@ -281,6 +285,8 @@ public:
     KernelParams_ kernelParams_;
     size_t blockSize_;
     uint64_t runSize_ = 0;
+    uint64_t runStart_ = 0;
+    uint64_t runStride_ = 1;
   };
 
   CUDARuntime(){
@@ -376,10 +382,14 @@ public:
     kernel->run();
   }
 
-  void setRunSize(uint32_t kernelId, uint64_t size) override{
+  void setRunSize(uint32_t kernelId,
+                  uint64_t size,
+                  uint64_t start,
+                  uint64_t stride) override{
+    
     auto itr = kernelMap_.find(kernelId);
     assert(itr != kernelMap_.end() && "invalid kernelId");
-    itr->second->setRunSize(size);
+    itr->second->setRunSize(size, start, stride);
   }
 
 private:
