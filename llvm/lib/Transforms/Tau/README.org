@@ -1,0 +1,12 @@
+* Adding TAU profiling calls via LLVM pass
+
+** References
+
+[[http://llvm.org/docs/WritingAnLLVMPass.html][Writing an LLVM Pass]]
+[[https://www.cs.cornell.edu/~asampson/blog/llvm.html][Adrian Sampson's LLVM pass guide (2015)]]
+
+
+** Building
+
+This pass (in =Instrument.cpp=) can be built as part of the greater Kitsune
+project or independently for use with Clang+LLVM upstream.

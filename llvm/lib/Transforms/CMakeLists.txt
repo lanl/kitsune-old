@@ -8,3 +8,7 @@ add_subdirectory(Hello)
 add_subdirectory(ObjCARC)
 add_subdirectory(Coroutines)
 add_subdirectory(Tapir)
+
+
+# For TAU profiling:
+add_subdirectory(Tau)
