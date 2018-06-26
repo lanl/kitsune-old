@@ -23,15 +23,18 @@
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 #include "llvm/IR/LegacyPassManager.h"
 
+// Other passes do this, so I assume the macro is useful somewhere
+#define DEBUG_TYPE "tau-profile"
+
+
 
 using namespace llvm;
-
 
 namespace {
 
   /*!
-   *  Find/create a function taking no arguments with a void return type
-   *  suitable for making a call to in IR.
+   *  Find/create a function taking a single `i8*` argument with a void return
+   *  type suitable for making a call to in IR.
    *
    * \param funcname The name of the function
    * \param ctx The LLVMContext
@@ -39,15 +42,15 @@ namespace {
    */
   static Constant *getVoidFunc(StringRef funcname, LLVMContext &context, Module *module) {
 
-    // Function has Void return
+    // Void return type
     Type *retTy = Type::getVoidTy(context);
-    Type *argTy = Type::getInt8PtrTy(context);
 
-    // first cut: Function takes no args
+    // single i8* argument type (char *)
+    Type *argTy = Type::getInt8PtrTy(context);
     std::vector<Type *> paramTys{argTy};
 
-    // Third param here is `isVarArg`.  It's not documented, but might have to
-    // do with variadic functions?
+    // Third param to `get` is `isVarArg`.  It's not documented, but might have
+    // to do with variadic functions?
     FunctionType *funcTy = FunctionType::get(retTy, paramTys, false);
     return module->getOrInsertFunction(funcname, funcTy);
   }
@@ -55,16 +58,14 @@ namespace {
 
   /*!
    * The instrumentation pass.
-   *
    */
   struct Instrument : public FunctionPass {
 
     static char ID; // Pass identification, replacement for typeid
+
     Instrument() : FunctionPass(ID) {}
 
     bool runOnFunction(Function &func) override {
-
-      errs() << "I've been called on some function!\n";
 
       bool mutated = false;
 
@@ -75,11 +76,18 @@ namespace {
         *onCallFunc = getVoidFunc("tau_prof_func_call", context, module),
         *onRetFunc = getVoidFunc("tau_prof_func_ret", context, module);
 
+      // vector to save references to the calls we want to instrument
+      // TODO: Follow the suggestions of the LLVM programmer guide re: containers
       std::vector<CallInst*> calls;
+
       for (auto &block : func) {
         for (auto &inst : block) {
-          // Only care if it's a function call
+
           if(auto *op = dyn_cast<CallInst>(&inst)) {
+            // Inserting new function calls here will modify the block and
+            // potentially give us a never-ending list of calls to instrument
+            // (without a white/blacklist in place).  It's simpler to just
+            // gather them up and mess with them afterwards.
             calls.push_back(op);
           }
         }
@@ -89,16 +97,20 @@ namespace {
         Function *callee = op->getCalledFunction();
         StringRef calleeName = callee->getName();
         IRBuilder<> builder(op);
+
+        // This is the recommended way of creating a string constant (to be used
+        // as an argument to runtime functions)
         Value *strArg = builder.CreateGlobalStringPtr(calleeName);
-        errs() << "I saw a function called " << calleeName << '\n'
-               << "The type of the constant string is " << *strArg->getType() << '\n';
 
-
+        errs() << "I'm instrumenting a function called " << calleeName << '\n'
+               << "with type " << *callee->getType() << '\n';
 
         std::vector<Value *> args{strArg};
+
+        // Before the CallInst
         builder.CreateCall(onCallFunc, args);
 
-        // Insert the onRetFunc *after* the current instruction
+        // Set insert point to just after the CallInst
         builder.SetInsertPoint(op->getParent(), ++builder.GetInsertPoint());
         builder.CreateCall(onRetFunc, args);
 
@@ -108,17 +120,10 @@ namespace {
       return mutated;
     }
 
-    // Note: override getAnalysisUsage to specify if any invariants are held over the pass
-    // e.g. no mutation of CFG
   };
 }
 
 char Instrument::ID = 0;
-
-// Used by the LLVM Guide
-//static RegisterPass<Instrument> X("Instrument", "Instrumentation Pass");
-
-// Used by Adrian Sampson
 
 // Automatically enable the pass.
 // http://adriansampson.net/blog/clangpass.html
