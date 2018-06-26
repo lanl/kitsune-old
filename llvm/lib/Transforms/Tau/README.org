@@ -1,12 +1,44 @@
 * Adding TAU profiling calls via LLVM pass
 
+  
+** Building
+
+This pass (in =Instrument.cpp=) can be built as part of the greater Kitsune
+project, part of an LLVM build or independently, linked against the LLVM
+libraries on your system.
+
+*** As part of Kitsune
+
+Simply follow the Kitsune build instructions.  You can find the shared library
+at =<kitsune-build-dir>/llvm/lib/Tau_Profiling.so=.
+
+*** As part of a standard LLVM build
+
+Copy this directory into =<llvm-root>/lib/Transform= and add the following line
+to =<llvm-root>/lib/Transform/CMakeLists.txt=:
+
+#+BEGIN_SRC cmake
+add_subdirectory(Tau)
+#+END_SRC
+
+**** TODO Test this
+
+- make sure the resulting library is in the expected =build/lib/= directory.
+
+*** Independently
+
+Starting at =llvm/lib/Transform/Tau= as the working directory:
+
+#+BEGIN_SRC sh
+mkdir -p build
+cd build
+cmake .. -DDTAU_PROF_STANDALONE=1
+cmake --build .
+#+END_SRC
+
+
 ** References
 
 [[http://llvm.org/docs/WritingAnLLVMPass.html][Writing an LLVM Pass]]
 [[https://www.cs.cornell.edu/~asampson/blog/llvm.html][Adrian Sampson's LLVM pass guide (2015)]]
 
-
-** Building
-
-This pass (in =Instrument.cpp=) can be built as part of the greater Kitsune
-project or independently for use with Clang+LLVM upstream.
