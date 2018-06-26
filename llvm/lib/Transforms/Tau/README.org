@@ -39,6 +39,5 @@ cmake --build .
 
 ** References
 
-[[http://llvm.org/docs/WritingAnLLVMPass.html][Writing an LLVM Pass]]
-[[https://www.cs.cornell.edu/~asampson/blog/llvm.html][Adrian Sampson's LLVM pass guide (2015)]]
-
+- [[http://llvm.org/docs/WritingAnLLVMPass.html][Writing an LLVM Pass]]
+- [[https://www.cs.cornell.edu/~asampson/blog/llvm.html][Adrian Sampson's LLVM pass guide (2015)]]
