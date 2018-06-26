@@ -1,8 +1,11 @@
-# This copied/modified from the "Hello World" LLVM pass example (see
-# lib/Transform/Hello)
-
 # If we're building the pass alone, get the required LLVM stuff
 if(TAU_PROF_STANDALONE)
+
+  project(TauProfiling)
+
+  # same as Kitsune, who knows what the real minimum is
+  cmake_minimum_required(VERSION 3.9)
+
   find_package(LLVM REQUIRED CONFIG)
 
   # required for `add_llvm_loadable_module`
@@ -11,16 +14,21 @@ if(TAU_PROF_STANDALONE)
 
   add_definitions(${LLVM_DEFINITIONS})
   include_directories(${LLVM_INCLUDE_DIRS})
-endif()
 
+else()
+  # This chunk inherited from the example pass (llvm/lib/Transform/Hello) and
+  # only seems to be relevant for a full LLVM build.
 
-# If we don't need RTTI or EH, there's no reason to export anything
-# from the hello plugin.
-if( NOT LLVM_REQUIRES_RTTI )
-  if( NOT LLVM_REQUIRES_EH )
-    set(LLVM_EXPORTED_SYMBOL_FILE ${CMAKE_CURRENT_SOURCE_DIR}/Hello.exports)
+  # If we don't need RTTI or EH, there's no reason to export anything
+  # from the plugin.
+  if( NOT LLVM_REQUIRES_RTTI )
+    if( NOT LLVM_REQUIRES_EH )
+      set(LLVM_EXPORTED_SYMBOL_FILE ${CMAKE_CURRENT_SOURCE_DIR}/Tau.exports)
+    endif()
   endif()
+
 endif()
+
 
 if(WIN32 OR CYGWIN)
   set(LLVM_LINK_COMPONENTS Core Support)
