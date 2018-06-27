@@ -23,6 +23,10 @@
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 #include "llvm/IR/LegacyPassManager.h"
 
+#ifdef TAU_PROF_CXX
+#include <cxxabi.h>
+#endif
+
 // Other passes do this, so I assume the macro is useful somewhere
 #define DEBUG_TYPE "tau-profile"
 
@@ -31,6 +35,36 @@
 using namespace llvm;
 
 namespace {
+
+
+static StringRef normalize_name(StringRef mangled_name) {
+#ifdef TAU_PROF_CXX
+  int status = 0;
+
+  const char *str = abi::__cxa_demangle(mangled_name.begin(), 0, 0, &status);
+  StringRef realname{str};
+
+  switch (status) {
+  case 0:
+    break;
+  case -1:
+    errs() << "FAIL: failed to allocate memory while demangling " << mangled_name << '\n';
+    break;
+  case -2:
+    errs() << "FAIL: " << mangled_name
+           << " is not a valid name under the C++ ABI mangling rules\n";
+    break;
+  default:
+    errs() << "FAIL: couldn't demangle " << mangled_name
+           << " for some unknown reason: " << status << '\n';
+    break;
+  }
+
+  return realname;
+#else
+  return mangled_name;
+#endif
+}
 
   /*!
    *  Find/create a function taking a single `i8*` argument with a void return
@@ -94,16 +128,35 @@ namespace {
       }
 
       for(auto *op : calls) {
-        Function *callee = op->getCalledFunction();
-        StringRef calleeName = callee->getName();
+        errs() << "Found a CallInst with type " << *op->getFunctionType() << '\n';
+        auto *callee = op->getCalledFunction();
+
+        if(!callee) {
+          errs() << "CallInst is INDIRECT.  I can't do anything about that.\n";
+          continue;
+        }
+
+        StringRef calleeName = normalize_name(callee->getName());
+
+        if(calleeName.empty()) {
+          // Good for a call whose name is not mangled but we still want to instrument;
+          calleeName = callee->getName();
+        }
+
         IRBuilder<> builder(op);
 
         // This is the recommended way of creating a string constant (to be used
         // as an argument to runtime functions)
         Value *strArg = builder.CreateGlobalStringPtr(calleeName);
 
-        errs() << "I'm instrumenting a function called " << calleeName << '\n'
-               << "with type " << *callee->getType() << '\n';
+        errs() << "Function name is " << calleeName << '\n';
+
+        if(!shouldInstrument(calleeName)) {
+          errs() << "Should *not* instrument\n";
+          continue;
+        }
+
+        errs() << "*Should* instrument\n";
 
         std::vector<Value *> args{strArg};
 
@@ -115,12 +168,15 @@ namespace {
         builder.CreateCall(onRetFunc, args);
 
         mutated = true;
-      }
+        }
 
       return mutated;
     }
 
+    bool shouldInstrument(StringRef) { return true; }
   };
+
+
 }
 
 char Instrument::ID = 0;
