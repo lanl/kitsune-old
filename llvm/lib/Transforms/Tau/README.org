@@ -22,7 +22,7 @@ add_subdirectory(Tau)
 #+END_SRC
 
 
-#### [TODO] Test this
+*** TODO Test this 
 
 - make sure the resulting library is in the expected =build/lib/= directory.
 
