@@ -36,7 +36,8 @@ using namespace llvm;
 
 namespace {
 
-
+// technique borrowed/modified from
+// https://github.com/eklitzke/demangle/blob/master/src/demangle.cc
 static StringRef normalize_name(StringRef mangled_name) {
 #ifdef TAU_PROF_CXX
   int status = 0;
@@ -48,7 +49,8 @@ static StringRef normalize_name(StringRef mangled_name) {
   case 0:
     break;
   case -1:
-    errs() << "FAIL: failed to allocate memory while demangling " << mangled_name << '\n';
+    errs() << "FAIL: failed to allocate memory while demangling "
+           << mangled_name << '\n';
     break;
   case -2:
     errs() << "FAIL: " << mangled_name

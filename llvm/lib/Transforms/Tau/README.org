@@ -21,9 +21,11 @@ to =<llvm-root>/lib/Transform/CMakeLists.txt=:
 add_subdirectory(Tau)
 #+END_SRC
 
-**** TODO Test this
+
+#### [TODO] Test this
 
 - make sure the resulting library is in the expected =build/lib/= directory.
+
 
 *** Independently
 
@@ -48,7 +50,7 @@ directory that can be used for simple tests.
 - =example.cc= is a Hello World C++ program with some OO features to see what
   kinds of calls are visible after lowering to LLVM IR.
 
-The following isntructions assume =TAU_Profiling.so= and =Tau_Profiling_CXX.so=
+The following instructions assume =TAU_Profiling.so= and =Tau_Profiling_CXX.so=
 have been built against the system installed LLVM.  If this is not the case,
 replace invocations of =clang= and =clang++= with the appropriate versions.
 
@@ -71,7 +73,7 @@ To compile and link the example C++ program with the plugin:
 clang++ -fplugin=path/to/TAU_Profiling_CXX.so example.cc rtlib.o
 #+END_SRC
 
-The plugin currently produces a great deal of output loggin what it's looking
+The plugin currently produces a great deal of output logging what it's looking
 at.
 
 
@@ -79,4 +81,3 @@ at.
 
 - [[http://llvm.org/docs/WritingAnLLVMPass.html][Writing an LLVM Pass]]
 - [[https://www.cs.cornell.edu/~asampson/blog/llvm.html][Adrian Sampson's LLVM pass guide (2015)]]
-  
