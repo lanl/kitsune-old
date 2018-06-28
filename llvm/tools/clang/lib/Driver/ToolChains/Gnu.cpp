@@ -573,6 +573,8 @@ void tools::gnutools::Linker::ConstructJob(Compilation &C, const JobAction &JA,
         CmdArgs.push_back("-lhwloc");
         CmdArgs.push_back("-lpthread");
       }
+      else if (Name == "realm")
+	CmdArgs.push_back("-lrealm");
     }
   }
 

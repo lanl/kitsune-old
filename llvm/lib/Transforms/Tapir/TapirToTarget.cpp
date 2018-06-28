@@ -38,6 +38,8 @@ static cl::opt<TapirTargetType> ClTapirTarget(
                // +===== Kitsune
                clEnumValN(TapirTargetType::PTX,
                           "ptx", "PTX")
+               clEnumValN(TapirTargetType::Realm,
+                          "realm", "Realm")
                // ==============
                ));
 
