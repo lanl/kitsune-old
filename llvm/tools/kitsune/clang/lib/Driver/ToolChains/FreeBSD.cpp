@@ -294,8 +294,13 @@ void freebsd::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   }
 
   // +===== Kitsune
-  if (D.CCCIsFleCSI() || D.CCCIsKokkos())
+  if (D.CCCIsFleCSI() || D.CCCIsKokkos()) {
     CmdArgs.push_back("-lcilkrts");
+    if (Args.hasArg(options::OPT_fgpu)) {
+      CmdArgs.push_back("-lcuda");
+      ToolChain.getCompilerRTArgString(Args, "kitsune", false);
+    }
+  }
   // ==============
 
   if (!Args.hasArg(options::OPT_nostdlib, options::OPT_nostartfiles)) {
