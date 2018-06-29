@@ -166,7 +166,7 @@ bool PTXABI::processMain(Function &F) {
 bool PTXABILoopSpawning::processLoop(){
   Loop *L = OrigLoop;
 
-  // L->dumpVerbose();
+  //L->dumpVerbose();
 
   //  code generation is currently limited to a simple canonical loop structure
   //  whereby we make the following assumptions and check assertions below
@@ -262,6 +262,10 @@ bool PTXABILoopSpawning::processLoop(){
     for(Use& u : ii.operands()){
       Value* v = u.get();
 
+      if(isa<Constant>(v)){
+        continue;
+      }
+
       if(values.find(v) == values.end()){
         extValues.insert(v);
       }
@@ -276,11 +280,16 @@ bool PTXABILoopSpawning::processLoop(){
   paramTypes.push_back(i64Ty);
 
   for(Value* v : extValues){
-    auto pt = dyn_cast<PointerType>(v->getType());
-    assert(pt && "expected a pointer type");
-    // global address space
-    //paramTypes.push_back(PointerType::get(pt, 1));
-    paramTypes.push_back(pt);
+    if(auto pt = dyn_cast<PointerType>(v->getType())){
+      paramTypes.push_back(pt);
+    }
+    else if(auto at = dyn_cast<ArrayType>(v->getType())){
+      paramTypes.push_back(PointerType::get(at->getElementType(), 1));
+    }
+    else{
+      v->dump();
+      assert(false && "expected a pointer or array type");
+    }
   }
 
   // create the GPU function
@@ -594,39 +603,68 @@ bool PTXABILoopSpawning::processLoop(){
       "__kitsune_gpu_init_kernel"), {kernelId, ptxStr});
 
   for(Value* v : extValues){
+    Value* elementSize;
+    Value* vptr;
+    Value* fieldName;
+    Value* size;
+
     // TODO: fix
     // this is a temporary hack to get the size of the field
     // it will currently only work for a limited case
 
-    auto bc = dyn_cast<BitCastInst>(v);
-    assert(bc && "unable to detect field size");
-    
-    auto ci = dyn_cast<CallInst>(bc->getOperand(0));
-    assert(ci && "unable to detect field size");
+    if(auto bc = dyn_cast<BitCastInst>(v)){
+      auto ci = dyn_cast<CallInst>(bc->getOperand(0));
+      assert(ci && "unable to detect field size");
 
-    Value* bytes = ci->getOperand(0);
-    assert(bytes->getType()->isIntegerTy(64));
+      Value* bytes = ci->getOperand(0);
+      assert(bytes->getType()->isIntegerTy(64));
 
-    auto pt = dyn_cast<PointerType>(v->getType());
-    auto it = dyn_cast<IntegerType>(pt->getElementType());
-    assert(it && "expected integer type");
+      auto pt = dyn_cast<PointerType>(v->getType());
+      auto it = dyn_cast<IntegerType>(pt->getElementType());
+      assert(it && "expected integer type");
 
-    Constant* fn = ConstantDataArray::getString(c, ci->getName());
+      Constant* fn = ConstantDataArray::getString(c, ci->getName());
 
-    GlobalVariable* fieldNameGlobal = 
-      new GlobalVariable(hostModule,
-                         fn->getType(),
-                         true,
-                         GlobalValue::PrivateLinkage,
-                         fn,
-                         "ptx");
+      GlobalVariable* fieldNameGlobal = 
+        new GlobalVariable(hostModule,
+                           fn->getType(),
+                           true,
+                           GlobalValue::PrivateLinkage,
+                           fn,
+                           "field.name");
 
-    Value* fieldName = 
-      b.CreateBitCast(fieldNameGlobal, voidPtrTy);
+      fieldName = b.CreateBitCast(fieldNameGlobal, voidPtrTy);
 
-    Value* vptr = b.CreateBitCast(v, voidPtrTy);
+      vptr = b.CreateBitCast(v, voidPtrTy);
 
-    Value* elementSize = ConstantInt::get(i32Ty, it->getBitWidth());
+      elementSize = ConstantInt::get(i32Ty, it->getBitWidth());
+
+      size = b.CreateUDiv(bytes, ConstantInt::get(i64Ty, it->getBitWidth()));
+    }
+    else if(auto ai = dyn_cast<AllocaInst>(v)){
+      Constant* fn = ConstantDataArray::getString(c, ai->getName());
+
+      GlobalVariable* fieldNameGlobal = 
+        new GlobalVariable(hostModule,
+                           fn->getType(),
+                           true,
+                           GlobalValue::PrivateLinkage,
+                           fn,
+                           "field.name");
+
+      fieldName = b.CreateBitCast(fieldNameGlobal, voidPtrTy);
+
+      vptr = b.CreateBitCast(v, voidPtrTy);
+
+      auto at = dyn_cast<ArrayType>(ai->getAllocatedType());
+      assert(at && "expected array type");
+
+      elementSize = ConstantInt::get(i32Ty,
+        at->getElementType()->getPrimitiveSizeInBits()/8);
+
+      size = b.CreateMul(ai->getArraySize(), elementSize);
+      size = b.CreateZExt(size, i64Ty, "size");
+    }
 
     uint8_t m = 0;
     if(extReads.find(v) != extReads.end()){
@@ -636,9 +674,6 @@ bool PTXABILoopSpawning::processLoop(){
     if(extWrites.find(v) != extWrites.end()){
       m |= 0b10;
     }
-
-    Value* size =
-      b.CreateUDiv(bytes, ConstantInt::get(i64Ty, it->getBitWidth()));
 
     Value* mode = ConstantInt::get(i8Ty, m);
 
