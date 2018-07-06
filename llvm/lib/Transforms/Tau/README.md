@@ -1,85 +1,131 @@
-Adding TAU profiling calls via LLVM pass
-========================================
+- [Adding TAU profiling calls via LLVM pass](#org89202ef)
+  - [Building](#orgee91357)
+    - [As part of Kitsune](#org8d4b67e)
+    - [As part of a standard LLVM build](#org3c5ddb1)
+    - [Test this](#org8639c0a)
+    - [Independently](#orgbaa40a9)
+  - [Usage](#org9c9191e)
+  - [](#orgd991b8b)
+  - [References](#orgc3401de)
 
-Building
---------
 
-This pass (in `Instrument.cpp`) can be built as part of the greater
-Kitsune project, part of an LLVM build or independently, linked against
-the LLVM libraries on your system.
+<a id="org89202ef"></a>
+
+# Adding TAU profiling calls via LLVM pass
+
+
+<a id="orgee91357"></a>
+
+## Building
+
+This pass (in `Instrument.cpp`) can be built as part of the greater Kitsune project, part of an LLVM build or independently, linked against the LLVM libraries on your system.
+
+
+<a id="org8d4b67e"></a>
 
 ### As part of Kitsune
 
-Simply follow the Kitsune build instructions. You can find the shared
-library at `<kitsune-build-dir>/llvm/lib/Tau_Profiling.so`.
+Simply follow the Kitsune build instructions. You can find the shared library at `<kitsune-build-dir>/llvm/lib/Tau_Profiling.so`.
+
+
+<a id="org3c5ddb1"></a>
 
 ### As part of a standard LLVM build
 
-Copy this directory into `<llvm-root>/lib/Transform` and add the
-following line to `<llvm-root>/lib/Transform/CMakeLists.txt`:
+Copy this directory into `<llvm-root>/lib/Transform` and add the following line to `<llvm-root>/lib/Transform/CMakeLists.txt`:
 
-``` cmake
+```cmake
 add_subdirectory(Tau)
 ```
 
-### <span class="todo TODO">TODO</span> Test this
 
--   make sure the resulting library is in the expected `build/lib/`
-    directory.
+<a id="org8639c0a"></a>
+
+### TODO Test this
+
+-   make sure the resulting library is in the expected `build/lib/` directory.
+
+
+<a id="orgbaa40a9"></a>
 
 ### Independently
 
 Starting at `llvm/lib/Transform/Tau` as the working directory:
 
-``` bash
+```sh
 mkdir -p build
 cd build
-cmake .. -DDTAU_PROF_STANDALONE=1
+cmake .. -DTAU_PROF_STANDALONE=1
 cmake --build .
 ```
 
-Usage
------
 
-At the moment, there are three source files in the `sandbox/tau_profile`
-directory that can be used for simple tests.
+<a id="org9c9191e"></a>
 
--   `rtlib.c` defines the two functions that are called by instructions
-    inserted in the LLVM pass.
+## Usage
+
+The plugin accepts three optional command line arguments, that permit the user to specify:
+
+1.  `-tau-start-func` :: The function to call *before* each instrumented function call-site. By default this is `Tau_start`
+2.  `-tau-stop-func` :: The function to call *after* each instrumented function call-site. By default this is `Tau_stop`
+3.  `-tau-input-file` :: A file containing the names of functions to instrument. This has no default, but failing to specify such a file will result in no instrumentation.
+
+They can be set using `clang`, `clang++`, or `opt` with LLVM bitcode files. Only usage with Clang frontends is detailed here.
+
+To use the plugin with the default start and stop functions, you must know the path to the TAU shared library. To use alternative functions, you'll need the path to the appropriate libraries for them.
+
+At the moment, there are three source files and a sample file containing function names in the `sandbox/tau_profile` directory that can be used for simple tests.
+
+-   `rtlib.c` defines two functions that could be used as alternatives to `Tau_start` and `Tau_stop`.
 -   `example.c` is a Hello World C program to test the pass on
--   `example.cc` is a Hello World C++ program with some OO features to
-    see what kinds of calls are visible after lowering to LLVM IR.
+-   `example.cc` is a Hello World C++ program with some OO features to see what kinds of calls are visible after lowering to LLVM IR.
 
-The following instructions assume `TAU_Profiling.so` and
-`Tau_Profiling_CXX.so` have been built against the system installed
-LLVM. If this is not the case, replace invocations of `clang` and
-`clang++` with the appropriate versions.
+The following instructions assume `TAU_Profiling.so` and `Tau_Profiling_CXX.so` have been built against the system installed LLVM. If this is not the case, replace invocations of `clang` and `clang++` with the appropriate versions.
 
-The runtime library must be compiled first:
+If used, the runtime library must be compiled first (producing a shared library is also OK):
 
-``` bash
+```sh
 clang -c rtlib.c
 # produces rtlib.o
 ```
 
-To compile and link the example C program with the plugin:
+To compile and link the example C program with the plugin and TAU profiling:
 
-``` bash
-clang -fplugin=path/to/TAU_Profiling.so example.c rtlib.o
+```sh
+clang -fplugin=path/to/TAU_Profiling.so \
+  -mllvm -tau-input-file=./functions_C.txt \
+  -ldl -L path/to/TAU/x86_64/lib/shared -l TAU \
+  -Wl,-rpath,path/to/TAU/x86_64/lib/shared \
+  example.c
 ```
 
-To compile and link the example C++ program with the plugin:
+Linking against \`libdl\` is required for TAU. Specifying the path for dynamic linking also appears to be necessary.
 
-``` bash
-clang++ -fplugin=path/to/TAU_Profiling_CXX.so example.cc rtlib.o
+The process is similar for the example C++ program:
+
+```sh
+clang -fplugin=path/to/TAU_Profiling_CXX.so \
+  -mllvm -tau-input-file=./functions_CXX.txt \
+  -ldl -L path/to/TAU/x86_64/lib/shared -l TAU \
+  -Wl,-rpath,path/to/TAU/x86_64/lib/shared \
+  example.cc
 ```
 
-The plugin currently produces a great deal of output logging what it's
-looking at.
+Running the resulting executable in either case should produce a `profile.*` file.
 
-References
-----------
+
+<a id="orgd991b8b"></a>
+
+## TODO 
+
+-   Write something to spit out the names of known called functions, demangled if possible/necessary. This will help the user know exactly what name of the function to use to make sure it's instrumented.
+-   Look into regexes, maybe? Having to write the fully-qualified name of all the functions requiring instrumentation sounds tedious and error-prone.
+-   Give better output about what is being instrumented.
+
+
+<a id="orgc3401de"></a>
+
+## References
 
 -   [Writing an LLVM Pass](http://llvm.org/docs/WritingAnLLVMPass.html)
--   [Adrian Sampson's LLVM pass
-    guide (2015)](https://www.cs.cornell.edu/~asampson/blog/llvm.html)
+-   [Adrian Sampson's LLVM pass guide (2015)](https://www.cs.cornell.edu/~asampson/blog/llvm.html)
