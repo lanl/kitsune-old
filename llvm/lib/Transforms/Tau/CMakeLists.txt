@@ -6,6 +6,8 @@ if(TAU_PROF_STANDALONE)
   # same as Kitsune, who knows what the real minimum is
   cmake_minimum_required(VERSION 3.9)
 
+  set (CMAKE_CXX_STANDARD 11)
+
   find_package(LLVM REQUIRED CONFIG)
 
   # required for `add_llvm_loadable_module`

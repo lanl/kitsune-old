@@ -12,12 +12,18 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/ADT/Statistic.h"
-#include "llvm/IR/Function.h"
+
+#include <fstream>
+
 #include "llvm/Pass.h"
-#include "llvm/Support/raw_ostream.h" // For errs(), I think
-#include "llvm/IR/IRBuilder.h" // IRBuilder
-#include "llvm/IR/Constants.h" // To create string literals in the AST
+#include "llvm/ADT/Statistic.h"
+#include "llvm/ADT/StringSet.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/Function.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/CommandLine.h"
 
 // Need these to use Sampson's registration technique
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
@@ -31,12 +37,34 @@
 #define DEBUG_TYPE "tau-profile"
 
 
-
 using namespace llvm;
 
 namespace {
 
-// technique borrowed/modified from
+// Command line options for this plugin.  These permit the user to specify what
+// functions should be instrumented and what profiling functions to call.  The
+// only real caveat is that the profiling function symbols must be present in
+// some source/object/library or compilation will fail at link-time.
+cl::opt<std::string>
+TauInputFile("tau-input-file",
+             cl::desc("Specify file containing the names of functions to instrument"),
+             cl::value_desc("filename"));
+
+cl::opt<std::string>
+TauStartFunc("tau-start-func",
+             cl::desc("Specify the profiling function to call before functions of interest"),
+             cl::value_desc("Function name"),
+             cl::init("Tau_start"));
+
+cl::opt<std::string>
+TauStopFunc("tau-stop-func",
+            cl::desc("Specify the profiling function to call after functions of interest"),
+            cl::value_desc("Function name"),
+            cl::init("Tau_stop"));
+
+
+
+// Demangling technique borrowed/modified from
 // https://github.com/eklitzke/demangle/blob/master/src/demangle.cc
 static StringRef normalize_name(StringRef mangled_name) {
 #ifdef TAU_PROF_CXX
@@ -69,8 +97,9 @@ static StringRef normalize_name(StringRef mangled_name) {
 }
 
   /*!
-   *  Find/create a function taking a single `i8*` argument with a void return
-   *  type suitable for making a call to in IR.
+   *  Find/declare a function taking a single `i8*` argument with a void return
+   *  type suitable for making a call to in IR. This is used to get references
+   *  to the TAU profiling function symbols.
    *
    * \param funcname The name of the function
    * \param ctx The LLVMContext
@@ -83,7 +112,7 @@ static StringRef normalize_name(StringRef mangled_name) {
 
     // single i8* argument type (char *)
     Type *argTy = Type::getInt8PtrTy(context);
-    std::vector<Type *> paramTys{argTy};
+    SmallVector<Type *, 1> paramTys{argTy};
 
     // Third param to `get` is `isVarArg`.  It's not documented, but might have
     // to do with variadic functions?
@@ -97,70 +126,113 @@ static StringRef normalize_name(StringRef mangled_name) {
    */
   struct Instrument : public FunctionPass {
 
+    using CallAndName = std::pair<CallInst *, StringRef>;
+
     static char ID; // Pass identification, replacement for typeid
+    StringSet<> funcsOfInterest;
 
-    Instrument() : FunctionPass(ID) {}
+    Instrument() : FunctionPass(ID) {
+      if(!TauInputFile.empty()) {
+        loadFunctionsFromFile(std::ifstream(TauInputFile));
+        std::ifstream file(TauInputFile);
+      }
+      errs() << "Plugin ready with options:\n"
+             << "TauInputFile: " << TauInputFile << '\n'
+             << "TauStartFunc: " << TauStartFunc << '\n'
+             << "TauStopFunc:  " << TauStopFunc << '\n';
+    }
 
+    /*!
+     *  Given an open file, read each line as the name of a function that should
+     *  be instrumented.  This modifies the class member funcsOfInterest to hold
+     *  strings from the file.
+     */
+    void loadFunctionsFromFile(std::ifstream file) {
+      std::string funcName;
+      while(std::getline(file, funcName)) {
+        errs() << "registered '" << funcName << "' for profiling\n";
+        funcsOfInterest.insert(funcName);
+      }
+    }
+
+
+    /*!
+     *  The FunctionPass interface method, called on each function produced from
+     *  the original source.
+     */
     bool runOnFunction(Function &func) override {
+      // Surely *most* functions make fewer than 50 calls to other functions
+      // that we want to instrument
+      SmallVector<CallAndName, 50> calls;
 
-      bool mutated = false;
+      for (auto &block : func) {
+        for (auto &inst : block) {
+          if (auto *op = dyn_cast<CallInst>(&inst)) {
+            // Inserting new function calls here (via IRBuilder, e.g.) will
+            // modify the block and potentially give us a never-ending list of
+            // calls to instrument.  It's simpler to just gather them up and
+            // mess with them afterwards.
+            maybeSaveForProfiling(op, calls);
+          }
+        }
+      }
+
+      return addInstrumentation(calls, func);
+    }
+
+    /*!
+     *  Inspect the given CallInst and, if it should be profiled, add it
+     *  and its recognized name the given vector.
+     *
+     * \param call The CallInst to inspect
+     * \param calls Vector to add to, if the CallInst should be profiled
+     */
+    void maybeSaveForProfiling(CallInst *call, SmallVectorImpl<CallAndName> &calls) {
+      if(auto *callee = call->getCalledFunction()) {
+        StringRef calleeName = normalize_name(callee->getName());
+        if(calleeName.empty()) {
+          // We may still want to instrument a call with an unmangled name.
+          // Assume any failed demangling won't accidentally leave us with a
+          // misleading name.
+          calleeName = callee->getName();
+        }
+        errs() << "Checking function named '" << calleeName << "'\n";
+        if(funcsOfInterest.count(calleeName) > 0) {
+          errs() << "It's in the list!\n";
+          calls.push_back({call, calleeName});
+        }
+      }
+    }
+
+
+    /*!
+     *  Add instrumentation to the CallInsts in the given vector, using the
+     *  given function for context.
+     *
+     * \param calls vector of calls to add profiling to
+     * \param func Function in which the calls were found
+     * \return False if no new instructions were added (only when calls is empty),
+     *  True otherwise
+     */
+    bool addInstrumentation(SmallVectorImpl<CallAndName> &calls, Function &func) {
 
       // Declare and get handles to the runtime profiling functions
       auto &context = func.getContext();
       auto *module = func.getParent();
       Constant
-        *onCallFunc = getVoidFunc("tau_prof_func_call", context, module),
-        *onRetFunc = getVoidFunc("tau_prof_func_ret", context, module);
+        *onCallFunc = getVoidFunc(TauStartFunc, context, module),
+        *onRetFunc = getVoidFunc(TauStopFunc, context, module);
 
-      // vector to save references to the calls we want to instrument
-      // TODO: Follow the suggestions of the LLVM programmer guide re: containers
-      std::vector<CallInst*> calls;
-
-      for (auto &block : func) {
-        for (auto &inst : block) {
-
-          if(auto *op = dyn_cast<CallInst>(&inst)) {
-            // Inserting new function calls here will modify the block and
-            // potentially give us a never-ending list of calls to instrument
-            // (without a white/blacklist in place).  It's simpler to just
-            // gather them up and mess with them afterwards.
-            calls.push_back(op);
-          }
-        }
-      }
-
-      for(auto *op : calls) {
-        errs() << "Found a CallInst with type " << *op->getFunctionType() << '\n';
-        auto *callee = op->getCalledFunction();
-
-        if(!callee) {
-          errs() << "CallInst is INDIRECT.  I can't do anything about that.\n";
-          continue;
-        }
-
-        StringRef calleeName = normalize_name(callee->getName());
-
-        if(calleeName.empty()) {
-          // Good for a call whose name is not mangled but we still want to instrument;
-          calleeName = callee->getName();
-        }
-
+      bool mutated = false;
+      for (auto &pair : calls) {
+        auto *op = pair.first;
+        auto calleeName = pair.second;
         IRBuilder<> builder(op);
 
         // This is the recommended way of creating a string constant (to be used
         // as an argument to runtime functions)
         Value *strArg = builder.CreateGlobalStringPtr(calleeName);
-
-        errs() << "Function name is " << calleeName << '\n';
-
-        if(!shouldInstrument(calleeName)) {
-          errs() << "Should *not* instrument\n";
-          continue;
-        }
-
-        errs() << "*Should* instrument\n";
-
-        std::vector<Value *> args{strArg};
+        SmallVector<Value *, 1> args{strArg};
 
         // Before the CallInst
         builder.CreateCall(onCallFunc, args);
@@ -170,18 +242,15 @@ static StringRef normalize_name(StringRef mangled_name) {
         builder.CreateCall(onRetFunc, args);
 
         mutated = true;
-        }
-
+      }
       return mutated;
     }
-
-    bool shouldInstrument(StringRef) { return true; }
   };
-
-
 }
 
 char Instrument::ID = 0;
+
+static RegisterPass<Instrument> X("tau-prof", "TAU Profiling", false, false);
 
 // Automatically enable the pass.
 // http://adriansampson.net/blog/clangpass.html
