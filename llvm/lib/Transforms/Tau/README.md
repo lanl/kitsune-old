@@ -1,34 +1,36 @@
-- [Adding TAU profiling calls via LLVM pass](#org89202ef)
-  - [Building](#orgee91357)
-    - [As part of Kitsune](#org8d4b67e)
-    - [As part of a standard LLVM build](#org3c5ddb1)
-    - [Test this](#org8639c0a)
-    - [Independently](#orgbaa40a9)
-  - [Usage](#org9c9191e)
-  - [](#orgd991b8b)
-  - [References](#orgc3401de)
+- [Adding TAU profiling calls via LLVM pass](#org72cdb15)
+  - [Building](#org5f70255)
+    - [As part of Kitsune](#org4a63920)
+    - [As part of a standard LLVM build](#org8c9ad9f)
+    - [Test this](#org10a8588)
+    - [Independently](#org1bb82cb)
+  - [Usage](#org6080314)
+  - [TO-DO](#org6976aa9)
+  - [TO-THINK](#org27801f2)
+    - [Where to insert calls](#org080ef02)
+  - [References](#org2ad81e4)
 
 
-<a id="org89202ef"></a>
+<a id="org72cdb15"></a>
 
 # Adding TAU profiling calls via LLVM pass
 
 
-<a id="orgee91357"></a>
+<a id="org5f70255"></a>
 
 ## Building
 
 This pass (in `Instrument.cpp`) can be built as part of the greater Kitsune project, part of an LLVM build or independently, linked against the LLVM libraries on your system.
 
 
-<a id="org8d4b67e"></a>
+<a id="org4a63920"></a>
 
 ### As part of Kitsune
 
 Simply follow the Kitsune build instructions. You can find the shared library at `<kitsune-build-dir>/llvm/lib/Tau_Profiling.so`.
 
 
-<a id="org3c5ddb1"></a>
+<a id="org8c9ad9f"></a>
 
 ### As part of a standard LLVM build
 
@@ -39,14 +41,14 @@ add_subdirectory(Tau)
 ```
 
 
-<a id="org8639c0a"></a>
+<a id="org10a8588"></a>
 
 ### TODO Test this
 
 -   make sure the resulting library is in the expected `build/lib/` directory.
 
 
-<a id="orgbaa40a9"></a>
+<a id="org1bb82cb"></a>
 
 ### Independently
 
@@ -60,7 +62,7 @@ cmake --build .
 ```
 
 
-<a id="org9c9191e"></a>
+<a id="org6080314"></a>
 
 ## Usage
 
@@ -114,16 +116,39 @@ clang -fplugin=path/to/TAU_Profiling_CXX.so \
 Running the resulting executable in either case should produce a `profile.*` file.
 
 
-<a id="orgd991b8b"></a>
+<a id="org6976aa9"></a>
 
-## TODO 
+## TO-DO
 
 -   Write something to spit out the names of known called functions, demangled if possible/necessary. This will help the user know exactly what name of the function to use to make sure it's instrumented.
 -   Look into regexes, maybe? Having to write the fully-qualified name of all the functions requiring instrumentation sounds tedious and error-prone.
 -   Give better output about what is being instrumented.
 
 
-<a id="orgc3401de"></a>
+<a id="org27801f2"></a>
+
+## TO-THINK
+
+
+<a id="org080ef02"></a>
+
+### Where to insert calls
+
+Profiling function calls are currently inserted around call sites. But they could be inserted at function entry and exit (or it could be a plugin parameter).
+
+1.  Entry/Exit Pros
+
+    -   If I were doing it manually, that's what I'd do.
+    -   Presumably less noise in the IR, if ever inspected.
+    -   Can produce an instrumented library that just needs to be linked properly. This would be particularly useful for profiling across several apps using the same library.
+
+2.  Entry/Exit Cons
+
+    -   Can't profile library calls (I think?) if all I have is the `.so` or `.a`, which may be a more realistic use-case.
+    -   Without better knowledge of IR function structure, it's not clear whether preserving semantics (esp. at function exit) is difficult.
+
+
+<a id="org2ad81e4"></a>
 
 ## References
 

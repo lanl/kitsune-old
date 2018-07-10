@@ -107,8 +107,7 @@ clang -fplugin=path/to/TAU_Profiling_CXX.so \
 
 Running the resulting executable in either case should produce a =profile.*= file.
 
-
-** TODO
+** TO-DO
 
 - Write something to spit out the names of known called functions, demangled if
   possible/necessary.  This will help the user know exactly what name of the
@@ -116,6 +115,31 @@ Running the resulting executable in either case should produce a =profile.*= fil
 - Look into regexes, maybe?  Having to write the fully-qualified name of all the
   functions requiring instrumentation sounds tedious and error-prone.
 - Give better output about what is being instrumented.
+
+** TO-THINK
+
+*** Where to insert calls
+
+Profiling function calls are currently inserted around call sites. But they
+could be inserted at function entry and exit (or it could be a plugin
+parameter).
+
+**** Entry/Exit Pros
+
+- If I were doing it manually, that's what I'd do.
+- Presumably less noise in the IR, if ever inspected.
+- Can produce an instrumented library that just needs to be linked properly.
+  This would be particularly useful for profiling across several apps using the
+  same library.
+
+**** Entry/Exit Cons
+
+- Can't profile library calls (I think?) if all I have is the =.so= or =.a=,
+  which may be a more realistic use-case.
+- Without better knowledge of IR function structure, it's not clear whether
+  preserving semantics (esp. at function exit) is difficult.
+
+
 
 
 ** References
