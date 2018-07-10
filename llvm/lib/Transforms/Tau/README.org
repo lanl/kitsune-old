@@ -1,3 +1,5 @@
+#+PANDOC_OPTIONS: table-of-contents:t
+
 * Adding TAU profiling calls via LLVM pass
 
   
@@ -43,11 +45,11 @@ cmake --build .
 
 The plugin accepts three optional command line arguments, that permit the user to specify:
 
-1. =-tau-start-func= :: The function to call /before/ each instrumented function
+- =-tau-start-func= :: The function to call /before/ each instrumented function
      call-site. By default this is ~Tau_start~
-2. =-tau-stop-func= :: The function to call /after/ each instrumented function call-site. By default
-   this is ~Tau_stop~
-3. =-tau-input-file= :: A file containing the names of functions to
+- =-tau-stop-func= :: The function to call /after/ each instrumented function
+     call-site. By default this is ~Tau_stop~
+- =-tau-input-file= :: A file containing the names of functions to
      instrument. This has no default, but failing to specify such a file will
      result in no instrumentation.
 
@@ -107,7 +109,7 @@ clang -fplugin=path/to/TAU_Profiling_CXX.so \
 
 Running the resulting executable in either case should produce a =profile.*= file.
 
-** TO-DO
+** TODO
 
 - Write something to spit out the names of known called functions, demangled if
   possible/necessary.  This will help the user know exactly what name of the
@@ -116,7 +118,7 @@ Running the resulting executable in either case should produce a =profile.*= fil
   functions requiring instrumentation sounds tedious and error-prone.
 - Give better output about what is being instrumented.
 
-** TO-THINK
+** TOTHINK
 
 *** Where to insert calls
 
