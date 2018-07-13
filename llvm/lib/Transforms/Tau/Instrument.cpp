@@ -14,6 +14,7 @@
 
 
 #include <fstream>
+#include <regex>
 
 #include "llvm/Pass.h"
 #include "llvm/ADT/Statistic.h"
@@ -62,6 +63,22 @@ TauStopFunc("tau-stop-func",
             cl::value_desc("Function name"),
             cl::init("Tau_stop"));
 
+cl::opt<std::string>
+TauRegex("tau-regex",
+         cl::desc("Specify a regex to identify functions interest (case-sensitive)"),
+         cl::value_desc("Regular Expression"),
+         cl::init(""));
+
+cl::opt<std::string>
+TauIRegex("tau-iregex",
+         cl::desc("Specify a regex to identify functions interest (case-insensitive)"),
+         cl::value_desc("Regular Expression"),
+         cl::init(""));
+
+cl::opt<bool>
+TauDryRun("tau-dry-run",
+         cl::desc("Don't actually instrument the code, just print what would be instrumented"));
+
 
 
 // Demangling technique borrowed/modified from
@@ -77,16 +94,16 @@ static StringRef normalize_name(StringRef mangled_name) {
   case 0:
     break;
   case -1:
-    errs() << "FAIL: failed to allocate memory while demangling "
-           << mangled_name << '\n';
+    // errs() << "FAIL: failed to allocate memory while demangling "
+    //        << mangled_name << '\n';
     break;
   case -2:
-    errs() << "FAIL: " << mangled_name
-           << " is not a valid name under the C++ ABI mangling rules\n";
+    // errs() << "FAIL: " << mangled_name
+    //        << " is not a valid name under the C++ ABI mangling rules\n";
     break;
   default:
-    errs() << "FAIL: couldn't demangle " << mangled_name
-           << " for some unknown reason: " << status << '\n';
+    // errs() << "FAIL: couldn't demangle " << mangled_name
+    //        << " for some unknown reason: " << status << '\n';
     break;
   }
 
@@ -131,15 +148,17 @@ static StringRef normalize_name(StringRef mangled_name) {
     static char ID; // Pass identification, replacement for typeid
     StringSet<> funcsOfInterest;
 
+    // basic ==> POSIX regular expression
+    std::regex rex{TauRegex,
+                   std::regex_constants::ECMAScript};
+    std::regex irex{TauIRegex,
+                    std::regex_constants::ECMAScript | std::regex_constants::icase};
+
     Instrument() : FunctionPass(ID) {
       if(!TauInputFile.empty()) {
         loadFunctionsFromFile(std::ifstream(TauInputFile));
         std::ifstream file(TauInputFile);
       }
-      errs() << "Plugin ready with options:\n"
-             << "TauInputFile: " << TauInputFile << '\n'
-             << "TauStartFunc: " << TauStartFunc << '\n'
-             << "TauStopFunc:  " << TauStopFunc << '\n';
     }
 
     /*!
@@ -176,7 +195,21 @@ static StringRef normalize_name(StringRef mangled_name) {
           }
         }
       }
+      if(TauDryRun && calls.size() > 0) {
 
+        // TODO: Fix this.
+        // getName() doesn't seem to give a properly mangled name
+        auto pretty_name = normalize_name(func.getName());
+        if(pretty_name.empty()) pretty_name = func.getName();
+
+        errs() << "In function " << pretty_name
+               << "\nThe following would be instrumented:\n";
+        for (auto &pair : calls) {
+          errs() <<  pair.second << '\n';
+        }
+        errs() << '\n';
+        return false; // Dry run does not modify anything
+      }
       return addInstrumentation(calls, func);
     }
 
@@ -196,12 +229,19 @@ static StringRef normalize_name(StringRef mangled_name) {
           // misleading name.
           calleeName = callee->getName();
         }
-        errs() << "Checking function named '" << calleeName << "'\n";
-        if(funcsOfInterest.count(calleeName) > 0) {
-          errs() << "It's in the list!\n";
+
+        if(funcsOfInterest.count(calleeName) > 0 || regexFits(calleeName)) {
           calls.push_back({call, calleeName});
         }
       }
+    }
+
+    // TODO: Doc
+    bool regexFits(const StringRef & name) {
+      bool match = false, imatch = false;
+      if(!TauRegex.empty()) match = std::regex_search(name.str(), rex);
+      if(!TauIRegex.empty()) imatch = std::regex_search(name.str(), irex);
+      return match || imatch;
     }
 
 
