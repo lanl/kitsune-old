@@ -1,6 +1,6 @@
 add_custom_target(kitsune)
 
-set(KITSUNE_RTL_CFLAGS -std=c11)
+set(KITSUNE_RTL_CFLAGS -std=c++11)
 append_rtti_flag(OFF KITSUNE_RTL_CFLAGS)
 
 # TODO: fix hardcoded CUDA path
@@ -15,7 +15,8 @@ foreach (arch ${KITSUNE_SUPPORTED_ARCH})
     STATIC
     ARCHS ${arch}
     SOURCES ${KITSUNE_SOURCES}
-    CFLAGS ${KITSUNE_RTL_CFLAGS})
+    CFLAGS ${KITSUNE_RTL_CFLAGS}
+    PARENT_TARGET kitsune)
   add_dependencies(kitsune
     clang_rt.kitsune-${arch})
 endforeach()

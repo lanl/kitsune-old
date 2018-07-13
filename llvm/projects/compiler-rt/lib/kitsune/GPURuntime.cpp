@@ -81,26 +81,34 @@ extern "C" {
     GPURuntime::finish();
   }
 
-  void __kitsune_gpu_init_kernel(const char* ptx,
-                                 const char* kernelName){
+  void __kitsune_gpu_init_kernel(uint32_t kernelId,
+                                 const char* data){
     GPURuntime* runtime = GPURuntime::get();
-    runtime->initKernel(ptx, kernelName);
+    runtime->initKernel(kernelId, data);
   }
 
-  void __kitsune_gpu_init_field(const char* kernelName,
+  void __kitsune_gpu_init_field(uint32_t kernelId,
                                 const char* fieldName,
                                 void* hostPtr,
                                 uint32_t elementSize,
                                 uint64_t size,
                                 uint8_t mode){
     GPURuntime* runtime = GPURuntime::get();
-    runtime->initField(kernelName, fieldName, hostPtr,
+    runtime->initField(kernelId, fieldName, hostPtr,
                        elementSize, size, mode);
   }
 
-  void __kitsune_gpu_run_kernel(const char* kernelName){
+  void __kitsune_gpu_run_kernel(uint32_t kernelId){
     GPURuntime* runtime = GPURuntime::get();
-    runtime->runKernel(kernelName);
+    runtime->runKernel(kernelId);
+  }
+
+  void __kitsune_gpu_set_run_size(uint32_t kernelId,
+                                  uint64_t size,
+                                  uint64_t start,
+                                  uint64_t stride){
+    GPURuntime* runtime = GPURuntime::get();
+    runtime->setRunSize(kernelId, size, start, stride);
   }
   
 } // extern "C"

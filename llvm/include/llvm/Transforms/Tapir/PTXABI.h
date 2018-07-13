@@ -102,6 +102,8 @@ protected:
 //   void emitAnalysis(const LoopAccessReport &Message) const {
 //     emitAnalysisDiag(OrigLoop, *ORE, Message);
 //   }
+private:
+  uint32_t nextKernelId_ = 0;
 };
 
 class PTXABI : public TapirTarget {
@@ -118,6 +120,7 @@ public:
   void postProcessFunction(Function &F) override final;
   void postProcessHelper(Function &F) override final;
   bool processMain(Function &F) override final;
+
 };
 
 }  // end of llvm namespace

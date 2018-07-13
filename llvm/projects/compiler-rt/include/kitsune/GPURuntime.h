@@ -72,17 +72,22 @@ public:
 
   static void init(GPURuntime* runtime);
 
-  virtual void initKernel(const char* ptx,
-                          const char* kernelName) = 0;
+  virtual void initKernel(uint32_t kernelId,
+                          const char* data) = 0;
 
-  virtual void initField(const char* kernelName,
+  virtual void initField(uint32_t kernelId,
                          const char* fieldName,
                          void* hostPtr,
                          uint32_t elementSize,
                          uint64_t size,
                          uint8_t mode) = 0;
 
-  virtual void runKernel(const char* kernelName) = 0;
+  virtual void runKernel(uint32_t kernelId) = 0;
+
+  virtual void setRunSize(uint32_t kernelId, 
+                          uint64_t size, 
+                          uint64_t start, 
+                          uint64_t stride) = 0;
 };
 
 } // end namespace kitsune

@@ -3,17 +3,17 @@
 using namespace std;
 
 int main(int argc, char** argv){
-  int* a = new int[1024];
-  
-  for(size_t i = 0; i < 1024; ++i){
-    a[i] = 0;
+  int* a = new int[16];
+
+  for(size_t i = 0; i < 16; ++i){
+    a[i] =  0;
   }
 
-  forall(size_t i = 0; i < 1024; ++i){
-    a[i] += i;
+  forall(size_t i = 5; i < 16; i += 2){
+    a[i] = i;
   }
 
-  for(size_t i = 0; i < 1024; ++i){
+  for(size_t i = 0; i < 16; ++i){
     cout << a[i] << endl;
   }
 

@@ -57,8 +57,13 @@
 #include <vector>
 #include <cassert>
 #include <cmath>
+#include <sstream>
 
 #include <cuda.h>
+
+#define np(X)                                                            \
+ std::cout << __FILE__ << ":" << __LINE__ << ": " << __PRETTY_FUNCTION__ \
+           << ": " << #X << " = " << (X) << std::endl
 
 using namespace std;
 using namespace kitsune;
@@ -66,7 +71,9 @@ using namespace kitsune;
 static const uint8_t FIELD_READ = 0x01;
 static const uint8_t FIELD_WRITE = 0x02;
 
-static const size_t DEFAULT_THREADS = 128;
+static const size_t DEFAULT_BLOCK_SIZE = 128;
+
+static bool _initialized = false;
 
 class CUDARuntime : public GPURuntime{
 public:
@@ -114,7 +121,7 @@ public:
         return itr->second;
       }
 
-      return 0;
+      return nullptr;
     }
 
     CommonField* addField(const char* name,
@@ -148,7 +155,7 @@ public:
       check(err);
     }
 
-    Kernel* createKernel(CommonData* commonData, const char* kernelName);
+    Kernel* createKernel(uint32_t kernelId, CommonData* commonData);
 
   private:
     CUmodule module_;
@@ -177,7 +184,7 @@ public:
         commonData_(commonData),
         function_(function),
         ready_(false),
-        numThreads_(DEFAULT_THREADS){
+        blockSize_(DEFAULT_BLOCK_SIZE){
       
     }
 
@@ -187,8 +194,8 @@ public:
       }
     }
     
-    void setNumThreads(size_t numThreads){
-      numThreads_ = numThreads;
+    void setblockSize(size_t blockSize){
+      blockSize_ = blockSize;
     }
 
     void addField(const char* fieldName,
@@ -204,6 +211,10 @@ public:
 
     void run(){
       if(!ready_){
+        kernelParams_.push_back(&runSize_);
+        kernelParams_.push_back(&runStart_);
+        kernelParams_.push_back(&runStart_);
+        
         for(auto& itr : fieldMap_){
           Field* field = itr.second;
           CommonField* commonField = field->commonField;
@@ -224,9 +235,13 @@ public:
         }
       }
 
-      err = cuLaunchKernel(function_, 1, 1, 1,
-                           numThreads_, 1, 1, 
-                           0, NULL, kernelParams_.data(), NULL);
+      assert(runSize_ != 0 && "run size has not been set");
+
+      size_t gridDimX = (runSize_ + blockSize_ - 1)/blockSize_;
+
+      err = cuLaunchKernel(function_, gridDimX, 1, 1,
+                           blockSize_, 1, 1, 
+                           0, nullptr, kernelParams_.data(), nullptr);
       check(err);
 
       for(auto& itr : fieldMap_){
@@ -251,6 +266,12 @@ public:
     bool ready(){
       return ready_;
     }
+
+    void setRunSize(uint64_t size, uint64_t start, uint64_t stride){
+      runSize_ = size;
+      runStart_ = start;
+      runStride_ = stride;
+    }
     
   private:    
     typedef map<string, Field*> FieldMap_;
@@ -262,17 +283,17 @@ public:
     bool ready_;
     FieldMap_ fieldMap_;
     KernelParams_ kernelParams_;
-    size_t numThreads_;
+    size_t blockSize_;
+    uint64_t runSize_ = 0;
+    uint64_t runStart_ = 0;
+    uint64_t runStride_ = 1;
   };
 
   CUDARuntime(){
-
+    commonData_ = new CommonData;
   }
 
   ~CUDARuntime(){
-    CUresult err = cuCtxDestroy(context_);
-    check(err);
-
     for(auto& itr : kernelMap_){
       delete itr.second;
     }
@@ -280,6 +301,11 @@ public:
     for(auto& itr : moduleMap_){
       delete itr.second;
     }
+
+    delete commonData_;
+
+    CUresult err = cuCtxDestroy(context_);
+    check(err);
   }
 
   void init(){
@@ -297,13 +323,13 @@ public:
       cuDeviceGetAttribute(&threadsPerBlock,
                            CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK, device_);
     check(err);
-    numThreads_ = threadsPerBlock;
+    blockSize_ = threadsPerBlock;
   }
 
-  void initKernel(const char* ptx,
-                  const char* kernelName){
+  void initKernel(uint32_t kernelId,
+                  const char* ptx){
 
-    auto kitr = kernelMap_.find(kernelName);
+    auto kitr = kernelMap_.find(kernelId);
     if(kitr != kernelMap_.end()){
       return;
     }
@@ -315,22 +341,22 @@ public:
     }
     else{
       module = new PTXModule(ptx);
-      moduleMap_[kernelName] = module;
+      moduleMap_[ptx] = module;
     }
 
-    Kernel* kernel = module->createKernel(nullptr, kernelName);
-    kernel->setNumThreads(numThreads_);
-    kernelMap_.insert({kernelName, kernel});
+    Kernel* kernel = module->createKernel(kernelId, commonData_);
+    kernel->setblockSize(blockSize_);
+    kernelMap_.insert({kernelId, kernel});
   }
 
-  void initField(const char* kernelName,
+  void initField(uint32_t kernelId,
                  const char* fieldName,
                  void* hostPtr,
                  uint32_t elementSize,
                  uint64_t size,
                  uint8_t mode){
 
-    auto kitr = kernelMap_.find(kernelName);
+    auto kitr = kernelMap_.find(kernelId);
     assert(kitr != kernelMap_.end() && "invalid kernel");
 
     Kernel* kernel = kitr->second;
@@ -348,32 +374,45 @@ public:
     kernel->addField(fieldName, commonField, mode);
   }
 
-  void runKernel(const char* kernelName){
-    auto kitr = kernelMap_.find(kernelName);
+  void runKernel(uint32_t kernelId){
+    auto kitr = kernelMap_.find(kernelId);
     assert(kitr != kernelMap_.end() && "invalid kernel");
 
     Kernel* kernel = kitr->second;
     kernel->run();
   }
 
+  void setRunSize(uint32_t kernelId,
+                  uint64_t size,
+                  uint64_t start,
+                  uint64_t stride) override{
+    
+    auto itr = kernelMap_.find(kernelId);
+    assert(itr != kernelMap_.end() && "invalid kernelId");
+    itr->second->setRunSize(size, start, stride);
+  }
+
 private:
   typedef map<const char*, PTXModule*> ModuleMap_;
-  typedef map<const char*, CommonData*> MeshMap_;
-  typedef map<const char*, Kernel*> KernelMap_;
+  typedef map<uint32_t, Kernel*> KernelMap_;
 
   CUdevice device_;
   CUcontext context_;
-  size_t numThreads_;
+  size_t blockSize_;
 
   ModuleMap_ moduleMap_;
   KernelMap_ kernelMap_;
+  CommonData* commonData_;
 };
 
 CUDARuntime::Kernel* 
-CUDARuntime::PTXModule::createKernel(CommonData* commonData,
-                                     const char* kernelName){
+CUDARuntime::PTXModule::createKernel(uint32_t kernelId,
+                                     CommonData* commonData){
+  stringstream kstr;
+  kstr << "run" << kernelId;
+
   CUfunction function;
-  CUresult err = cuModuleGetFunction(&function, module_, kernelName);
+  CUresult err = cuModuleGetFunction(&function, module_, kstr.str().c_str());
   check(err);
   
   Kernel* kernel = new Kernel(this, commonData, function);
@@ -384,10 +423,16 @@ CUDARuntime::PTXModule::createKernel(CommonData* commonData,
 extern "C" {
 
   void __kitsune_cuda_init(){
+    if(_initialized){
+      return;
+    }
+
     CUDARuntime* runtime = new CUDARuntime;
     runtime->init();
 
     GPURuntime::init(runtime);
+
+    _initialized = true;
   }
 
 } // extern "C"
