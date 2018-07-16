@@ -3,8 +3,7 @@ add_custom_target(kitsune)
 set(KITSUNE_RTL_CFLAGS -std=c++11)
 append_rtti_flag(OFF KITSUNE_RTL_CFLAGS)
 
-# TODO: fix hardcoded CUDA path
-include_directories(../../include /usr/local/cuda/include)
+include_directories(../../include ${CUDA_INCLUDE_DIRS})
 
 set(KITSUNE_SOURCES
     CUDARuntime.cpp
