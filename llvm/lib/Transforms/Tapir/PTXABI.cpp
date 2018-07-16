@@ -166,7 +166,7 @@ bool PTXABI::processMain(Function &F) {
 bool PTXABILoopSpawning::processLoop(){
   Loop *L = OrigLoop;
 
-  //L->dumpVerbose();
+  // L->dumpVerbose();
 
   //  code generation is currently limited to a simple canonical loop structure
   //  whereby we make the following assumptions and check assertions below
@@ -281,10 +281,12 @@ bool PTXABILoopSpawning::processLoop(){
 
   for(Value* v : extValues){
     if(auto pt = dyn_cast<PointerType>(v->getType())){
-      paramTypes.push_back(pt);
-    }
-    else if(auto at = dyn_cast<ArrayType>(v->getType())){
-      paramTypes.push_back(PointerType::get(at->getElementType(), 1));
+      if(auto at = dyn_cast<ArrayType>(pt->getElementType())){
+        paramTypes.push_back(PointerType::get(at->getElementType(), 0));
+      }
+      else{
+        paramTypes.push_back(pt);
+      }
     }
     else{
       v->dump();
@@ -410,6 +412,8 @@ bool PTXABILoopSpawning::processLoop(){
     // determine if we are reading or writing the external variables 
     // i.e. those passed as CUDA arrays
 
+    Instruction* ic = ii.clone();
+
     if(auto li = dyn_cast<LoadInst>(&ii)){
       Value* v = li->getPointerOperand();
       auto itr = extVars.find(v);
@@ -429,11 +433,13 @@ bool PTXABILoopSpawning::processLoop(){
     else if(auto gi = dyn_cast<GetElementPtrInst>(&ii)){
       Value* v = gi->getPointerOperand();
       if(extValues.find(v) != extValues.end()){
-        extVars[gi] = v; 
+        extVars[gi] = v;
+        if(isa<ArrayType>(gi->getSourceElementType())){
+          auto cgi = dyn_cast<GetElementPtrInst>(ic);
+          cgi->setSourceElementType(m[v]->getType()); 
+        }
       }
     }
-
-    Instruction* ic = ii.clone();
 
     // remap values as we are cloning the instructions
 
@@ -637,9 +643,9 @@ bool PTXABILoopSpawning::processLoop(){
 
       vptr = b.CreateBitCast(v, voidPtrTy);
 
-      elementSize = ConstantInt::get(i32Ty, it->getBitWidth());
+      elementSize = ConstantInt::get(i32Ty, it->getBitWidth()/8);
 
-      size = b.CreateUDiv(bytes, ConstantInt::get(i64Ty, it->getBitWidth()));
+      size = b.CreateUDiv(bytes, ConstantInt::get(i64Ty, it->getBitWidth()/8));
     }
     else if(auto ai = dyn_cast<AllocaInst>(v)){
       Constant* fn = ConstantDataArray::getString(c, ai->getName());
@@ -661,9 +667,8 @@ bool PTXABILoopSpawning::processLoop(){
 
       elementSize = ConstantInt::get(i32Ty,
         at->getElementType()->getPrimitiveSizeInBits()/8);
-
-      size = b.CreateMul(ai->getArraySize(), elementSize);
-      size = b.CreateZExt(size, i64Ty, "size");
+      
+      size = ConstantInt::get(i64Ty, at->getNumElements());
     }
 
     uint8_t m = 0;
@@ -712,7 +717,7 @@ bool PTXABILoopSpawning::processLoop(){
 
   b.CreateBr(successor);
 
-  //hostModule.dump();
+  // hostModule.dump();
 
   // ptxModule.dump();
 
