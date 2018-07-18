@@ -133,12 +133,13 @@ void bitrig::Linker::ConstructJob(Compilation &C, const JobAction &JA,
       llvm_unreachable("Unsupported architecture");
     }
     CmdArgs.push_back(Args.MakeArgString("-lclang_rt." + MyArch));
-  }
 
-  // +===== Kitsune
-  if (D.CCCIsFleCSI() || D.CCCIsKokkos())
-    CmdArgs.push_back("-lcilkrts");
-  // ==============
+    // +===== Kitsune
+    if (D.CCCIsFleCSI() || D.CCCIsKokkos()) {
+      CmdArgs.push_back("-lcilkrts");
+    }  
+    // ==============
+  }
 
   if (!Args.hasArg(options::OPT_nostdlib, options::OPT_nostartfiles)) {
     if (!Args.hasArg(options::OPT_shared))
