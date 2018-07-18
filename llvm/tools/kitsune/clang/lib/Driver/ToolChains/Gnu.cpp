@@ -563,7 +563,7 @@ void tools::gnutools::Linker::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back("-lcilkrts");
     if (Args.hasArg(options::OPT_fgpu)) {
       CmdArgs.push_back("-lcuda");
-      ToolChain.getCompilerRTArgString(Args, "kitsune", false);
+      CmdArgs.push_back(ToolChain.getCompilerRTArgString(Args, "kitsune", false));
     }
   }
   // ==============
