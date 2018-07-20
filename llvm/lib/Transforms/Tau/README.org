@@ -32,6 +32,8 @@ add_subdirectory(Tau)
 
 - This is known to fail on CentOS with `llvm-devel` installed, as this provides
   LLVM 3.4.3. The only /tested/ version of LLVM is 6.0.
+- TODO: Include instructions for when LLVM is installed manually somewhere
+- TODO: Test with some older versions of LLVM
 
 Starting at =llvm/lib/Transforms/Tau= as the working directory:
 
@@ -45,15 +47,21 @@ cmake --build .
 
 ** Usage
 
-The plugin accepts three optional command line arguments, that permit the user to specify:
+The plugin accepts some optional command line arguments, that permit the user to specify:
 
 - =-tau-start-func= :: The function to call /before/ each instrumented function
      call-site. By default this is ~Tau_start~
 - =-tau-stop-func= :: The function to call /after/ each instrumented function
      call-site. By default this is ~Tau_stop~
-- =-tau-input-file= :: A file containing the names of functions to
-     instrument. This has no default, but failing to specify such a file will
-     result in no instrumentation.
+- =-tau-input-file= :: A file containing the names of functions to instrument.
+     This has no default, but failing to specify such a file will result in no
+     instrumentation.
+- =-tau-regex= :: A case-sensitive ECMAScript Regular Expression to test against
+                  function names.  All functions matching the expression will be
+                  instrumented
+- =-tau-iregex= :: A case-insensitive ECMAScript Regular Expression to test
+                   against function names.  All functions matching the
+                   expression will be instrumented
 
 They can be set using =clang=, =clang++=, or =opt= with LLVM bitcode files.
 Only usage with Clang frontends is detailed here.
