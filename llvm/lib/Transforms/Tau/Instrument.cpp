@@ -156,8 +156,8 @@ static StringRef normalize_name(StringRef mangled_name) {
 
     Instrument() : FunctionPass(ID) {
       if(!TauInputFile.empty()) {
-        loadFunctionsFromFile(std::ifstream(TauInputFile));
-        std::ifstream file(TauInputFile);
+        std::ifstream ifile{TauInputFile};
+        loadFunctionsFromFile(ifile);
       }
     }
 
@@ -166,7 +166,7 @@ static StringRef normalize_name(StringRef mangled_name) {
      *  be instrumented.  This modifies the class member funcsOfInterest to hold
      *  strings from the file.
      */
-    void loadFunctionsFromFile(std::ifstream file) {
+    void loadFunctionsFromFile(std::ifstream & file) {
       std::string funcName;
       while(std::getline(file, funcName)) {
         errs() << "registered '" << funcName << "' for profiling\n";

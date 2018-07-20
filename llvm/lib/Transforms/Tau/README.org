@@ -1,7 +1,6 @@
 #+PANDOC_OPTIONS: table-of-contents:t
 
 * Adding TAU profiling calls via LLVM pass
-
   
 ** Building
 
@@ -16,8 +15,8 @@ at =<kitsune-build-dir>/llvm/lib/Tau_Profiling.so=.
 
 *** As part of a standard LLVM build
 
-Copy this directory into =<llvm-root>/lib/Transform= and add the following line
-to =<llvm-root>/lib/Transform/CMakeLists.txt=:
+Copy this directory into =<llvm-root>/lib/Transforms= and add the following line
+to =<llvm-root>/lib/Transforms/CMakeLists.txt=:
 
 #+BEGIN_SRC cmake
 add_subdirectory(Tau)
@@ -31,7 +30,10 @@ add_subdirectory(Tau)
 
 *** Independently
 
-Starting at =llvm/lib/Transform/Tau= as the working directory:
+- This is known to fail on CentOS with `llvm-devel` installed, as this provides
+  LLVM 3.4.3. The only /tested/ version of LLVM is 6.0.
+
+Starting at =llvm/lib/Transforms/Tau= as the working directory:
 
 #+BEGIN_SRC sh
 mkdir -p build
