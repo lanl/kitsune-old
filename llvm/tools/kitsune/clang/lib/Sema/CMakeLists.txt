@@ -57,6 +57,10 @@ add_clang_library(clangSema
   TypeLocBuilder.cpp
 
   # +===== Kitsune
+    Kitsune/FleCSIMisc.cpp
+    Kitsune/FleCSIPreprocessorYAML.cpp
+    Kitsune/FleCSIPreprocessorASTVisitor.cpp
+    Kitsune/FleCSIPreprocessor.cpp
     Kitsune/FleCSIAnalyzer.cpp
     Kitsune/SemaStmt.cpp
   # +=============

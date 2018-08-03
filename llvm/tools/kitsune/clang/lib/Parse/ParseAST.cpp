@@ -150,7 +150,7 @@ void clang::ParseAST(Sema &S, bool PrintStats, bool SkipFunctionBodies) {
   // +===== Kitsune
   const bool isFleCSI = P.getLangOpts().FleCSI;
   if (isFleCSI)
-    (void)sema::FleCSIAnalyzer::instance(&S);
+    (void)flecsi::analyzer::instance(&S);
   // +=============
 
   for (bool AtEOF = P.ParseFirstTopLevelDecl(ADecl); !AtEOF;
@@ -162,7 +162,7 @@ void clang::ParseAST(Sema &S, bool PrintStats, bool SkipFunctionBodies) {
     // +===== Kitsune
     if (isFleCSI)
       for (Decl *di : ADecl.get())
-        sema::FleCSIAnalyzer::instance().gatherMetadata(S,di);
+        flecsi::analyzer::instance().analyze(*di);
     // +=============
 
     if (ADecl && !Consumer->HandleTopLevelDecl(ADecl.get()))

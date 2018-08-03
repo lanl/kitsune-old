@@ -1010,7 +1010,7 @@ void ASTFrontendAction::ExecuteAction() {
 
   // +===== Kitsune
   if (CI.getLangOpts().FleCSI)
-    sema::FleCSIAnalyzer::instance().finalizeMetadata(CI);
+    flecsi::analyzer::instance().finalize();
   // +=============
 }
 
