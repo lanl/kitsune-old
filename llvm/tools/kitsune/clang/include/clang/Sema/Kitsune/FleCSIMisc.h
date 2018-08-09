@@ -51,40 +51,48 @@
 #ifndef FleCSIMisc
 #define FleCSIMisc
 
-#include "clang/Basic/SourceManager.h"
-#include "clang/AST/RecursiveASTVisitor.h"
-#include "clang/Lex/Preprocessor.h"
-#include "clang/Lex/PPCallbacks.h"
-#include "clang/Lex/MacroArgs.h"
-#include "clang/Lex/Token.h"
 #include "clang/Sema/Sema.h"
-#include "clang/Sema/SemaDiagnostic.h"
 #include "llvm/Support/YAMLTraits.h"
 
 // Write YAML file?
-#define KITSUNE_YAML
+#define noKITSUNE_YAML
 
 // Insert debugging output?
-#define KITSUNE_DEBUG
+#define noKITSUNE_DEBUG
 
+// Perform assertions?
+#define noKITSUNE_ASSERT
+
+// getFileLine: declaration
+namespace flecsi {
+   std::pair<std::string,std::uint32_t> getFileLine(
+      const clang::Sema  &,
+      const clang::Token &
+   );
+}
+
+
+
+// -----------------------------------------------------------------------------
+// Debugging/printing/assertion constructs
+// -----------------------------------------------------------------------------
+
+// iostream
 #ifdef KITSUNE_DEBUG
    #include <iostream>
-   /// #include <typeinfo>
-   /// #include <boost/core/demangle.hpp>
 #endif
 
+// assertions
+#ifdef KITSUNE_ASSERT
+   #define kitsune_assert(arg) assert(arg)
+#else
+   #define kitsune_assert(arg)
+#endif
 
-
-// -----------------------------------------------------------------------------
 // kitsune_debug (function)
-// kitsune_print (macro)
-// -----------------------------------------------------------------------------
-
-// kitsune_debug
 // We'll put this in a plain unnamed namespace so that it's easy
 // to use from anywhere, e.g. flecsi or llvm::yaml.
 namespace {
-
 inline void kitsune_debug(const std::string &str, const bool newline = true)
 {
    #ifdef KITSUNE_DEBUG
@@ -96,31 +104,15 @@ inline void kitsune_debug(const std::string &str, const bool newline = true)
       (void)newline;
    #endif
 }
-
 }
 
-// kitsune_print
+// kitsune_print(macro)
 #ifdef KITSUNE_DEBUG
    #define kitsune_print(x) \
       std::cout << "kitsune: " #x " == " << (x) << std::endl
 #else
    #define kitsune_print(x)
 #endif
-
-
-
-// -----------------------------------------------------------------------------
-// getFileLine: declaration
-// -----------------------------------------------------------------------------
-
-namespace flecsi {
-
-std::pair<std::string,std::uint32_t> getFileLine(
-   const clang::Sema  &sema,
-   const clang::Token &token
-);
-
-}
 
 
 
@@ -151,6 +143,7 @@ public:
       kitsune_debug("element()");
       return vec[index];
    }
+
 };
 
 }

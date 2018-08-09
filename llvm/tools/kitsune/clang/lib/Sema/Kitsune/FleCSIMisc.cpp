@@ -50,9 +50,11 @@
 
 #include "clang/Sema/Kitsune/FleCSIMisc.h"
 
+
+
 // -----------------------------------------------------------------------------
 // getFileLine
-// Get a token's file name and line number
+// Get a token's associated file name and line number
 // -----------------------------------------------------------------------------
 
 namespace flecsi {

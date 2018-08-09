@@ -58,6 +58,7 @@ add_clang_library(clangSema
 
   # +===== Kitsune
     Kitsune/FleCSIMisc.cpp
+    Kitsune/FleCSIUtility.cpp
     Kitsune/FleCSIPreprocessorYAML.cpp
     Kitsune/FleCSIPreprocessorASTVisitor.cpp
     Kitsune/FleCSIPreprocessor.cpp

@@ -48,47 +48,60 @@
   *
   ***************************************************************************/
 
-#ifndef FleCSIAnalyzer
-#define FleCSIAnalyzer
+#ifndef FleCSIUtility
+#define FleCSIUtility
 
-#include "clang/Sema/Kitsune/FleCSIPreprocessor.h"
-
-
-
-// -----------------------------------------------------------------------------
-// analyzer
-// Implemented as a singleton
-// -----------------------------------------------------------------------------
+#include "clang/Sema/Kitsune/FleCSIPreprocessorYAML.h"
 
 namespace flecsi {
 
-class analyzer {
-   clang::Sema &sema;
 
-   // Elements of the FleCSI analysis. For now, we just examine preprocessor-
-   // related constructs in FleCSI. The following is implemented as a pointer
-   // because addPPCallbacks() gets it via std::unique_ptr<>.
-   Preprocessor *const preprocessor;
 
-   // singleton ==> private ctor/dtor
-   analyzer(clang::Sema &);
-  ~analyzer();
+// -----------------------------------------------------------------------------
+// Helper functions: general
+// -----------------------------------------------------------------------------
 
-   // singleton ==> private assignment
-   analyzer &operator=(const analyzer &) { return *this; }
+const clang::CXXMethodDecl *getMethod(
+   const clang::CallExpr *const);
+const clang::TemplateArgumentList *getTemplateArgs(
+   const clang::CallExpr *const);
 
-public:
+clang::QualType getTypeArg(
+   const clang::TemplateArgumentList *const, const std::size_t);
+std::int64_t    getIntArg(
+   const clang::TemplateArgumentList *const, const std::size_t);
+std::uint64_t   getUIntArg(
+   const clang::TemplateArgumentList *const, const std::size_t);
 
-   // Instance of singleton.
-   // With argument, create. With or without argument, retrieve.
-   static analyzer &instance(clang::Sema *const = nullptr);
+const clang::CXXRecordDecl *getClassDecl(const clang::QualType &);
 
-   // Analyze an individual Decl
-   void analyze(clang::Decl &) const;
+std::string getName         (const clang::NamedDecl *const);
+std::string getQualifiedName(const clang::NamedDecl *const);
 
-   // Finalize the overall analysis
-   void finalize() const;
-};
+const clang::Expr *normExpr(const clang::Expr *const);
+bool isDerivedFrom(const clang::CXXRecordDecl *const, const std::string &);
+
+const clang::CallExpr *getClassCall(
+   const clang::Expr *const, const std::string &, const std::string &,
+   const int minArgs, const int maxArgs_
+);
+
+
+
+// -----------------------------------------------------------------------------
+// Helper functions: varargs-related
+// -----------------------------------------------------------------------------
+
+void getVarArgs(
+   const clang::CallExpr *const,
+   std::vector<FleCSIVarArgTypeValue> &,
+   const unsigned start = 0
+);
+
+void getVarArgsFleCSIFunctionHandle(
+   const clang::TypeAliasDecl *const,
+   std::vector<FleCSIVarArgType> &
+);
 
 }
 

@@ -51,16 +51,6 @@
 #ifndef FleCSIPreprocessorASTVisitor
 #define FleCSIPreprocessorASTVisitor
 
-#include "clang/Basic/SourceManager.h"
-#include "clang/AST/RecursiveASTVisitor.h"
-#include "clang/Lex/Preprocessor.h"
-#include "clang/Lex/PPCallbacks.h"
-#include "clang/Lex/MacroArgs.h"
-#include "clang/Lex/Token.h"
-#include "clang/Sema/Sema.h"
-#include "clang/Sema/SemaDiagnostic.h"
-#include "llvm/Support/YAMLTraits.h"
-
 #include "clang/Sema/Kitsune/FleCSIMisc.h"
 
 
@@ -82,9 +72,9 @@ class PreprocessorASTVisitor
 public:
 
    // constructor
-   PreprocessorASTVisitor(clang::Sema &_sema, Preprocessor &_prep)
-    : sema(_sema),
-      prep(_prep)
+   PreprocessorASTVisitor(clang::Sema &s, Preprocessor &p)
+    : sema(s),
+      prep(p)
    {
       kitsune_debug("PreprocessorASTVisitor::PreprocessorASTVisitor()");
    }
