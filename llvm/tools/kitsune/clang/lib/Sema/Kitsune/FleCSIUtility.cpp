@@ -48,7 +48,7 @@
   *
   ***************************************************************************/
 
-#include "clang/AST/RecursiveASTVisitor.h"
+#include "clang/AST/ExprCXX.h"
 
 #include "clang/Sema/Kitsune/FleCSIUtility.h"
 
@@ -243,115 +243,6 @@ const clang::CallExpr *getClassCall(
    return theclass == getQualifiedName(rd) && thefunction == getName(md)
       ? call
       : nullptr;
-}
-
-}
-
-
-
-// -----------------------------------------------------------------------------
-// Helper functions: varargs-related
-// -----------------------------------------------------------------------------
-
-namespace flecsi {
-
-// getVarArgs
-// Here, we receive a CallExpr corresponding to some code like this:
-//    namespace::class::foo<bar>(params,__VA_ARGS__);
-// and we wish to extract {type,value} from the function's variadic argument
-// list. Below, "start" is the number of parameters (called "params," above)
-// that precede __VA_ARGS__.
-
-void getVarArgs(
-   const clang::CallExpr *const call,
-   std::vector<flecsi::FleCSIVarArgTypeValue> &varargs,
-   const unsigned start
-) {
-   kitsune_debug("getVarArgs");
-
-   clang::LangOptions LangOpts;
-   LangOpts.CPlusPlus = true;
-   const clang::PrintingPolicy Policy(LangOpts);
-
-   const unsigned narg = call->getNumArgs();
-   for (unsigned arg = start;  arg < narg;  ++arg) {
-      const clang::Expr *const expr = call->getArg(arg);
-
-      if (expr) {
-         const std::string type = expr->getType().getAsString();
-         std::string s;
-         llvm::raw_string_ostream rso(s);
-         expr->printPretty(rso, 0, Policy);
-         const std::string value = rso.str();
-         varargs.push_back(flecsi::FleCSIVarArgTypeValue(type,value));
-      } else {
-         const std::string type  = "unknown type";
-         const std::string value = "unknown value";
-         varargs.push_back(flecsi::FleCSIVarArgTypeValue(type,value));
-      }
-   }
-}
-
-
-
-// getVarArgsFleCSIFunctionHandle
-// This (in contrast to getVarArgs()) is a specialized function for getting
-// the __VA_ARGS__ parameters from a FleCSI construct that looks like this:
-//    using func = flecsi::execution::function_handle__<
-//       return_type,
-//       std::tuple<__VA_ARGS__>
-//    >
-// Here, the varargs are template parameters, not function parameters, and
-// therefore just have {type}, not {type,value}.
-
-void getVarArgsFleCSIFunctionHandle(
-   const clang::TypeAliasDecl *const alias,
-   std::vector<flecsi::FleCSIVarArgType> &varargs
-) {
-   kitsune_debug("getVarArgsFleCSIFunctionHandle");
-
-   // Consider that our type alias looks like this:
-   //    using foo = bar<int,std::tuple<float,double>>
-
-   // Right-hand side:
-   //    bar<int,std::tuple<float,double>>
-   const clang::ClassTemplateSpecializationDecl *const rhs =
-      clang::dyn_cast<clang::ClassTemplateSpecializationDecl>(
-         alias->getUnderlyingType().getTypePtr()->getAsCXXRecordDecl());
-
-   // Right-hand side's template arguments:
-   //    int
-   //    std::tuple<float,double>
-   const clang::TemplateArgumentList &outer = rhs->getTemplateArgs();
-
-   // The std::tuple, as a QualType
-   const clang::QualType tup = outer.get(1).getAsType();
-
-   // The std::tuple, as a ClassTemplateSpecializationDecl
-   const clang::ClassTemplateSpecializationDecl *const tuple =
-      clang::dyn_cast<clang::ClassTemplateSpecializationDecl>(
-         tup.getTypePtr()->getAsCXXRecordDecl());
-
-   // The std::tuple's template argument list.
-   // Note: tuple is a variadic template class, for which getTemplateArgs()
-   // actually gives a "template argument list" with just one argument! The
-   // one argument represents the argument pack.
-   const clang::TemplateArgumentList &inner = tuple->getTemplateArgs();
-   kitsune_assert(inner.size() == 1); // one pack
-   kitsune_assert(inner.asArray().size() == 1); // still one pack
-
-   // The "one" argument: the parameter pack
-   const clang::TemplateArgument &pack = inner.get(0);
-   kitsune_assert(pack.getKind() == clang::TemplateArgument::Pack);
-
-   // Extract the pack's contents. This finally gives us the __VA_ARGS__!
-   // Too bad that Clang requires so much digging.
-   for (auto iter = pack.pack_begin();  iter != pack.pack_end();  ++iter) {
-      const clang::TemplateArgument &arg = *iter;
-      // for our example TypeAlias, type == "float" or "double"...
-      const std::string type = arg.getAsType().getAsString();
-      varargs.push_back(flecsi::FleCSIVarArgType(type));
-   }
 }
 
 }

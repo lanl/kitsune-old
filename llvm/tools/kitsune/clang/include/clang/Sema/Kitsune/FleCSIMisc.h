@@ -52,16 +52,17 @@
 #define FleCSIMisc
 
 #include "clang/Sema/Sema.h"
-#include "llvm/Support/YAMLTraits.h"
+
 
 // Write YAML file?
-#define noKITSUNE_YAML
+#define KITSUNE_YAML
 
 // Insert debugging output?
-#define noKITSUNE_DEBUG
+#define KITSUNE_DEBUG
 
 // Perform assertions?
-#define noKITSUNE_ASSERT
+#define KITSUNE_ASSERT
+
 
 // getFileLine: declaration
 namespace flecsi {
@@ -113,40 +114,5 @@ inline void kitsune_debug(const std::string &str, const bool newline = true)
 #else
    #define kitsune_print(x)
 #endif
-
-
-
-// -----------------------------------------------------------------------------
-// SequenceTraits<vector<T>>
-// -----------------------------------------------------------------------------
-
-namespace llvm {
-namespace yaml {
-
-template<class T, class ALLOCATOR>
-class SequenceTraits<std::vector<T,ALLOCATOR>> {
-public:
-
-   // size
-   static std::size_t size(
-      IO &, std::vector<T,ALLOCATOR> &vec
-   ) {
-      kitsune_debug("size()");
-      return vec.size();
-   }
-
-   // element
-   static T &element(
-      IO &, std::vector<T,ALLOCATOR> &vec,
-      const std::size_t index
-   ) {
-      kitsune_debug("element()");
-      return vec[index];
-   }
-
-};
-
-}
-}
 
 #endif

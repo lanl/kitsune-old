@@ -48,42 +48,122 @@
   *
   ***************************************************************************/
 
-#ifndef FleCSIUtility
-#define FleCSIUtility
+#ifndef FleCSIYAML
+#define FleCSIYAML
+
+#include "llvm/Support/YAMLTraits.h"
 
 #include "clang/Sema/Kitsune/FleCSIMisc.h"
 
 
 
 // -----------------------------------------------------------------------------
-// Helper functions
+// SequenceTraits<vector<T>>
+// -----------------------------------------------------------------------------
+
+namespace llvm {
+namespace yaml {
+
+template<class T, class ALLOCATOR>
+class SequenceTraits<std::vector<T,ALLOCATOR>> {
+public:
+
+   // size
+   static std::size_t size(
+      IO &, std::vector<T,ALLOCATOR> &vec
+   ) {
+      kitsune_debug("size()");
+      return vec.size();
+   }
+
+   // element
+   static T &element(
+      IO &, std::vector<T,ALLOCATOR> &vec,
+      const std::size_t index
+   ) {
+      kitsune_debug("element()");
+      return vec[index];
+   }
+
+};
+
+}
+}
+
+
+
+// -----------------------------------------------------------------------------
+// YAML constructs related to varargs
 // -----------------------------------------------------------------------------
 
 namespace flecsi {
 
-const clang::CXXMethodDecl *getMethod(
-   const clang::CallExpr *const);
-const clang::TemplateArgumentList *getTemplateArgs(
-   const clang::CallExpr *const);
+// FleCSIVarArgType
+struct FleCSIVarArgType {
+   std::string type;
+   FleCSIVarArgType() : type("") { }
+   FleCSIVarArgType(const std::string &_type)
+    : type(_type)
+   { }
+};
 
-clang::QualType getTypeArg(
-   const clang::TemplateArgumentList *const, const std::size_t);
-std::int64_t    getIntArg(
-   const clang::TemplateArgumentList *const, const std::size_t);
-std::uint64_t   getUIntArg(
-   const clang::TemplateArgumentList *const, const std::size_t);
+// FleCSIVarArgTypeValue
+struct FleCSIVarArgTypeValue {
+   std::string type;
+   std::string value;
+   FleCSIVarArgTypeValue() : type(""), value("") { }
+   FleCSIVarArgTypeValue(const std::string &_type, const std::string &_value)
+    : type (_type),
+      value(_value)
+   { }
+};
 
-const clang::CXXRecordDecl *getClassDecl(const clang::QualType &);
+}
 
-std::string getName         (const clang::NamedDecl *const);
-std::string getQualifiedName(const clang::NamedDecl *const);
 
-const clang::Expr *normExpr(const clang::Expr *const);
-bool isDerivedFrom(const clang::CXXRecordDecl *const, const std::string &);
 
-const clang::CallExpr *getClassCall(
-   const clang::Expr *const, const std::string &, const std::string &,
-   const int minArgs, const int maxArgs_
+namespace llvm {
+namespace yaml {
+
+// MappingTraits<FleCSIVarArgType>
+template<>
+struct MappingTraits<flecsi::FleCSIVarArgType> {
+   static void mapping(IO &io, flecsi::FleCSIVarArgType &c)
+   {
+      io.mapRequired("type", c.type);
+   }
+};
+
+// MappingTraits<FleCSIVarArgTypeValue>
+template<>
+struct MappingTraits<flecsi::FleCSIVarArgTypeValue> {
+   static void mapping(IO &io, flecsi::FleCSIVarArgTypeValue &c)
+   {
+      io.mapRequired("type",  c.type);
+      io.mapRequired("value", c.value);
+   }
+};
+
+}
+}
+
+
+
+// -----------------------------------------------------------------------------
+// Helper functions dealing with the above YAML constructs
+// -----------------------------------------------------------------------------
+
+namespace flecsi {
+
+void getVarArgs(
+   const clang::CallExpr *const,
+   std::vector<FleCSIVarArgTypeValue> &,
+   const unsigned start = 0
+);
+
+void getVarArgsFleCSIFunctionHandle(
+   const clang::TypeAliasDecl *const,
+   std::vector<FleCSIVarArgType> &
 );
 
 }

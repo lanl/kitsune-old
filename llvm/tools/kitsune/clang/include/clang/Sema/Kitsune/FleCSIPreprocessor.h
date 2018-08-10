@@ -52,9 +52,9 @@
 #define FleCSIPreprocessor
 
 #include "clang/Lex/Preprocessor.h"
-#include "clang/Sema/SemaDiagnostic.h"
 
 #include "clang/Sema/Kitsune/FleCSIPreprocessorYAML.h"
+
 
 // tostr: helper function
 // Get a token's spelling.

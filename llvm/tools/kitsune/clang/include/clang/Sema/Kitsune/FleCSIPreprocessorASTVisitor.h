@@ -51,7 +51,14 @@
 #ifndef FleCSIPreprocessorASTVisitor
 #define FleCSIPreprocessorASTVisitor
 
+#include "clang/AST/RecursiveASTVisitor.h"
+
 #include "clang/Sema/Kitsune/FleCSIMisc.h"
+
+
+namespace flecsi {
+   class Preprocessor;
+}
 
 
 
@@ -60,8 +67,6 @@
 // -----------------------------------------------------------------------------
 
 namespace flecsi {
-
-class Preprocessor;
 
 class PreprocessorASTVisitor
  : public clang::RecursiveASTVisitor<PreprocessorASTVisitor>

@@ -48,11 +48,11 @@
   *
   ***************************************************************************/
 
-#include "clang/AST/RecursiveASTVisitor.h"
+#include "clang/Sema/SemaDiagnostic.h"
 
-#include "clang/Sema/Kitsune/FleCSIPreprocessorASTVisitor.h"
-#include "clang/Sema/Kitsune/FleCSIPreprocessor.h"
 #include "clang/Sema/Kitsune/FleCSIUtility.h"
+#include "clang/Sema/Kitsune/FleCSIPreprocessor.h"
+#include "clang/Sema/Kitsune/FleCSIPreprocessorASTVisitor.h"
 
 
 
@@ -60,7 +60,7 @@
 // Helper function: match()
 // -----------------------------------------------------------------------------
 
-namespace flecsi {
+namespace {
 
 bool match(
    const clang::CallExpr *&call,
@@ -82,7 +82,7 @@ bool match(
    } else if (max == -1)
       max = min;
 
-   return call = getClassCall(expr, theclass, thefunction, min, max);
+   return call = flecsi::getClassCall(expr, theclass, thefunction, min, max);
 }
 
 }

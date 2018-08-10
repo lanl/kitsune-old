@@ -48,7 +48,6 @@
   *
   ***************************************************************************/
 
-#include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/Lex/MacroArgs.h"
 
 #include "clang/Sema/Kitsune/FleCSIPreprocessorASTVisitor.h"
@@ -58,13 +57,13 @@
 #include <fstream>
 #endif
 
-namespace flecsi {
-
 
 
 // -----------------------------------------------------------------------------
 // Helper: greatest_less_than_or_equal_to
 // -----------------------------------------------------------------------------
+
+namespace flecsi {
 
 // const
 template<class MAP>
@@ -86,12 +85,16 @@ inline typename MAP::iterator greatest_less_than_or_equal_to(
     return it == m.begin() ? m.end() : --it;
 }
 
+}
+
 
 
 // -----------------------------------------------------------------------------
 // Preprocessor::macros
 // Initialization
 // -----------------------------------------------------------------------------
+
+namespace flecsi {
 
 const std::set<std::string> Preprocessor::macros {
    "flecsi_register_task_simple",
@@ -130,12 +133,16 @@ const std::set<std::string> Preprocessor::macros {
    "flecsi_get_color"
 };
 
+}
+
 
 
 // -----------------------------------------------------------------------------
 // Preprocessor
 // Member functions
 // -----------------------------------------------------------------------------
+
+namespace flecsi {
 
 // ------------------------
 // Constructor

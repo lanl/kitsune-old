@@ -51,7 +51,7 @@
 #ifndef FleCSIPreprocessorYAML
 #define FleCSIPreprocessorYAML
 
-#include "clang/Sema/Kitsune/FleCSIMisc.h"
+#include "clang/Sema/Kitsune/FleCSIYAML.h"
 
 
 
@@ -137,59 +137,6 @@ public:
    }
 };
 
-}
-
-
-
-// -----------------------------------------------------------------------------
-// Vararg-related helper classes + YAML mappings
-// -----------------------------------------------------------------------------
-
-namespace flecsi {
-
-// FleCSIVarArgType
-struct FleCSIVarArgType {
-   std::string type;
-   FleCSIVarArgType() : type("") { }
-   FleCSIVarArgType(const std::string &_type)
-    : type(_type)
-   { }
-};
-
-// FleCSIVarArgTypeValue
-struct FleCSIVarArgTypeValue {
-   std::string type;
-   std::string value;
-   FleCSIVarArgTypeValue() : type(""), value("") { }
-   FleCSIVarArgTypeValue(const std::string &_type, const std::string &_value)
-    : type (_type),
-      value(_value)
-   { }
-};
-
-}
-
-namespace llvm {
-namespace yaml {
-
-template<>
-struct MappingTraits<flecsi::FleCSIVarArgType> {
-   static void mapping(IO &io, flecsi::FleCSIVarArgType &c)
-   {
-      kitsune_map(type);
-   }
-};
-
-template<>
-struct MappingTraits<flecsi::FleCSIVarArgTypeValue> {
-   static void mapping(IO &io, flecsi::FleCSIVarArgTypeValue &c)
-   {
-      kitsune_map(type);
-      kitsune_map(value);
-   }
-};
-
-}
 }
 
 
@@ -768,7 +715,12 @@ public:
 }
 }
 
-// cleanup
+
+
+// -----------------------------------------------------------------------------
+// Cleanup
+// -----------------------------------------------------------------------------
+
 #undef kitsune_makeclass
 #undef kitsune_makeclass_done
 #undef kitsune_maptraits
