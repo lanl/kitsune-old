@@ -6524,6 +6524,13 @@ static void ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D,
   case AttributeList::AT_XRayLogArgs:
     handleXRayLogArgsAttr(S, D, Attr);
     break;
+
+  // +===== Kitsune attributes 
+  // 
+  case AttributeList::AT_FleCSITask:
+    handleSimpleAttribute<FleCSITaskAttr>(S, D, Attr);
+    break;
+  // ====== 
   }
 }
 

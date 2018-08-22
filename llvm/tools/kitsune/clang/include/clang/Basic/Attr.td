@@ -2774,19 +2774,9 @@ def InternalLinkage : InheritableAttr {
 }
 
 // +===== Kitsune
-
-def FleCSITaskArgs : Attr {
-  let Spellings = [CXX11<"clang", "flecsi_task_args">];
-  let Subjects = SubjectList<[Function], ErrorDiag, "ExpectedFunction">;
-  let Args = [
-    EnumArgument<"TaskTarget", "TaskTargetType",
-      ["loc", "toc"],
-      ["LOC", "TOC"]>,
-    EnumArgument<"TaskLaunch", "TaskLaunchType",
-      ["single", "index"],
-      ["Single", "Index"]>
-  ];
+def FleCSITask : Attr {
+  let Spellings = [CXX11<"clang", "task">];
+  let Subjects  = SubjectList<[Function], ErrorDiag, "ExpectedFunction">;
   let Documentation = [Undocumented];
 }
-
 // ==============

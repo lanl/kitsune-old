@@ -1123,7 +1123,10 @@ bool LLParser::ParseFnAttributeValuePairs(AttrBuilder &B,
       B.addAttribute(Attribute::SanitizeMemory); break;
     case lltok::kw_uwtable: B.addAttribute(Attribute::UWTable); break;
     case lltok::kw_writeonly: B.addAttribute(Attribute::WriteOnly); break;
-
+    // +===== Kitsune 
+    case lltok::kw_flecsiTask: B.addAttribute(Attribute::FleCSITask); break;
+    // ======
+  
     // Error handling.
     case lltok::kw_inreg:
     case lltok::kw_signext:

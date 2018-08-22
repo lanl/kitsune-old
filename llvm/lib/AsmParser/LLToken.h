@@ -365,9 +365,12 @@ enum Kind {
 
   // Type valued tokens (TyVal).
   Type,
-
   APFloat, // APFloatVal
-  APSInt   // APSInt
+  APSInt,  // APSInt
+
+  // +===== Kitsune 
+  kw_flecsiTask,
+  // ======
 };
 } // end namespace lltok
 } // end namespace llvm
