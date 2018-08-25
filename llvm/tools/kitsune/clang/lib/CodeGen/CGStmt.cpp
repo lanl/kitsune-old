@@ -372,11 +372,7 @@ bool CodeGenFunction::EmitSimpleStmt(const Stmt *S) {
   case Stmt::DefaultStmtClass:  EmitDefaultStmt(cast<DefaultStmt>(*S));   break;
   case Stmt::CaseStmtClass:     EmitCaseStmt(cast<CaseStmt>(*S));         break;
   case Stmt::SEHLeaveStmtClass: EmitSEHLeaveStmt(cast<SEHLeaveStmt>(*S)); break;
-<<<<<<< HEAD
-  //case Stmt::CilkSyncStmtClass: EmitCilkSyncStmt(cast<CilkSyncStmt>(*S)); break;
-=======
   case Stmt::CilkSyncStmtClass: EmitCilkSyncStmt(cast<CilkSyncStmt>(*S)); break;
->>>>>>> 9fb2a5d564411c2928cb902c3c70c186a001aee3
   }
 
   return true;
@@ -595,12 +591,7 @@ void CodeGenFunction::EmitAttributedStmt(const AttributedStmt &S) {
     EmitCXXForRangeStmt(cast<CXXForRangeStmt>(*SubStmt), S.getAttrs());
     break;
   case Stmt::CilkForStmtClass:
-<<<<<<< HEAD
-    assert(false);
-    //EmitCilkForStmt(cast<CilkForStmt>(*SubStmt), S.getAttrs());
-=======
     EmitCilkForStmt(cast<CilkForStmt>(*SubStmt), S.getAttrs());
->>>>>>> 9fb2a5d564411c2928cb902c3c70c186a001aee3
     break;
   default:
     EmitStmt(SubStmt);

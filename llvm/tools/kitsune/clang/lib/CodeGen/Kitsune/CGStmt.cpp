@@ -76,18 +76,6 @@ namespace{
 
 } // namespace
 
-// this helper function is borrowed from Tapir to emit an intrinsic start
-// a sync region
-llvm::Instruction *CodeGenFunction::EmitSyncRegionStart() {
-  // Start the sync region.  To ensure the syncregion.start call dominates all
-  // uses of the generated token, we insert this call at the alloca insertion
-  // point.
-  llvm::Instruction *SRStart = llvm::CallInst::Create(
-      CGM.getIntrinsic(llvm::Intrinsic::syncregion_start),
-      "syncreg", AllocaInsertPt);
-  return SRStart;
-}
-
 // invoke cleanup for Tapir
 
 /// \brief Cleanup to ensure parent stack frame is synced.
