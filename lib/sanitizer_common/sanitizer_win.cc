@@ -24,7 +24,6 @@
 
 #include "sanitizer_common.h"
 #include "sanitizer_dbghelp.h"
-#include "sanitizer_file.h"
 #include "sanitizer_libc.h"
 #include "sanitizer_mutex.h"
 #include "sanitizer_placement_new.h"
@@ -1022,7 +1021,7 @@ void CheckNoDeepBind(const char *filename, int flag) {
 }
 
 // FIXME: implement on this platform.
-bool GetRandom(void *buffer, uptr length, bool blocking) {
+bool GetRandom(void *buffer, uptr length) {
   UNIMPLEMENTED();
 }
 

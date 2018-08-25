@@ -26,6 +26,9 @@ struct SizeClassAllocatorLocalCache
 template <class SizeClassAllocator>
 struct SizeClassAllocator64LocalCache {
   typedef SizeClassAllocator Allocator;
+  static const uptr kNumClasses = SizeClassAllocator::kNumClasses;
+  typedef typename Allocator::SizeClassMapT SizeClassMap;
+  typedef typename Allocator::CompactPtrT CompactPtrT;
 
   void Init(AllocatorGlobalStats *s) {
     stats_.Init();
@@ -73,18 +76,14 @@ struct SizeClassAllocator64LocalCache {
   }
 
   void Drain(SizeClassAllocator *allocator) {
-    for (uptr i = 0; i < kNumClasses; i++) {
-      PerClass *c = &per_class_[i];
+    for (uptr class_id = 0; class_id < kNumClasses; class_id++) {
+      PerClass *c = &per_class_[class_id];
       while (c->count > 0)
-        Drain(c, allocator, i, c->count);
+        Drain(c, allocator, class_id, c->count);
     }
   }
 
- private:
-  typedef typename Allocator::SizeClassMapT SizeClassMap;
-  static const uptr kNumClasses = SizeClassMap::kNumClasses;
-  typedef typename Allocator::CompactPtrT CompactPtrT;
-
+  // private:
   struct PerClass {
     u32 count;
     u32 max_count;
@@ -95,7 +94,7 @@ struct SizeClassAllocator64LocalCache {
   AllocatorStats stats_;
 
   void InitCache() {
-    if (LIKELY(per_class_[1].max_count))
+    if (per_class_[1].max_count)
       return;
     for (uptr i = 0; i < kNumClasses; i++) {
       PerClass *c = &per_class_[i];
@@ -131,26 +130,12 @@ template <class SizeClassAllocator>
 struct SizeClassAllocator32LocalCache {
   typedef SizeClassAllocator Allocator;
   typedef typename Allocator::TransferBatch TransferBatch;
+  static const uptr kNumClasses = SizeClassAllocator::kNumClasses;
 
   void Init(AllocatorGlobalStats *s) {
     stats_.Init();
     if (s)
       s->Register(&stats_);
-  }
-
-  // Returns a TransferBatch suitable for class_id.
-  TransferBatch *CreateBatch(uptr class_id, SizeClassAllocator *allocator,
-                             TransferBatch *b) {
-    if (uptr batch_class_id = per_class_[class_id].batch_class_id)
-      return (TransferBatch*)Allocate(allocator, batch_class_id);
-    return b;
-  }
-
-  // Destroys TransferBatch b.
-  void DestroyBatch(uptr class_id, SizeClassAllocator *allocator,
-                    TransferBatch *b) {
-    if (uptr batch_class_id = per_class_[class_id].batch_class_id)
-      Deallocate(allocator, batch_class_id, b);
   }
 
   void Destroy(SizeClassAllocator *allocator, AllocatorGlobalStats *s) {
@@ -188,55 +173,64 @@ struct SizeClassAllocator32LocalCache {
   }
 
   void Drain(SizeClassAllocator *allocator) {
-    for (uptr i = 0; i < kNumClasses; i++) {
-      PerClass *c = &per_class_[i];
+    for (uptr class_id = 0; class_id < kNumClasses; class_id++) {
+      PerClass *c = &per_class_[class_id];
       while (c->count > 0)
-        Drain(allocator, i);
+        Drain(allocator, class_id);
     }
   }
 
- private:
-  typedef typename Allocator::SizeClassMapT SizeClassMap;
-  static const uptr kBatchClassID = SizeClassMap::kBatchClassID;
-  static const uptr kNumClasses = SizeClassMap::kNumClasses;
-  // If kUseSeparateSizeClassForBatch is true, all TransferBatch objects are
-  // allocated from kBatchClassID size class (except for those that are needed
-  // for kBatchClassID itself). The goal is to have TransferBatches in a totally
-  // different region of RAM to improve security.
-  static const bool kUseSeparateSizeClassForBatch =
-      Allocator::kUseSeparateSizeClassForBatch;
-
+  // private:
+  typedef typename SizeClassAllocator::SizeClassMapT SizeClassMap;
   struct PerClass {
     uptr count;
     uptr max_count;
     uptr class_size;
-    uptr batch_class_id;
+    uptr class_id_for_transfer_batch;
     void *batch[2 * TransferBatch::kMaxNumCached];
   };
   PerClass per_class_[kNumClasses];
   AllocatorStats stats_;
 
   void InitCache() {
-    if (LIKELY(per_class_[1].max_count))
+    if (per_class_[1].max_count)
       return;
-    const uptr batch_class_id = SizeClassMap::ClassID(sizeof(TransferBatch));
+    // TransferBatch class is declared in SizeClassAllocator.
+    uptr class_id_for_transfer_batch =
+        SizeClassMap::ClassID(sizeof(TransferBatch));
     for (uptr i = 0; i < kNumClasses; i++) {
       PerClass *c = &per_class_[i];
       uptr max_cached = TransferBatch::MaxCached(i);
       c->max_count = 2 * max_cached;
       c->class_size = Allocator::ClassIdToSize(i);
-      // Precompute the class id to use to store batches for the current class
-      // id. 0 means the class size is large enough to store a batch within one
-      // of the chunks. If using a separate size class, it will always be
-      // kBatchClassID, except for kBatchClassID itself.
-      if (kUseSeparateSizeClassForBatch) {
-        c->batch_class_id = (i == kBatchClassID) ? 0 : kBatchClassID;
-      } else {
-        c->batch_class_id = (c->class_size <
+      // We transfer chunks between central and thread-local free lists in
+      // batches. For small size classes we allocate batches separately. For
+      // large size classes we may use one of the chunks to store the batch.
+      // sizeof(TransferBatch) must be a power of 2 for more efficient
+      // allocation.
+      c->class_id_for_transfer_batch = (c->class_size <
           TransferBatch::AllocationSizeRequiredForNElements(max_cached)) ?
-              batch_class_id : 0;
-      }
+              class_id_for_transfer_batch : 0;
     }
+  }
+
+  // Returns a TransferBatch suitable for class_id.
+  // For small size classes allocates the batch from the allocator.
+  // For large size classes simply returns b.
+  TransferBatch *CreateBatch(uptr class_id, SizeClassAllocator *allocator,
+                             TransferBatch *b) {
+    if (uptr batch_class_id = per_class_[class_id].class_id_for_transfer_batch)
+      return (TransferBatch*)Allocate(allocator, batch_class_id);
+    return b;
+  }
+
+  // Destroys TransferBatch b.
+  // For small size classes deallocates b to the allocator.
+  // Does notthing for large size classes.
+  void DestroyBatch(uptr class_id, SizeClassAllocator *allocator,
+                    TransferBatch *b) {
+    if (uptr batch_class_id = per_class_[class_id].class_id_for_transfer_batch)
+      Deallocate(allocator, batch_class_id, b);
   }
 
   NOINLINE bool Refill(SizeClassAllocator *allocator, uptr class_id) {
