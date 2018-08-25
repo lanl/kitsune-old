@@ -13,7 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "sanitizer_common/sanitizer_platform.h"
-#if SANITIZER_FREEBSD || SANITIZER_LINUX || SANITIZER_NETBSD
+#if SANITIZER_FREEBSD || SANITIZER_LINUX
 
 #include "asan_interceptors.h"
 #include "asan_internal.h"
@@ -42,10 +42,6 @@
 #if SANITIZER_ANDROID || SANITIZER_FREEBSD
 #include <ucontext.h>
 extern "C" void* _DYNAMIC;
-#elif SANITIZER_NETBSD
-#include <link_elf.h>
-#include <ucontext.h>
-extern Elf_Dyn _DYNAMIC;
 #else
 #include <sys/ucontext.h>
 #include <link.h>
@@ -104,15 +100,6 @@ static int FindFirstDSOCallback(struct dl_phdr_info *info, size_t size,
   // Ignore vDSO
   if (internal_strncmp(info->dlpi_name, "linux-", sizeof("linux-") - 1) == 0)
     return 0;
-
-#if SANITIZER_NETBSD
-  // Ignore first entry (the main program)
-  char **p = (char **)data;
-  if (!(*p)) {
-    *p = (char *)-1;
-    return 0;
-  }
-#endif
 
   *(const char **)data = info->dlpi_name;
   return 1;
@@ -192,4 +179,4 @@ void *AsanDlSymNext(const char *sym) {
 
 } // namespace __asan
 
-#endif  // SANITIZER_FREEBSD || SANITIZER_LINUX || SANITIZER_NETBSD
+#endif // SANITIZER_FREEBSD || SANITIZER_LINUX

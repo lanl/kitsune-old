@@ -21,9 +21,7 @@
 #include <unistd.h>
 #include <sys/resource.h>
 #include <sys/types.h>
-#if !defined(__NetBSD__)
 #include <sys/user.h>
-#endif
 
 #include "interception/interception.h"
 #include "sanitizer_common/sanitizer_common.h"
