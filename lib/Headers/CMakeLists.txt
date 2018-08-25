@@ -99,6 +99,46 @@ set(cuda_wrapper_files
   cuda_wrappers/new
 )
 
+set(cilk_files
+  cilk/cilk.h
+  cilk/cilk_api.h
+  cilk/cilk_api_linux.h
+  cilk/cilk_stub.h
+  cilk/cilk_undocumented.h
+  cilk/common.h
+  cilk/holder.h
+  cilk/hyperobject_base.h
+  cilk/metaprogramming.h
+  cilk/reducer.h
+  cilk/reducer_file.h
+  cilk/reducer_list.h
+  cilk/reducer_max.h
+  cilk/reducer_min.h
+  cilk/reducer_min_max.h
+  cilk/reducer_opadd.h
+  cilk/reducer_opand.h
+  cilk/reducer_opmul.h
+  cilk/reducer_opor.h
+  cilk/reducer_opxor.h
+  cilk/reducer_ostream.h
+  cilk/reducer_string.h
+)
+
+set(cilktools_files
+  cilktools/cilkscreen.h
+  cilktools/cilkview.h
+  cilktools/fake_mutex.h
+  cilktools/lock_guard.h
+)
+
+set(internal_files
+  internal/abi.h
+  internal/cilk_fake.h
+  internal/cilk_version.h
+  internal/metacall.h
+  internal/rev.mk
+)
+
 set(output_dir ${LLVM_LIBRARY_OUTPUT_INTDIR}/clang/${CLANG_VERSION}/include)
 
 # Generate arm_neon.h
@@ -106,7 +146,7 @@ clang_tablegen(arm_neon.h -gen-arm-neon
   SOURCE ${CLANG_SOURCE_DIR}/include/clang/Basic/arm_neon.td)
 
 set(out_files)
-foreach( f ${files} ${cuda_wrapper_files} )
+foreach( f ${files} ${cuda_wrapper_files} ${cilk_files} ${cilktools_files} ${internal_files} )
   set( src ${CMAKE_CURRENT_SOURCE_DIR}/${f} )
   set( dst ${output_dir}/${f} )
   add_custom_command(OUTPUT ${dst}
@@ -136,6 +176,24 @@ install(
   COMPONENT clang-headers
   PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
   DESTINATION lib${LLVM_LIBDIR_SUFFIX}/clang/${CLANG_VERSION}/include/cuda_wrappers)
+
+install(
+  FILES ${cilk_files}
+  COMPONENT clang-headers
+  PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
+  DESTINATION lib${LLVM_LIBDIR_SUFFIX}/clang/${CLANG_VERSION}/include/cilk)
+
+install(
+  FILES ${cilktools_files}
+  COMPONENT clang-headers
+  PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
+  DESTINATION lib${LLVM_LIBDIR_SUFFIX}/clang/${CLANG_VERSION}/include/cilktools)
+
+install(
+  FILES ${internal_files}
+  COMPONENT clang-headers
+  PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
+  DESTINATION lib${LLVM_LIBDIR_SUFFIX}/clang/${CLANG_VERSION}/include/internal)
 
 if (NOT CMAKE_CONFIGURATION_TYPES) # don't add this for IDE's.
   add_custom_target(install-clang-headers
