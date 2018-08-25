@@ -1,4 +1,4 @@
-//===--- CGCall.cpp - Encapsulate calling convention details --------------===//
+1;95;0c//===--- CGCall.cpp - Encapsulate calling convention details --------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -2745,14 +2745,11 @@ void CodeGenFunction::EmitFunctionEpilog(const CGFunctionInfo &FI,
   }
 
   // +===== Kitsune
-  // +===== Kitsune
   if (CurSyncRegion && CurSyncRegion->getSyncRegionStart()) {
     llvm::BasicBlock* SyncBlock = createBasicBlock("preSyncL");
     Builder.CreateSync(SyncBlock, CurSyncRegion->getSyncRegionStart());
     EmitBlock(SyncBlock);
-  // ==============
   }
-  // ==============
 
   // Functions with no result always return void.
   if (!ReturnValue.isValid()) {

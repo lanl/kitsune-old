@@ -1336,8 +1336,7 @@ public:
   /// By default, performs semantic analysis to build the new expression.
   /// Subclasses may override this routine to provide different behavior.
   StmtResult RebuildCilkSpawnStmt(SourceLocation SpawnLoc, Stmt *S) {
-    assert(false);
-    //return getSema().ActOnCilkSpawnStmt(SpawnLoc, S);
+    return getSema().ActOnCilkSpawnStmt(SpawnLoc, S);
   }
 
   /// \brief Build a new Cilk spawn expression.
@@ -1345,8 +1344,7 @@ public:
   /// By default, performs semantic analysis to build the new expression.
   /// Subclasses may override this routine to provide different behavior.
   ExprResult RebuildCilkSpawnExpr(SourceLocation SpawnLoc, Expr *E) {
-    assert(false);
-    //return getSema().ActOnCilkSpawnExpr(SpawnLoc, E);
+    return getSema().ActOnCilkSpawnExpr(SpawnLoc, E);
   }
 
   /// \brief Build a new declaration statement.

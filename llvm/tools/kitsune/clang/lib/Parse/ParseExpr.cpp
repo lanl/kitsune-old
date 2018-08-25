@@ -1405,11 +1405,9 @@ ExprResult Parser::ParseCastExpression(bool isUnaryExpression,
     //   return ExprError();
     // }
 
-    assert(false);
-
-    //Res = ParseCastExpression(false);
-    //if (!Res.isInvalid())
-    //  Res = Actions.ActOnCilkSpawnExpr(SpawnLoc, Res.get());
+    Res = ParseCastExpression(false);
+    if (!Res.isInvalid())
+      Res = Actions.ActOnCilkSpawnExpr(SpawnLoc, Res.get());
     return Res;
   }
   case tok::l_square:

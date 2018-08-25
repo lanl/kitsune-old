@@ -171,9 +171,13 @@ void tools::Myriad::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   AddLinkerInputs(getToolChain(), Inputs, Args, CmdArgs, JA);
 
   // +===== Kitsune
-  if (C.getDriver().CCCIsFleCSI() || C.getDriver().CCCIsKokkos())
+  if (Args.hasArg(options::OPT_fcilkplus) ||
+      Args.hasArg(options::OPT_ftapir) ||
+      Args.hasArg(options::OPT_fdetach) ||
+      C.getDriver().CCCIsFleCSI() ||
+      C.getDriver().CCCIsKokkos())
     CmdArgs.push_back("-lcilkrts");
-  // ==============
+  // ======
 
   if (UseDefaultLibs) {
     if (NeedsSanitizerDeps)

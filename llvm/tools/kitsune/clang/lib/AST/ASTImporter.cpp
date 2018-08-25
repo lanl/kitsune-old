@@ -228,10 +228,7 @@ namespace clang {
     Stmt *VisitCilkSpawnStmt(CilkSpawnStmt *S);
     Stmt *VisitCilkSyncStmt(CilkSyncStmt *S);
     Stmt *VisitCilkForStmt(CilkForStmt *S);
-
-    // +===== Kitsune
     Stmt *VisitKitsuneStmt(KitsuneStmt *S);
-    // ==============
 
     // Importing expressions
     Expr *VisitExpr(Expr *E);
