@@ -7,3 +7,8 @@
 [submodule "llvm/tools/polly"]
 	path = llvm/tools/polly
 	url = https://github.com/wsmoses/Tapir-Polly.git
+	branch=master
+[submodule "llvm/tools/clang"]
+	path = llvm/tools/clang
+	url = https://github.com/wsmoses/Tapir-Clang.git
+	branch=master

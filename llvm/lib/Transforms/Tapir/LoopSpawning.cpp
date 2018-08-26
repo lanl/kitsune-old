@@ -82,10 +82,8 @@ static cl::opt<TapirTargetType> ClTapirTarget(
                           "openmp", "OpenMP"),
                clEnumValN(TapirTargetType::Qthreads,
                           "qthreads", "Qthreads"),
-               // +===== Kitsune
                clEnumValN(TapirTargetType::PTX,
                           "ptx", "PTX"))); 
-               // ==============
 
 namespace {
 // /// \brief This modifies LoopAccessReport to initialize message with
