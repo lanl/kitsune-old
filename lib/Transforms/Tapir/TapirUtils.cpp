@@ -14,6 +14,7 @@
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/Transforms/Tapir/CilkABI.h"
 #include "llvm/Transforms/Tapir/OpenMPABI.h"
+#include "llvm/Transforms/Tapir/QthreadsABI.h"
 #include "llvm/Transforms/Tapir/Outline.h"
 #include "llvm/Transforms/Utils/EscapeEnumerator.h"
 #include "llvm/Transforms/Utils/Local.h"
@@ -29,6 +30,8 @@ TapirTarget *llvm::getTapirTargetFromType(TapirTargetType Type) {
     return new CilkABI();
   case TapirTargetType::OpenMP:
     return new OpenMPABI();
+  case TapirTargetType::Qthreads:
+    return new QthreadsABI();
   case TapirTargetType::None:
   case TapirTargetType::Serial:
   default:
@@ -413,6 +416,37 @@ bool llvm::isConstantMemoryFreeOperation(Instruction* I, bool allowsyncregion) {
         isa<AllocaInst>(I) ||
         isa<CastInst>(I) ||
         isa<ExtractValueInst>(I);
+}
+
+bool llvm::isConstantOperation(Instruction* I, bool allowsyncregion) {
+  if (auto call = dyn_cast<CallInst>(I)) {
+    auto id = call->getCalledFunction()->getIntrinsicID();
+    return (id == Intrinsic::lifetime_start ||
+            id == Intrinsic::lifetime_end ||
+        allowsyncregion && (id == Intrinsic::syncregion_start));
+  }
+  return
+      isa<AtomicCmpXchgInst>(I) ||
+      isa<AtomicRMWInst>(I) ||
+      isa<BinaryOperator>(I) ||
+      isa<CmpInst>(I) ||
+      isa<ExtractElementInst>(I) ||
+      isa<CatchPadInst>(I) || isa<CleanupPadInst>(I) ||
+      isa<GetElementPtrInst>(I) ||
+      isa<InsertElementInst>(I) ||
+      isa<InsertValueInst>(I) ||
+      isa<LandingPadInst>(I) ||
+      isa<PHINode>(I) ||
+      isa<SelectInst>(I) ||
+      isa<ShuffleVectorInst>(I) ||
+      isa<StoreInst>(I) ||
+      // Unary
+        isa<AllocaInst>(I) ||
+        isa<CastInst>(I) ||
+        isa<ExtractValueInst>(I) ||
+        isa<LoadInst>(I) ||
+        isa<VAArgInst>(I)
+        ;
 }
 
 /*
