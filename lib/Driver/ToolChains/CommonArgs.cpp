@@ -490,7 +490,7 @@ static void addSanitizerRuntime(const ToolChain &TC, const ArgList &Args,
   // Wrap any static runtimes that must be forced into executable in
   // whole-archive.
   if (IsWhole) CmdArgs.push_back("-whole-archive");
-  CmdArgs.push_back(TC.getCompilerRTArgString(Args, Sanitizer, IsShared));
+    CmdArgs.push_back(TC.getCompilerRTArgString(Args, Sanitizer, IsShared));
   if (IsWhole) CmdArgs.push_back("-no-whole-archive");
 
   if (IsShared) {
@@ -538,6 +538,8 @@ collectSanitizerRuntimes(const ToolChain &TC, const ArgList &Args,
                          SmallVectorImpl<StringRef> &RequiredSymbols) {
   const SanitizerArgs &SanArgs = TC.getSanitizerArgs();
   // Collect shared runtimes.
+  if (SanArgs.needsCilksanRt())
+    SharedRuntimes.push_back("cilksan");
   if (SanArgs.needsAsanRt() && SanArgs.needsSharedAsanRt()) {
     SharedRuntimes.push_back("asan");
   }
