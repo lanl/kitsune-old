@@ -15,7 +15,7 @@
 
 #include "interception/interception.h"
 
-#include <stddef.h>
+#include <cstddef>
 
 using namespace __scudo;
 

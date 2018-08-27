@@ -14,7 +14,6 @@
 
 #include "sanitizer_common/sanitizer_atomic.h"
 #include "sanitizer_common/sanitizer_common.h"
-#include "sanitizer_common/sanitizer_file.h"
 #include "sanitizer_common/sanitizer_libc.h"
 #include "sanitizer_common/sanitizer_stackdepot.h"
 #include "sanitizer_common/sanitizer_placement_new.h"
@@ -1039,12 +1038,16 @@ bool MD5Hash::operator==(const MD5Hash &other) const {
 #if SANITIZER_DEBUG
 void build_consistency_debug() {}
 #else
+// [CSI-TSan]: Required for instrumented shared objects.
+__attribute__((visibility("default")))
 void build_consistency_release() {}
 #endif
 
 #if TSAN_COLLECT_STATS
 void build_consistency_stats() {}
 #else
+// [CSI-TSan]: Required for instrumented shared objects.
+__attribute__((visibility("default")))
 void build_consistency_nostats() {}
 #endif
 

@@ -1,0 +1,16 @@
+#include <stdio.h>
+
+[[clang::task]]
+float foo(float a, float b) {
+  return a+b;
+}
+
+[[clang::task]]
+float bar(float a, float b) {
+  return a-b;
+}
+
+int main(int argc, char *argv[]) {
+  printf("result: %f,%f", foo(31.0f, 11.0f), bar(11.0f, 31.0f));
+  return 0;
+}

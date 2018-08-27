@@ -49,11 +49,6 @@ class AsanThreadContext : public ThreadContextBase {
 
   void OnCreated(void *arg) override;
   void OnFinished() override;
-
-  struct CreateThreadContextArgs {
-    AsanThread *thread;
-    StackTrace *stack;
-  };
 };
 
 // AsanThreadContext objects are never freed, so we need many of them.
@@ -67,9 +62,7 @@ class AsanThread {
   static void TSDDtor(void *tsd);
   void Destroy();
 
-  struct InitOptions;
-  void Init(const InitOptions *options = nullptr);
-
+  void Init();  // Should be called from the thread itself.
   thread_return_t ThreadStart(tid_t os_id,
                               atomic_uintptr_t *signal_thread_is_registered);
 
@@ -135,9 +128,7 @@ class AsanThread {
  private:
   // NOTE: There is no AsanThread constructor. It is allocated
   // via mmap() and *must* be valid in zero-initialized state.
-
-  void SetThreadStackAndTls(const InitOptions *options);
-
+  void SetThreadStackAndTls();
   void ClearShadowForThreadStackAndTLS();
   FakeStack *AsyncSignalSafeLazyInitFakeStack();
 

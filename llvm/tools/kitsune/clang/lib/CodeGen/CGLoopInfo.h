@@ -64,8 +64,6 @@ struct LoopAttributes {
   /// \brief Value for llvm.loop.distribute.enable metadata.
   LVEnableState DistributeEnable;
 
-  // +===== Kitsune
-
   /// \brief Tapir-loop spawning strategy.
   enum LSStrategy { Sequential, DAC, GPU };
 

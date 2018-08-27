@@ -41,7 +41,6 @@ template<class SizeClassAllocator> struct SizeClassAllocator32LocalCache;
 struct SizeClassAllocator32FlagMasks {  //  Bit masks.
   enum {
     kRandomShuffleChunks = 1,
-    kUseSeparateSizeClassForBatch = 2,
   };
 };
 
@@ -56,10 +55,8 @@ class SizeClassAllocator32 {
   typedef typename Params::ByteMap ByteMap;
   typedef typename Params::MapUnmapCallback MapUnmapCallback;
 
-  static const bool kRandomShuffleChunks = Params::kFlags &
-      SizeClassAllocator32FlagMasks::kRandomShuffleChunks;
-  static const bool kUseSeparateSizeClassForBatch = Params::kFlags &
-      SizeClassAllocator32FlagMasks::kUseSeparateSizeClassForBatch;
+  static const bool kRandomShuffleChunks =
+      Params::kFlags & SizeClassAllocator32FlagMasks::kRandomShuffleChunks;
 
   struct TransferBatch {
     static const uptr kMaxNumCached = SizeClassMap::kMaxNumCachedHint - 2;
@@ -97,11 +94,11 @@ class SizeClassAllocator32 {
 
   static const uptr kBatchSize = sizeof(TransferBatch);
   COMPILER_CHECK((kBatchSize & (kBatchSize - 1)) == 0);
-  COMPILER_CHECK(kBatchSize == SizeClassMap::kMaxNumCachedHint * sizeof(uptr));
+  COMPILER_CHECK(sizeof(TransferBatch) ==
+                 SizeClassMap::kMaxNumCachedHint * sizeof(uptr));
 
   static uptr ClassIdToSize(uptr class_id) {
-    return (class_id == SizeClassMap::kBatchClassID) ?
-        kBatchSize : SizeClassMap::Size(class_id);
+    return SizeClassMap::Size(class_id);
   }
 
   typedef SizeClassAllocator32<Params> ThisT;
@@ -164,9 +161,9 @@ class SizeClassAllocator32 {
   NOINLINE void DeallocateBatch(AllocatorStats *stat, uptr class_id,
                                 TransferBatch *b) {
     CHECK_LT(class_id, kNumClasses);
-    CHECK_GT(b->Count(), 0);
     SizeClassInfo *sci = GetSizeClassInfo(class_id);
     SpinMutexLock l(&sci->mutex);
+    CHECK_GT(b->Count(), 0);
     sci->free_list.push_front(b);
   }
 

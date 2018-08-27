@@ -56,9 +56,9 @@ using namespace sema;
 
 StmtResult
 Sema::ActOnForallStmt(ForStmt *ForStmt, CXXForRangeStmt *ForRangeStmt) {
-
-  StmtResult Result = 
-    new (Context) ForallStmt(ForStmt, ForRangeStmt);
-
+  StmtResult Result = new (Context) ForallStmt(ForStmt, ForRangeStmt);
+  Scope *parent = CurScope->getFnParent();
+  DeclContext* DC = parent->getEntity();
   return Result;
 }
+

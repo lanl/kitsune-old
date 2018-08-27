@@ -20,7 +20,6 @@
 #include "sanitizer_common/sanitizer_internal_defs.h"
 #include "sanitizer_common/sanitizer_linux.h"
 #include "sanitizer_common/sanitizer_platform_interceptors.h"
-#include "sanitizer_common/sanitizer_platform_limits_netbsd.h"
 #include "sanitizer_common/sanitizer_platform_limits_posix.h"
 #include "sanitizer_common/sanitizer_posix.h"
 #include "sanitizer_common/sanitizer_tls_get_addr.h"
@@ -45,7 +44,6 @@ int pthread_setspecific(unsigned key, const void *v);
 
 namespace std {
   struct nothrow_t;
-  enum class align_val_t: size_t;
 }
 
 #if !SANITIZER_MAC
@@ -205,19 +203,13 @@ INTERCEPTOR(int, mprobe, void *ptr) {
 #define OPERATOR_NEW_BODY(nothrow)                         \
   ENSURE_LSAN_INITED;                                      \
   GET_STACK_TRACE_MALLOC;                                  \
-  void *res = lsan_malloc(size, stack);                    \
-  if (!nothrow && UNLIKELY(!res)) DieOnFailure::OnOOM();   \
-  return res;
-#define OPERATOR_NEW_BODY_ALIGN(nothrow)                   \
-  ENSURE_LSAN_INITED;                                      \
-  GET_STACK_TRACE_MALLOC;                                  \
-  void *res = lsan_memalign((uptr)align, size, stack);     \
-  if (!nothrow && UNLIKELY(!res)) DieOnFailure::OnOOM();   \
+  void *res = Allocate(stack, size, 1, kAlwaysClearMemory);\
+  if (!nothrow && UNLIKELY(!res)) DieOnFailure::OnOOM();\
   return res;
 
 #define OPERATOR_DELETE_BODY \
   ENSURE_LSAN_INITED;        \
-  lsan_free(ptr);
+  Deallocate(ptr);
 
 // On OS X it's not enough to just provide our own 'operator new' and
 // 'operator delete' implementations, because they're going to be in the runtime
@@ -237,18 +229,6 @@ void *operator new(size_t size, std::nothrow_t const&)
 INTERCEPTOR_ATTRIBUTE
 void *operator new[](size_t size, std::nothrow_t const&)
 { OPERATOR_NEW_BODY(true /*nothrow*/); }
-INTERCEPTOR_ATTRIBUTE
-void *operator new(size_t size, std::align_val_t align)
-{ OPERATOR_NEW_BODY_ALIGN(false /*nothrow*/); }
-INTERCEPTOR_ATTRIBUTE
-void *operator new[](size_t size, std::align_val_t align)
-{ OPERATOR_NEW_BODY_ALIGN(false /*nothrow*/); }
-INTERCEPTOR_ATTRIBUTE
-void *operator new(size_t size, std::align_val_t align, std::nothrow_t const&)
-{ OPERATOR_NEW_BODY_ALIGN(true /*nothrow*/); }
-INTERCEPTOR_ATTRIBUTE
-void *operator new[](size_t size, std::align_val_t align, std::nothrow_t const&)
-{ OPERATOR_NEW_BODY_ALIGN(true /*nothrow*/); }
 
 INTERCEPTOR_ATTRIBUTE
 void operator delete(void *ptr) NOEXCEPT { OPERATOR_DELETE_BODY; }
@@ -258,30 +238,6 @@ INTERCEPTOR_ATTRIBUTE
 void operator delete(void *ptr, std::nothrow_t const&) { OPERATOR_DELETE_BODY; }
 INTERCEPTOR_ATTRIBUTE
 void operator delete[](void *ptr, std::nothrow_t const &)
-{ OPERATOR_DELETE_BODY; }
-INTERCEPTOR_ATTRIBUTE
-void operator delete(void *ptr, size_t size) NOEXCEPT
-{ OPERATOR_DELETE_BODY; }
-INTERCEPTOR_ATTRIBUTE
-void operator delete[](void *ptr, size_t size) NOEXCEPT
-{ OPERATOR_DELETE_BODY; }
-INTERCEPTOR_ATTRIBUTE
-void operator delete(void *ptr, std::align_val_t) NOEXCEPT
-{ OPERATOR_DELETE_BODY; }
-INTERCEPTOR_ATTRIBUTE
-void operator delete[](void *ptr, std::align_val_t) NOEXCEPT
-{ OPERATOR_DELETE_BODY; }
-INTERCEPTOR_ATTRIBUTE
-void operator delete(void *ptr, std::align_val_t, std::nothrow_t const&)
-{ OPERATOR_DELETE_BODY; }
-INTERCEPTOR_ATTRIBUTE
-void operator delete[](void *ptr, std::align_val_t, std::nothrow_t const&)
-{ OPERATOR_DELETE_BODY; }
-INTERCEPTOR_ATTRIBUTE
-void operator delete(void *ptr, size_t size, std::align_val_t) NOEXCEPT
-{ OPERATOR_DELETE_BODY; }
-INTERCEPTOR_ATTRIBUTE
-void operator delete[](void *ptr, size_t size, std::align_val_t) NOEXCEPT
 { OPERATOR_DELETE_BODY; }
 
 #else  // SANITIZER_MAC

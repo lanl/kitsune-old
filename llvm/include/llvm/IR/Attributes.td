@@ -176,6 +176,11 @@ def WriteOnly : EnumAttr<"writeonly">;
 /// Zero extended before/after call.
 def ZExt : EnumAttr<"zeroext">;
 
+/// +===== Kitsune 
+/// Kitsune/FleCSI task attribute. 
+def FleCSITask : EnumAttr<"task">; 
+/// ======
+
 /// Target-independent string attributes.
 def LessPreciseFPMAD : StrBoolAttr<"less-precise-fpmad">;
 def NoInfsFPMath : StrBoolAttr<"no-infs-fp-math">;

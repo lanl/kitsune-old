@@ -230,8 +230,7 @@ namespace clang {
     Stmt *VisitCilkForStmt(CilkForStmt *S);
     // +===== Kitsune
     Stmt *VisitKitsuneStmt(KitsuneStmt *S);
-    // ==============
-
+    // ======
     // Importing expressions
     Expr *VisitExpr(Expr *E);
     Expr *VisitVAArgExpr(VAArgExpr *E);
