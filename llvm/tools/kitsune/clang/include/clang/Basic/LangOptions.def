@@ -297,4 +297,3 @@ BENIGN_LANGOPT(Kokkos, 1, 0, "Enable Kitsune Kokkos code generation")
 #undef VALUE_LANGOPT
 #undef COMPATIBLE_VALUE_LANGOPT
 #undef BENIGN_VALUE_LANGOPT
-

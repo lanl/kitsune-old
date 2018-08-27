@@ -53,10 +53,10 @@ protected:
 class LangOptions : public LangOptionsBase {
 public:
   typedef clang::Visibility Visibility;
-  
+
   enum GCMode { NonGC, GCOnly, HybridGC };
   enum StackProtectorMode { SSPOff, SSPOn, SSPStrong, SSPReq };
-  
+
   enum SignedOverflowBehaviorTy {
     SOB_Undefined,  // Default C standard behavior.
     SOB_Defined,    // -fwrapv
@@ -101,11 +101,7 @@ public:
   };
 
 public:
-  // +===== Kitsune
-  //llvm::TapirTargetType Tapir = llvm::TapirTargetType::PTX;
-  llvm::TapirTargetType Tapir = llvm::TapirTargetType::Cilk;
-  //llvm::tapir::TapirTargetType Tapir = llvm::tapir::TapirTargetType::None;
-  // ==============
+  llvm::TapirTargetType Tapir;
 
   /// \brief Set of enabled sanitizers.
   SanitizerSet Sanitize;
@@ -127,7 +123,7 @@ public:
   clang::ObjCRuntime ObjCRuntime;
 
   std::string ObjCConstantStringClass;
-  
+
   /// \brief The name of the handler function to be called when -ftrapv is
   /// specified.
   ///
@@ -167,10 +163,10 @@ public:
   LangOptions();
 
   // Define accessors/mutators for language options of enumeration type.
-#define LANGOPT(Name, Bits, Default, Description) 
+#define LANGOPT(Name, Bits, Default, Description)
 #define ENUM_LANGOPT(Name, Type, Bits, Default, Description) \
   Type get##Name() const { return static_cast<Type>(Name); } \
-  void set##Name(Type Value) { Name = static_cast<unsigned>(Value); }  
+  void set##Name(Type Value) { Name = static_cast<unsigned>(Value); }
 #include "clang/Basic/LangOptions.def"
 
   /// Are we compiling a module interface (.cppm or module map)?
@@ -186,7 +182,7 @@ public:
   bool isSignedOverflowDefined() const {
     return getSignedOverflowBehavior() == SOB_Defined;
   }
-  
+
   bool isSubscriptPointerArithmetic() const {
     return ObjCRuntime.isSubscriptPointerArithmetic() &&
            !ObjCSubscriptingLegacyRuntime;
@@ -266,7 +262,7 @@ enum TranslationUnitKind {
   /// \brief The translation unit is a module.
   TU_Module
 };
-  
+
 }  // end namespace clang
 
 #endif

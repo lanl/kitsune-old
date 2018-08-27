@@ -71,8 +71,6 @@ struct LoopAttributes {
 
   /// \brief Value for tapir.loop.spawn.strategy metadata.
   LSStrategy SpawnStrategy;
-
-  // ==============
 };
 
 /// \brief Information used when generating a structured loop.
@@ -166,7 +164,6 @@ public:
   void setUnrollCount(unsigned C) { StagedAttrs.UnrollCount = C; }
 
   // +===== Kitsune
-
   /// \brief Set the Tapir-loop spawning strategy for the next loop pushed.
   void setSpawnStrategy(const LoopAttributes::LSStrategy &Strat) {
     StagedAttrs.SpawnStrategy = Strat;

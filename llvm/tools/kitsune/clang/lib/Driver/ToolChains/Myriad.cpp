@@ -170,10 +170,17 @@ void tools::Myriad::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   bool NeedsSanitizerDeps = addSanitizerRuntimes(TC, Args, CmdArgs);
   AddLinkerInputs(getToolChain(), Inputs, Args, CmdArgs, JA);
 
-  // +===== Kitsune
-  if (C.getDriver().CCCIsFleCSI() || C.getDriver().CCCIsKokkos())
+
+  // +===== Kitsune 
+  // Ktisune TODO -- Need to fix this as we don't want to just have cilk as the 
+  // default backend for flecsi and kokkos modes (just trying to merge 
+  // first... --PM) 
+  if (C.getDriver().CCCIsFleCSI() || 
+      C.getDriver().CCCIsKokkos() ||
+      Args.hasArg(options::OPT_fcilkplus) ||
+      Args.hasArg(options::OPT_ftapir) ||
+      Args.hasArg(options::OPT_fdetach))
     CmdArgs.push_back("-lcilkrts");
-  // ==============
 
   if (UseDefaultLibs) {
     if (NeedsSanitizerDeps)

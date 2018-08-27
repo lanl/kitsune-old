@@ -3221,7 +3221,6 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   // +===== Kitsune 
   Args.AddLastArg(CmdArgs, options::OPT_fkokkos);
   Args.AddLastArg(CmdArgs, options::OPT_fgpu);
-
   Args.AddLastArg(CmdArgs, options::OPT_fcilkplus);
   Args.AddLastArg(CmdArgs, options::OPT_fdetach);
   Args.AddLastArg(CmdArgs, options::OPT_ftapir);
@@ -3268,6 +3267,9 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
 
   const SanitizerArgs &Sanitize = getToolChain().getSanitizerArgs();
   Sanitize.addArgs(getToolChain(), Args, CmdArgs, InputType);
+
+  if (Args.hasArg(options::OPT_fcsi))
+    Args.AddLastArg(CmdArgs, options::OPT_fcsi);
 
   const XRayArgs &XRay = getToolChain().getXRayArgs();
   XRay.addArgs(getToolChain(), Args, CmdArgs, InputType);

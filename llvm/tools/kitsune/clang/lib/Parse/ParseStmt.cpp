@@ -371,8 +371,7 @@ Retry:
     //   SkipUntil(tok::semi);
     //   return StmtError();
     // }
-    //return ParseCilkSpawnStatement();
-    assert(false);
+    return ParseCilkSpawnStatement();
 
   case tok::kw__Cilk_sync:               // [CP] _Cilk_sync statement
     // if (!getLangOpts().Cilk) {
@@ -380,9 +379,8 @@ Retry:
     //   SkipUntil(tok::semi);
     //   return StmtError();
     // }
-    assert(false);
-    //Res = ParseCilkSyncStatement();
-    //SemiError = "_Cilk_sync";
+    Res = ParseCilkSyncStatement();
+    SemiError = "_Cilk_sync";
     break;
 
   case tok::kw__Cilk_for:
@@ -391,8 +389,7 @@ Retry:
     //   SkipUntil(tok::semi);
     //   return StmtError();
     // }
-    assert(false);
-    //return ParseCilkForStatement(TrailingElseLoc);
+    return ParseCilkForStatement(TrailingElseLoc);
 
   case tok::annot_pragma_openmp:
     ProhibitAttributes(Attrs);

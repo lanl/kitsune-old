@@ -2104,7 +2104,6 @@ void CodeGenFunction::IsSpawnedScope::RestoreOldScope() {
   CGF->IsSpawned = OldIsSpawned;
 }
 
-// +===== Kitsune =============================
 void CodeGenFunction::DetachScope::InitDetachScope() {
   // Create the detached and continue blocks.
   DetachedBlock = CGF.createBasicBlock("det.achd");
@@ -2125,8 +2124,6 @@ void CodeGenFunction::DetachScope::RestoreDetachScope() {
 }
 
 void CodeGenFunction::DetachScope::StartDetach() {
-  // ndm - fix
-  return;
   if (!DetachInitialized)
     InitDetachScope();
   else
@@ -2227,7 +2224,6 @@ Address CodeGenFunction::DetachScope::CreateDetachedMemTemp(QualType Ty,
 
   return RefTmp;
 }
-// =========================================
 
 void CodeGenFunction::InsertHelper(llvm::Instruction *I,
                                    const llvm::Twine &Name,

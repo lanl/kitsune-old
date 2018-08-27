@@ -2744,15 +2744,11 @@ void CodeGenFunction::EmitFunctionEpilog(const CGFunctionInfo &FI,
     return;
   }
 
-  // +===== Kitsune
-  // +===== Kitsune
   if (CurSyncRegion && CurSyncRegion->getSyncRegionStart()) {
     llvm::BasicBlock* SyncBlock = createBasicBlock("preSyncL");
     Builder.CreateSync(SyncBlock, CurSyncRegion->getSyncRegionStart());
     EmitBlock(SyncBlock);
-  // ==============
   }
-  // ==============
 
   // Functions with no result always return void.
   if (!ReturnValue.isValid()) {

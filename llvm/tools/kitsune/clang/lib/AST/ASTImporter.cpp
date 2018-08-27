@@ -228,7 +228,6 @@ namespace clang {
     Stmt *VisitCilkSpawnStmt(CilkSpawnStmt *S);
     Stmt *VisitCilkSyncStmt(CilkSyncStmt *S);
     Stmt *VisitCilkForStmt(CilkForStmt *S);
-
     // +===== Kitsune
     Stmt *VisitKitsuneStmt(KitsuneStmt *S);
     // ==============
