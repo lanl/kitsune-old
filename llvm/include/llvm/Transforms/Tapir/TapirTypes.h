@@ -25,7 +25,6 @@ enum class TapirTargetType {
   CilkR = 4,
   Qthreads = 5,
   PTX = 6
-  Qthreads = 5
 };
 
 } // end namespace llvm
