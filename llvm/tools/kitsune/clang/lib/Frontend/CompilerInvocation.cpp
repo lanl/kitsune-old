@@ -2761,17 +2761,7 @@ bool CompilerInvocation::CreateFromArgs(CompilerInvocation &Res,
     //Res.getPreprocessorOpts().Includes.push_back("flecsi/flecsi.h");
   }
 
-  LangOpts.GPU = Args.hasArg(OPT_fgpu);
-
-  if (LangOpts.GPU) {
-    LangOpts.Tapir = llvm::TapirTargetType::PTX;    
-  }
-  else if (LangOpts.FleCSI) {
-    LangOpts.Tapir = llvm::TapirTargetType::Cilk;    
-  }
-
   LangOpts.Kokkos = Args.hasArg(OPT_fkokkos);
-
   // ==============
 
   // FIXME: Override value name discarding when asan or msan is used because the

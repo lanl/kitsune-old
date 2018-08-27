@@ -3220,7 +3220,6 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
 
   // +===== Kitsune 
   Args.AddLastArg(CmdArgs, options::OPT_fkokkos);
-  Args.AddLastArg(CmdArgs, options::OPT_fgpu);
   // ==============
   
   // Forward flags for Cilk.
@@ -3228,6 +3227,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   Args.AddLastArg(CmdArgs, options::OPT_fdetach);
   Args.AddLastArg(CmdArgs, options::OPT_ftapir);
   Args.AddLastArg(CmdArgs, options::OPT_frhino);
+
   if (Args.hasArg(options::OPT_fcilkplus) ||
       Args.hasArg(options::OPT_ftapir) ||
       Args.hasArg(options::OPT_fdetach))

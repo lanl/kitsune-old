@@ -573,12 +573,16 @@ void tools::gnutools::Linker::ConstructJob(Compilation &C, const JobAction &JA,
         CmdArgs.push_back("-lhwloc");
         CmdArgs.push_back("-lnuma");
         CmdArgs.push_back("-lpthread");
-      } else if (Name == "gpu" || Args.hasArg(options::OPT_fgpu)) {
+      } else if (Name == "ptx") { // nvidia-centric codegen... 
 	CmdArgs.push_back(ToolChain.getCompilerRTArgString(Args, "kitsune", false));
 	CmdArgs.push_back("-lcuda");
       }
     }
   }
+
+  // +===== Auto-enable C++ 14 for FleCSI
+  if (D.CCCIsFleCSI())
+    CmdArgs.push_back("-std=c++14");  
 
   if (D.CCCIsCXX() &&
       !Args.hasArg(options::OPT_nostdlib, options::OPT_nodefaultlibs)) {
