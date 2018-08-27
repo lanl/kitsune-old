@@ -333,6 +333,10 @@ static Attr *ProcessStmtAttribute(Sema &S, Stmt *St, const AttributeList &A,
     return handleOpenCLUnrollHint(S, St, A, Range);
   case AttributeList::AT_Suppress:
     return handleSuppressAttr(S, St, A, Range);
+  // +===== Kitsune: TODO -- 
+  case AttributeList::AT_Tapir
+    break;
+  // ======
   default:
     // if we're here, then we parsed a known attribute, but didn't recognize
     // it as a statement attribute => it is declaration attribute

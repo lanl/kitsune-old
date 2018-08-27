@@ -2779,4 +2779,9 @@ def FleCSITask : Attr {
   let Subjects  = SubjectList<[Function], ErrorDiag, "ExpectedFunction">;
   let Documentation = [Undocumented];
 }
+
+def TapirAttr : StmtAttr {
+  let Spellings = [CXX11<"tapir","target">];
+  let Documentation = [Undocumented];
+}
 // ==============
