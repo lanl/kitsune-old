@@ -3218,10 +3218,22 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   Args.AddLastArg(CmdArgs, options::OPT_fdiagnostics_show_template_tree);
   Args.AddLastArg(CmdArgs, options::OPT_fno_elide_type);
 
-  // +===== Kokkos
+  // +===== Kitsune 
   Args.AddLastArg(CmdArgs, options::OPT_fkokkos);
   Args.AddLastArg(CmdArgs, options::OPT_fgpu);
-  // ==============
+
+  Args.AddLastArg(CmdArgs, options::OPT_fcilkplus);
+  Args.AddLastArg(CmdArgs, options::OPT_fdetach);
+  Args.AddLastArg(CmdArgs, options::OPT_ftapir);
+  Args.AddLastArg(CmdArgs, options::OPT_frhino);
+  if (Args.hasArg(options::OPT_fcilkplus) ||
+      Args.hasArg(options::OPT_ftapir) ||
+      Args.hasArg(options::OPT_fdetach))
+    if (getToolChain().getTriple().getOS() != llvm::Triple::Linux &&
+        getToolChain().getTriple().getOS() != llvm::Triple::UnknownOS &&
+        !getToolChain().getTriple().isMacOSX())
+      D.Diag(diag::err_drv_cilk_unsupported);
+  // ======
 
   // Forward flags for OpenMP. We don't do this if the current action is an
   // device offloading action other than OpenMP.
