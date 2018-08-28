@@ -20,6 +20,7 @@
 #include "clang/Sema/ScopeInfo.h"
 #include "llvm/ADT/StringExtras.h"
 
+#include <iostream>
 using namespace clang;
 using namespace sema;
 
@@ -80,26 +81,34 @@ static Attr *handleSuppressAttr(Sema &S, Stmt *St, const AttributeList &A,
 
 static Attr *handleTapirAttr(Sema &S, Stmt *St, const AttributeList &A, 
                              SourceRange Range) {
-  if (A.getNumArgs() < 1) {
-    S.Diag(A.getLoc(), diag::err_attribute_too_few_arguments) << A.getName() << 1;
-    return nullptr;
-  }
-
   if (!isa<ForStmt>(St)) {
-    S.Diag(A.getLoc(), diag::warn_unknown_attribute_ignored) << A.getName();
+    S.Diag(A.getLoc(), diag::err_tapir_target_invalid_stmt);
     return nullptr;
   }
-  std::vector<StringRef> DiagnosticIdentifiers;
-  for(unsigned I = 0, E = A.getNumArgs(); I != E; ++I) {
-    StringRef RuleName;
-    if (!S.checkStringLiteralArgumentAttr(A, I, RuleName, nullptr))
-      return nullptr;
-    DiagnosticIdentifiers.push_back(RuleName);
+
+  if (A.getNumArgs() != 1) {
+    S.Diag(A.getLoc(), diag::err_tapir_target_single_argument);
+    return nullptr;
   }
 
-  return ::new (S.Context) TapirAttr(
-      A.getRange(), S.Context, DiagnosticIdentifiers.data(), 
-      DiagnosticIdentifiers.size(), A.getAttributeSpellingListIndex());
+  StringRef Str;
+  SourceLocation ArgLoc;
+
+  if (!S.checkStringLiteralArgumentAttr(A, 0, Str, &ArgLoc))  {
+    S.Diag(A.getLoc(), diag::err_tapir_target_unrecognized); 
+    return nullptr;
+  }
+
+  TapirTargetAttr::TapirTargetTy Kind;
+  if (!TapirTargetAttr::ConvertStrToTapirTargetTy(Str, Kind)) {
+    S.Diag(A.getLoc(), diag::err_tapir_target_unrecognized) 
+      << A.getName() << Str << ArgLoc;
+    return nullptr;
+  }
+
+  unsigned Index = A.getAttributeSpellingListIndex();
+  return ::new (S.Context) 
+    TapirTargetAttr(A.getLoc(), S.Context, Kind, Index);
 }
 
 
@@ -359,7 +368,7 @@ static Attr *ProcessStmtAttribute(Sema &S, Stmt *St, const AttributeList &A,
   case AttributeList::AT_Suppress:
     return handleSuppressAttr(S, St, A, Range);
   // +===== Kitsune: TODO -- 
-  case AttributeList::AT_Tapir:
+  case AttributeList::AT_TapirTarget:
     return handleTapirAttr(S, St, A, Range);
     break;
   // ======
@@ -387,3 +396,4 @@ StmtResult Sema::ProcessStmtAttributes(Stmt *S, AttributeList *AttrList,
 
   return ActOnAttributedStmt(Range.getBegin(), Attrs, S);
 }
+

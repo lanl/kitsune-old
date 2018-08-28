@@ -2775,14 +2775,18 @@ def InternalLinkage : InheritableAttr {
 
 // +===== Kitsune
 def FleCSITask : Attr {
-  let Spellings = [CXX11<"clang", "task">];
+  let Spellings = [CXX11<"flecsi", "task">];
   let Subjects  = SubjectList<[Function], ErrorDiag, "ExpectedFunction">;
   let Documentation = [Undocumented];
 }
 
-def Tapir : StmtAttr {
+def TapirTarget : StmtAttr {
   let Spellings = [CXX11<"tapir","target">];
-  let Args = [VariadicStringArgument<"DiagnosticIdentifiers">];
+  let Args = [
+      EnumArgument<"TapirTargetType", "TapirTargetTy",
+      ["ptx", "cilk", "qthreads", "realm", "rocm"],
+      ["TapirTargetPTX", "TapirTargetCilk", "TapirTargetQthreads", "TapirTargetRealm", "TapirTargetROCm"], 0> 
+  ];
   let Documentation = [Undocumented];
 }
 // ==============

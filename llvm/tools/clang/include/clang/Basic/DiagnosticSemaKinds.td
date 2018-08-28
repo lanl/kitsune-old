@@ -3328,6 +3328,15 @@ def note_protocol_decl : Note<
 def note_protocol_decl_undefined : Note<
   "protocol %0 has no definition">;
 
+// +===== Kitsune/Tapir-Specific Attributes 
+def err_tapir_target_single_argument: Error<
+  "tapir target requires a single argument.">;
+def err_tapir_target_invalid_stmt: Error<
+  "tapir target attribute may only be applied to for[all] statements">;
+def err_tapir_target_unrecognized: Error<
+  "unrecognized tapir target">;
+// ======
+
 // objc_designated_initializer attribute diagnostics.
 def warn_objc_designated_init_missing_super_call : Warning<
   "designated initializer missing a 'super' call to a designated initializer of the super class">,
