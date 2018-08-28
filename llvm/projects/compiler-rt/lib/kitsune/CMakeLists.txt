@@ -14,7 +14,7 @@ foreach (arch ${KITSUNE_SUPPORTED_ARCH})
     STATIC
     ARCHS ${arch}
     SOURCES ${KITSUNE_SOURCES}
-    CFLAGS ${KITSUNE_RTL_CFLAGS}
+    CFLAGS ${KITSUNE_RTL_CFLAGS} -D_GLIBCXX_USE_CXX11_ABI=0
     PARENT_TARGET kitsune)
   add_dependencies(kitsune
     clang_rt.kitsune-${arch})

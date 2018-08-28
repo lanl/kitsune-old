@@ -206,7 +206,7 @@ struct MacroData
    inline std::string str(
       const std::size_t a,
       const std::size_t t,
-      clang::Sema &sema
+      const clang::Sema &sema
    ) const {
       kitsune_debug("MacroData::str(a,t)");
       assert(a < args.size());
@@ -217,7 +217,7 @@ struct MacroData
    // String representation of argument [a] (all tokens put together)
    inline std::string str(
       const std::size_t a,
-      clang::Sema &sema
+      const clang::Sema &sema
    ) const {
       kitsune_debug("MacroData::str(a)");
       assert(a < args.size());
@@ -1085,6 +1085,14 @@ namespace yaml {
 //    ( client_handle, nspace, name, data_type, storage_class, version )
 // flecsi_get_client_handle
 //    ( client_type, nspace, name )
+
+// The following appear to be either deprecated or not not-yet-implemented.
+// They both insert calls to
+//    flecsi::data::field_interface_t::get_handles<>()
+// which in turn forward to purported get_handles() functions in DATA_POLICY::.
+// However, no DATA_POLICY::get_handles() functions are actually defined in
+// any data policy classes I can find. So, I won't implement those two here,
+// until and unless I determine that they're relevant and wanted.
 // flecsi_get_handles
 //    ( client, nspace, data_type, storage_class, version, ... )
 // flecsi_get_handles_all
@@ -1142,6 +1150,7 @@ struct MappingTraits<FlecsiGetClientHandle> {
 
 
 
+/*
 // flecsi_get_handles
 struct FlecsiGetHandles : public flecsi_base {
    kitsune_macro_ctor(FlecsiGetHandles, flecsi_get_handles)
@@ -1193,6 +1202,7 @@ struct MappingTraits<FlecsiGetHandlesAll> {
       kitsune_map(varargs);
    }
 };
+*/
 
 } // namespace yaml
 } // namespace llvm
@@ -1300,6 +1310,39 @@ struct MappingTraits<FlecsiGetColor> {
 
 
 // -----------------------------------------------------------------------------
+// From FleCSI's data.h
+// Miscellaneous macros.
+// -----------------------------------------------------------------------------
+
+namespace llvm {
+namespace yaml {
+
+// FleCSI macros:
+//
+// flecsi_has_attribute    ( attribute)
+// flecsi_is_at            (            index_space )
+// flecsi_has_attribute_at ( attribute, index_space )
+//
+// flecsi_put_all_handles
+// ( client, storage_class, num_handles, handles, hashes, namespaces, versions )
+// flecsi_get_all_handles
+// ( client, storage_class,              handles, hashes, namespaces, versions )
+//
+// In fact, it appears that these are all deprecated, so I won't implement any
+// processing of those macros, unless I determine otherwise. The first three
+// are used only in the flecsi/data/test/storage_class.cc; but I noticed while
+// working elsewhere that that test doesn't currently seem to be included in
+// the test suite. As for the flecsi_[put|get]_all_handles macros, they aren't
+// called from anywhere in the current FleCSI code. Also, they insert code with
+// calls to function templates called put_all_handles and get_all_handles; those
+// are nowhere to be found in FleCSI.
+
+} // namespace yaml
+} // namespace llvm
+
+
+
+// -----------------------------------------------------------------------------
 // FleCSIMetadata
 // -----------------------------------------------------------------------------
 
@@ -1336,8 +1379,8 @@ struct FleCSIMetadata {
 
    kitsune_make_vector(FlecsiGetHandle);
    kitsune_make_vector(FlecsiGetClientHandle);
-   kitsune_make_vector(FlecsiGetHandles);
-   kitsune_make_vector(FlecsiGetHandlesAll);
+   //kitsune_make_vector(FlecsiGetHandles);
+   //kitsune_make_vector(FlecsiGetHandlesAll);
 
    kitsune_make_vector(FlecsiGetMutator);
    kitsune_make_vector(FlecsiGetGlobal);
@@ -1379,8 +1422,8 @@ struct MappingTraits<FleCSIMetadata> {
 
       kitsune_map(FlecsiGetHandle);
       kitsune_map(FlecsiGetClientHandle);
-      kitsune_map(FlecsiGetHandles);
-      kitsune_map(FlecsiGetHandlesAll);
+      //kitsune_map(FlecsiGetHandles);
+      //kitsune_map(FlecsiGetHandlesAll);
 
       kitsune_map(FlecsiGetMutator);
       kitsune_map(FlecsiGetGlobal);
@@ -1597,7 +1640,6 @@ class FleCSIAnalyzer::PreprocessorAnalyzer : public clang::PPCallbacks
    const std::set<std::string> flecsiMacros_;
 
    // Miscellaneous information (from clang) that we'll need here and there
-   clang::Sema &sema_;
    clang::SourceManager &sourceMgr_;
    const clang::LangOptions &langOpts_;
 
@@ -1617,7 +1659,7 @@ class FleCSIAnalyzer::PreprocessorAnalyzer : public clang::PPCallbacks
 public:
 
    // constructor, destructor
-   PreprocessorAnalyzer(clang::Sema &);
+   PreprocessorAnalyzer(const clang::Sema &);
   ~PreprocessorAnalyzer();
 
    // PPCallbacks overrides
@@ -1645,7 +1687,7 @@ public:
 // Destructor
 // ------------------------
 
-FleCSIAnalyzer::PreprocessorAnalyzer::PreprocessorAnalyzer(clang::Sema &sema) :
+FleCSIAnalyzer::PreprocessorAnalyzer::PreprocessorAnalyzer(const clang::Sema &sema) :
 
    flecsiMacros_({
       "flecsi_register_task_simple",
@@ -1675,17 +1717,16 @@ FleCSIAnalyzer::PreprocessorAnalyzer::PreprocessorAnalyzer(clang::Sema &sema) :
 
       "flecsi_get_handle",
       "flecsi_get_client_handle",
-      "flecsi_get_handles",
-      "flecsi_get_handles_all",
+      //"flecsi_get_handles",
+      //"flecsi_get_handles_all",
 
       "flecsi_get_mutator",
       "flecsi_get_global",
       "flecsi_get_color"
    }),
 
-   sema_(sema),
-   sourceMgr_(sema_.getSourceManager()),
-   langOpts_(sema_.getLangOpts())
+   sourceMgr_(sema.getSourceManager()),
+   langOpts_(sema.getLangOpts())
 {
    kitsune_debug("PreprocessorAnalyzer::PreprocessorAnalyzer()");
 }
@@ -1844,13 +1885,12 @@ namespace {
 class Analyzer : public clang::RecursiveASTVisitor<Analyzer>
 {
    clang::Sema &sema_;
-   clang::sema::FleCSIAnalyzer::PreprocessorAnalyzer *pa_;
    llvm::yaml::FleCSIMetadata &md_;  // FleCSIMetadata: see above
 
 public:
    Analyzer(
-      clang::Sema &,
-      clang::sema::FleCSIAnalyzer::PreprocessorAnalyzer *const
+      clang::Sema &
+///,      clang::sema::FleCSIAnalyzer::PreprocessorAnalyzer *const
    );
   ~Analyzer();
 
@@ -1864,22 +1904,6 @@ public:
    // be pulled outside of the class?
    std::string getName         (const clang::NamedDecl *const);
    std::string getQualifiedName(const clang::NamedDecl *const);
-
-   /*
-   const clang::TemplateArgumentList
-     *getTemplateArgs(const clang::FunctionDecl *const);
-   const clang::CXXRecordDecl
-     *getClassDecl   (clang::QualType);
-   const clang::CXXMethodDecl
-     *getMethod      (const clang::CallExpr *const);
-
-   std::int64_t
-   getIntArg (const clang::TemplateArgumentList *const, const std::size_t);
-   std::uint64_t
-   getUIntArg(const clang::TemplateArgumentList *const, const std::size_t);
-   clang::QualType
-   getTypeArg(const clang::TemplateArgumentList *const, const std::size_t);
-   */
 
    const clang::CallExpr *getClassCall( // 3-argument
       const clang::Expr *const, const std::string &, const std::string &);
@@ -1904,14 +1928,10 @@ public:
 // Destructor
 // ------------------------
 
-// This is only called from within FleCSIAnalyzer::gatherMetadata()
-Analyzer::Analyzer(
-   clang::Sema &sema,
-   clang::sema::FleCSIAnalyzer::PreprocessorAnalyzer *const pa
-)
+// qqq This is only called from within FleCSIAnalyzer::gatherMetadata()
+Analyzer::Analyzer(clang::Sema &sema)
  : sema_(sema),
-   pa_(pa),
-   md_(pa_->metadata())
+   md_(clang::sema::FleCSIAnalyzer::instance().pa_->metadata())
 {
    kitsune_debug("Analyzer::Analyzer()");
 }
@@ -1932,12 +1952,18 @@ bool Analyzer::VisitVarDecl(const clang::VarDecl *const var)
    kitsune_debug("Analyzer::VisitVarDecl()");
    kitsune_print(var->getNameAsString());
 
-   // *_registered
+   // The following was here when I (Martin) took over the code, but it appears
+   // to have little effect on code timing - for my test codes, at least, which
+   // may not be representative of more-general FleCSI codes. Given that this
+   // check necessarily creates a maintenance issue (if the names of variables
+   // created by certain FleCSI macros are changed), I'll remove it for now.
+   /*
    if (!var->getName().endswith("_registered"))
       return true;
+   */
 
    // Associated MacroData
-   const MacroData *const macptr = pa_->getMacroData(var->getLocStart());
+   const MacroData *const macptr = clang::sema::FleCSIAnalyzer::instance().pa_->getMacroData(var->getLocStart());
    if (!macptr)
       return true;
    const MacroData &macdata = *macptr;
@@ -2183,7 +2209,7 @@ bool Analyzer::VisitCallExpr(clang::CallExpr *const call)
    if (!dn || !dn.isIdentifier())
       return true;
 
-   const MacroData *const macptr = pa_->getMacroData(call->getLocStart());
+   const MacroData *const macptr = clang::sema::FleCSIAnalyzer::instance().pa_->getMacroData(call->getLocStart());
    if (!macptr)
       return true;
    const MacroData &macdata = *macptr;
@@ -2452,7 +2478,7 @@ bool Analyzer::VisitCallExpr(clang::CallExpr *const call)
 
 
 
-   // qqq Still relevant, or deprecated...?
+   /*
    // flecsi_get_handles
    if (name == "flecsi_get_handles") {
       if (getClassCall(
@@ -2490,6 +2516,7 @@ bool Analyzer::VisitCallExpr(clang::CallExpr *const call)
          md_.FlecsiGetHandlesAll.push_back(c);
       }
    }
+   */
 
 
 
@@ -2537,7 +2564,7 @@ bool Analyzer::VisitTypeAliasDecl(clang::TypeAliasDecl *const ta)
    kitsune_print(ta->getNameAsString());
 
    // Associated MacroData
-   const MacroData *const macptr = pa_->getMacroData(ta->getLocStart());
+   const MacroData *const macptr = clang::sema::FleCSIAnalyzer::instance().pa_->getMacroData(ta->getLocStart());
    if (!macptr)
       return true;
    const MacroData &macdata = *macptr;
@@ -2568,7 +2595,6 @@ bool Analyzer::VisitTypeAliasDecl(clang::TypeAliasDecl *const ta)
 bool Analyzer::VisitTranslationUnitDecl(clang::TranslationUnitDecl *const d)
 {
    kitsune_debug("Analyzer::VisitTranslationUnitDecl()");
-
    for (auto di : d->decls())
       TraverseDecl(di);
    return true;
@@ -2742,11 +2768,9 @@ bool Analyzer::isDerivedFrom(
 
 
 // -----------------------------------------------------------------------------
-// -----------------------------------------------------------------------------
 // Definitions
 // For FleCSIAnalyzer member functions.
 // See FleCSIAnalyzer.h
-// -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
 
 namespace clang {
@@ -2754,9 +2778,13 @@ namespace sema {
 
 // instance
 // static
-FleCSIAnalyzer &FleCSIAnalyzer::instance(Sema *const sema)
+FleCSIAnalyzer &FleCSIAnalyzer::instance(const Sema *const sema)
 {
-   kitsune_debug("FleCSIAnalyzer::instance()");
+   static bool firstcall = true;
+   if (firstcall) {
+      assert(sema != nullptr);
+      firstcall = false;
+   }
    static FleCSIAnalyzer obj(*sema);
    return obj;
 }
@@ -2764,28 +2792,21 @@ FleCSIAnalyzer &FleCSIAnalyzer::instance(Sema *const sema)
 
 
 // constructor
-FleCSIAnalyzer::FleCSIAnalyzer(Sema &sema)
- : sema_(sema),
-   pa_(new PreprocessorAnalyzer(sema))
+FleCSIAnalyzer::FleCSIAnalyzer(const Sema &sema)
+ : pa_(new PreprocessorAnalyzer(sema))
 {
-   kitsune_debug("FleCSIAnalyzer::FleCSIAnalyzer() begin");
-   sema_.getPreprocessor().addPPCallbacks(
+   sema.getPreprocessor().addPPCallbacks(
       std::unique_ptr<PreprocessorAnalyzer>(pa_));
-   kitsune_debug("FleCSIAnalyzer::FleCSIAnalyzer() end");
 }
 
 
 
 // gatherMetadata
 // Seems to be called many times
-void FleCSIAnalyzer::gatherMetadata(Decl *decl)
+void FleCSIAnalyzer::gatherMetadata(Sema &sema, Decl *const decl)
 {
-   kitsune_debug("FleCSIAnalyzer::gatherMetadata()");
-
-   Analyzer analyzer(sema_, pa_);
-   kitsune_debug("call TraverseDecl()");
+   Analyzer analyzer(sema);
    analyzer.TraverseDecl(decl);
-   kitsune_debug("done TraverseDecl()");
 }
 
 
@@ -2794,8 +2815,7 @@ void FleCSIAnalyzer::gatherMetadata(Decl *decl)
 // Seems to be called just once
 void FleCSIAnalyzer::finalizeMetadata(const CompilerInstance &)
 {
-   kitsune_debug("FleCSIAnalyzer::finalizeMetadata()");
-
+#ifdef KITSUNE_DEBUG
    // get metadata
    llvm::yaml::FleCSIMetadata &meta = pa_->metadata();
 
@@ -2806,16 +2826,15 @@ void FleCSIAnalyzer::finalizeMetadata(const CompilerInstance &)
    yout << meta;
 
    raw.flush(); // <-- necessary
-   kitsune_print(str);
 
    // open file
    // qqq Eventually, figure out where this goes (w/o the full path,
    // which we obviously don't really want).
    std::ofstream ofs("/home/staley/llvm/f/.flecsi-analyzer");
-   ///std::ofstream ofs(".flecsi-analyzer");
 
    // write string to file
    ofs << raw.str();
+#endif
 }
 
 
@@ -2823,7 +2842,6 @@ void FleCSIAnalyzer::finalizeMetadata(const CompilerInstance &)
 // destructor
 FleCSIAnalyzer::~FleCSIAnalyzer()
 {
-   kitsune_debug("FleCSIAnalyzer::~FleCSIAnalyzer()");
    delete pa_;
 }
 
