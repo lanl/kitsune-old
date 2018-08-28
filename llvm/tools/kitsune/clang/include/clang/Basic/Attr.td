@@ -2780,8 +2780,9 @@ def FleCSITask : Attr {
   let Documentation = [Undocumented];
 }
 
-def TapirAttr : StmtAttr {
+def Tapir : StmtAttr {
   let Spellings = [CXX11<"tapir","target">];
+  let Args = [VariadicStringArgument<"DiagnosticIdentifiers">];
   let Documentation = [Undocumented];
 }
 // ==============

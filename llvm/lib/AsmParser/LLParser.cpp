@@ -1125,6 +1125,7 @@ bool LLParser::ParseFnAttributeValuePairs(AttrBuilder &B,
     case lltok::kw_writeonly: B.addAttribute(Attribute::WriteOnly); break;
     // +===== Kitsune 
     case lltok::kw_flecsiTask: B.addAttribute(Attribute::FleCSITask); break;
+    case lltok::kw_tapir: B.addAttribute(Attribute::Tapir); break;
     // ======
   
     // Error handling.

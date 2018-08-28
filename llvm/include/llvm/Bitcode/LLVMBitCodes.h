@@ -563,7 +563,8 @@ enum AttributeKindCodes {
   ATTR_KIND_ALLOC_SIZE = 51,
   ATTR_KIND_WRITEONLY = 52,
   ATTR_KIND_SPECULATABLE = 53,
-  ATTR_KIND_FleCSITask = 55
+  ATTR_KIND_FleCSITask = 55,
+  ATTR_KIND_Tapir = 56
 };
 
 enum ComdatSelectionKindCodes {

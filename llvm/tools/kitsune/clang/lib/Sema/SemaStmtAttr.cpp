@@ -78,6 +78,31 @@ static Attr *handleSuppressAttr(Sema &S, Stmt *St, const AttributeList &A,
       DiagnosticIdentifiers.size(), A.getAttributeSpellingListIndex());
 }
 
+static Attr *handleTapirAttr(Sema &S, Stmt *St, const AttributeList &A, 
+                             SourceRange Range) {
+  if (A.getNumArgs() < 1) {
+    S.Diag(A.getLoc(), diag::err_attribute_too_few_arguments) << A.getName() << 1;
+    return nullptr;
+  }
+
+  if (!isa<ForStmt>(St)) {
+    S.Diag(A.getLoc(), diag::warn_unknown_attribute_ignored) << A.getName();
+    return nullptr;
+  }
+  std::vector<StringRef> DiagnosticIdentifiers;
+  for(unsigned I = 0, E = A.getNumArgs(); I != E; ++I) {
+    StringRef RuleName;
+    if (!S.checkStringLiteralArgumentAttr(A, I, RuleName, nullptr))
+      return nullptr;
+    DiagnosticIdentifiers.push_back(RuleName);
+  }
+
+  return ::new (S.Context) TapirAttr(
+      A.getRange(), S.Context, DiagnosticIdentifiers.data(), 
+      DiagnosticIdentifiers.size(), A.getAttributeSpellingListIndex());
+}
+
+
 static Attr *handleLoopHintAttr(Sema &S, Stmt *St, const AttributeList &A,
                                 SourceRange) {
   IdentifierLoc *PragmaNameLoc = A.getArgAsIdent(0);
@@ -334,7 +359,8 @@ static Attr *ProcessStmtAttribute(Sema &S, Stmt *St, const AttributeList &A,
   case AttributeList::AT_Suppress:
     return handleSuppressAttr(S, St, A, Range);
   // +===== Kitsune: TODO -- 
-  case AttributeList::AT_Tapir
+  case AttributeList::AT_Tapir:
+    return handleTapirAttr(S, St, A, Range);
     break;
   // ======
   default:

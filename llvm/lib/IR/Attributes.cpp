@@ -342,6 +342,8 @@ std::string Attribute::getAsString(bool InAttrGrp) const {
   // +===== Kitsune 
   if (hasAttribute(Attribute::FleCSITask))
     return "task";
+  if (hasAttribute(Attribute::Tapir))
+    return "tapir";
   // ======
 
   // FIXME: These should be output like this:

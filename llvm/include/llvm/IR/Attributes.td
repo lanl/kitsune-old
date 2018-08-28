@@ -177,8 +177,8 @@ def WriteOnly : EnumAttr<"writeonly">;
 def ZExt : EnumAttr<"zeroext">;
 
 /// +===== Kitsune 
-/// Kitsune/FleCSI task attribute. 
-def FleCSITask : EnumAttr<"task">; 
+def FleCSITask : EnumAttr<"task">;  /// Kitsune/FleCSI task attribute. 
+def Tapir: EnumAttr<"tapir">;       /// Tapir target attribute. 
 /// ======
 
 /// Target-independent string attributes.

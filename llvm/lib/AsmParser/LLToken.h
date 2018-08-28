@@ -370,6 +370,7 @@ enum Kind {
 
   // +===== Kitsune 
   kw_flecsiTask,
+  kw_tapir, 
   // ======
 };
 } // end namespace lltok
