@@ -254,8 +254,14 @@ void darwin::Linker::AddLinkArgs(Compilation &C, const ArgList &Args,
   }
 
   // +===== Kitsune
-  if (D.CCCIsFleCSI() || D.CCCIsKokkos())
+  if (D.CCCIsFleCSI() || D.CCCIsKokkos()) {
     CmdArgs.push_back("-lcilkrts");
+    if (Args.hasArg(options::OPT_fgpu)) {
+      CmdArgs.push_back("-lcuda");
+      getToolChain().getCompilerRTArgString(Args, "kitsune", false);
+    }
+  }
+
   // ==============
 
   // ld64 version 262 and above run the deduplicate pass by default.

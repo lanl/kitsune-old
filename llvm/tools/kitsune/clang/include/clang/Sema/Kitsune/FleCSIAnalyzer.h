@@ -62,25 +62,28 @@ namespace sema {
 
 class FleCSIAnalyzer {
 public:
+
    class PreprocessorAnalyzer;
-   static FleCSIAnalyzer &instance(Sema *const = nullptr);
-   void gatherMetadata(Decl *);
+
+   static FleCSIAnalyzer &instance(const clang::Sema *const = nullptr);
+
+   void gatherMetadata(clang::Sema &, Decl *const);
    void finalizeMetadata(const CompilerInstance &);
-   Sema &getSema() { return sema_; }
 
-private:
+///private:
    // data
-   Sema &sema_;
    PreprocessorAnalyzer *const pa_;
-
+private:
    // singleton ==> private ctor/dtor/assignment
-   FleCSIAnalyzer(Sema &);
+   FleCSIAnalyzer(const clang::Sema &);
   ~FleCSIAnalyzer();
+
    FleCSIAnalyzer &operator=(const FleCSIAnalyzer &)
    {
       assert(false);
       return *this;
    }
+
 }; // class FleCSIAnalyzer
 
 } // namespace sema

@@ -148,11 +148,9 @@ void clang::ParseAST(Sema &S, bool PrintStats, bool SkipFunctionBodies) {
     External->StartTranslationUnit(Consumer);
 
   // +===== Kitsune
-  bool isFleCSI = P.getLangOpts().FleCSI;
-
-  if(isFleCSI){
+  const bool isFleCSI = P.getLangOpts().FleCSI;
+  if (isFleCSI)
     (void)sema::FleCSIAnalyzer::instance(&S);
-  }    
   // +=============
 
   for (bool AtEOF = P.ParseFirstTopLevelDecl(ADecl); !AtEOF;
@@ -162,11 +160,9 @@ void clang::ParseAST(Sema &S, bool PrintStats, bool SkipFunctionBodies) {
     // skipping something.
 
     // +===== Kitsune
-    if(isFleCSI){
-      for(Decl* di : ADecl.get()){
-        sema::FleCSIAnalyzer::instance().gatherMetadata(di);
-      }
-    }
+    if (isFleCSI)
+      for (Decl *di : ADecl.get())
+        sema::FleCSIAnalyzer::instance().gatherMetadata(S,di);
     // +=============
 
     if (ADecl && !Consumer->HandleTopLevelDecl(ADecl.get()))

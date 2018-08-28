@@ -1009,9 +1009,8 @@ void ASTFrontendAction::ExecuteAction() {
            CI.getFrontendOpts().SkipFunctionBodies);
 
   // +===== Kitsune
-  if(CI.getLangOpts().FleCSI){
+  if (CI.getLangOpts().FleCSI)
     sema::FleCSIAnalyzer::instance().finalizeMetadata(CI);
-  }
   // +=============
 }
 
