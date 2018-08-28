@@ -16,7 +16,7 @@
 
 #define REALM_ENABLE_C_BINDINGS TRUE
 
-#include "realm.h"
+#include "/users/aperry/local/legion/include/realm.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
