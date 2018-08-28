@@ -282,6 +282,13 @@ public:
     mark(S->getBody());
     return true;
   }
+
+  bool VisitForAllStmt(ForAllStmt *S) {
+    mark(S->getInit());
+    mark(S->getInc());
+    mark(S->getBody());
+    return true;
+  }
   
 private:
   void mark(Stmt *S) {

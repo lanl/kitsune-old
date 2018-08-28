@@ -1944,6 +1944,13 @@ public:
                                         IdentifierInfo *Ident,
                                         ParsedAttributes &Attrs,
                                         SourceLocation AttrEnd);
+
+  void ActOnCXXForAllRangeDecl(Decl *D);
+  StmtResult ActOnCXXForAllRangeIdentifier(Scope *S, SourceLocation IdentLoc,
+					   IdentifierInfo *Ident,
+					   ParsedAttributes &Attrs,
+					   SourceLocation AttrEnd);
+  
   void SetDeclDeleted(Decl *dcl, SourceLocation DelLoc);
   void SetDeclDefaulted(Decl *dcl, SourceLocation DefaultLoc);
   void FinalizeDeclaration(Decl *D);
@@ -2864,6 +2871,14 @@ public:
                                            OverloadCandidateSet *CandidateSet,
                                            Expr *Range, ExprResult *CallExpr);
 
+  ForRangeStatus BuildForAllRangeBeginEndCall(SourceLocation Loc,
+					      SourceLocation RangeLoc,
+					      const DeclarationNameInfo &NameInfo,
+					      LookupResult &MemberLookup,
+					      OverloadCandidateSet *CandidateSet,
+					      Expr *Range, ExprResult *CallExpr);
+
+  
   ExprResult BuildOverloadedCallExpr(Scope *S, Expr *Fn,
                                      UnresolvedLookupExpr *ULE,
                                      SourceLocation LParenLoc,
@@ -3683,6 +3698,15 @@ public:
                           FullExprArg Third,
                           SourceLocation RParenLoc,
                           Stmt *Body);
+
+  StmtResult ActOnForAllStmt(SourceLocation ForLoc,
+			     SourceLocation LParenLoc,
+			     Stmt *First,
+			     ConditionResult Second,
+			     FullExprArg Third,
+			     SourceLocation RParenLoc,
+			     Stmt *Body);
+  
   ExprResult CheckObjCForCollectionOperand(SourceLocation forLoc,
                                            Expr *collection);
   StmtResult ActOnObjCForCollectionStmt(SourceLocation ForColLoc,
@@ -3717,6 +3741,23 @@ public:
                                   BuildForRangeKind Kind);
   StmtResult FinishCXXForRangeStmt(Stmt *ForRange, Stmt *Body);
 
+  
+  StmtResult ActOnCXXForAllRangeStmt(Scope *S, SourceLocation ForLoc,
+				     SourceLocation CoawaitLoc,
+				     Stmt *LoopVar,
+				     SourceLocation ColonLoc, Expr *Collection,
+				     SourceLocation RParenLoc,
+				     BuildForAllRangeKind Kind);
+    StmtResult BuildCXXForAllRangeStmt(SourceLocation ForLoc,
+				       SourceLocation CoawaitLoc,
+				       SourceLocation ColonLoc,
+				       Stmt *RangeDecl, Stmt *Begin, Stmt *End,
+				       Expr *Cond, Expr *Inc,
+				       Stmt *LoopVarDecl,
+				       SourceLocation RParenLoc,
+				       BuildForAllRangeKind Kind);
+  StmtResult FinishCXXForAllRangeStmt(Stmt *ForAllRange, Stmt *Body);
+
   StmtResult ActOnGotoStmt(SourceLocation GotoLoc,
                            SourceLocation LabelLoc,
                            LabelDecl *TheDecl);
@@ -3725,10 +3766,6 @@ public:
                                    Expr *DestExp);
   StmtResult ActOnContinueStmt(SourceLocation ContinueLoc, Scope *CurScope);
   StmtResult ActOnBreakStmt(SourceLocation BreakLoc, Scope *CurScope);
-
-  // +===== Kitsune
-  StmtResult ActOnForallStmt(ForStmt *ForStmt, CXXForRangeStmt *ForRangeStmt);
-  // ==============
 
   void ActOnCapturedRegionStart(SourceLocation Loc, Scope *CurScope,
                                 CapturedRegionKind Kind, unsigned NumParams);

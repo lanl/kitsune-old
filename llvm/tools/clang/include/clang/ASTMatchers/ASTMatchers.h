@@ -1535,6 +1535,15 @@ const internal::VariadicDynCastAllOfMatcher<Stmt, IfStmt> ifStmt;
 /// \endcode
 const internal::VariadicDynCastAllOfMatcher<Stmt, ForStmt> forStmt;
 
+/// \brief Matches forall statements.
+///
+/// Example matches 'forall(;;) {}'
+/// \code
+///   forall(;;) {}
+///   int i[] = {1, 2, 3}; for(auto a : i);
+/// \endcode
+const internal::VariadicDynCastAllOfMatcher<Stmt, ForAllStmt> forAllStmt;
+  
 /// \brief Matches the increment statement of a for loop.
 ///
 /// Example:
@@ -1550,6 +1559,21 @@ AST_MATCHER_P(ForStmt, hasIncrement, internal::Matcher<Stmt>,
           InnerMatcher.matches(*Increment, Finder, Builder));
 }
 
+/// \brief Matches the increment statement of a forall loop.
+///
+/// Example:
+///     forAllStmt(hasIncrement(unaryOperator(hasOperatorName("++"))))
+/// matches '++x' in
+/// \code
+///     forall(x; x < N; ++x) { }
+/// \endcode
+AST_MATCHER_P(ForAllStmt, hasIncrement, internal::Matcher<Stmt>,
+		InnerMatcher) {
+    const Stmt *const Increment = Node.getInc();
+    return (Increment != nullptr &&
+	    InnerMatcher.matches(*Increment, Finder, Builder));
+}
+  
 /// \brief Matches the initialization statement of a for loop.
 ///
 /// Example:
@@ -1564,6 +1588,20 @@ AST_MATCHER_P(ForStmt, hasLoopInit, internal::Matcher<Stmt>,
   return (Init != nullptr && InnerMatcher.matches(*Init, Finder, Builder));
 }
 
+/// \brief Matches the initialization statement of a forall loop.
+///
+/// Example:
+///     forAllStmt(hasLoopInit(declStmt()))
+/// matches 'int x = 0' in
+/// \code
+///     forall(int x = 0; x < N; ++x) { }
+/// \endcode
+AST_MATCHER_P(ForAllStmt, hasLoopInit, internal::Matcher<Stmt>,
+	      InnerMatcher) {
+    const Stmt *const Init = Node.getInit();
+    return (Init != nullptr && InnerMatcher.matches(*Init, Finder, Builder));
+}
+  
 /// \brief Matches range-based for statements.
 ///
 /// cxxForRangeStmt() matches 'for (auto a : i)'
@@ -1574,6 +1612,18 @@ AST_MATCHER_P(ForStmt, hasLoopInit, internal::Matcher<Stmt>,
 const internal::VariadicDynCastAllOfMatcher<
   Stmt,
   CXXForRangeStmt> cxxForRangeStmt;
+
+/// \brief Matches range-based forall statements.
+///
+/// cxxForRangeStmt() matches 'for (auto a : i)'
+/// \code
+///   int i[] =  {1, 2, 3}; for (auto a : i);
+///   forall(int j = 0; j < 5; ++j);
+/// \endcode
+const internal::VariadicDynCastAllOfMatcher<
+    Stmt,
+    CXXForAllRangeStmt> cxxForRangeStmt;
+  
 
 /// \brief Matches the initialization statement of a for loop.
 ///
@@ -1589,6 +1639,20 @@ AST_MATCHER_P(CXXForRangeStmt, hasLoopVariable, internal::Matcher<VarDecl>,
   return (Var != nullptr && InnerMatcher.matches(*Var, Finder, Builder));
 }
 
+/// \brief Matches the initialization statement of a forall loop.
+///
+/// Example:
+///     forAllStmt(hasLoopVariable(anything()))
+/// matches 'int x' in
+/// \code
+///     forall(int x : a) { }
+/// \endcode
+AST_MATCHER_P(CXXForAllRangeStmt, hasLoopVariable, internal::Matcher<VarDecl>,
+	      InnerMatcher) {
+  const VarDecl *const Var = Node.getLoopVariable();
+  return (Var != nullptr && InnerMatcher.matches(*Var, Finder, Builder));
+}
+
 /// \brief Matches the range initialization statement of a for loop.
 ///
 /// Example:
@@ -1599,6 +1663,20 @@ AST_MATCHER_P(CXXForRangeStmt, hasLoopVariable, internal::Matcher<VarDecl>,
 /// \endcode
 AST_MATCHER_P(CXXForRangeStmt, hasRangeInit, internal::Matcher<Expr>,
               InnerMatcher) {
+  const Expr *const Init = Node.getRangeInit();
+  return (Init != nullptr && InnerMatcher.matches(*Init, Finder, Builder));
+}
+
+/// \brief Matches the range initialization statement of a forall loop.
+///
+/// Example:
+///     forAllStmt(hasRangeInit(anything()))
+/// matches 'a' in
+/// \code
+///     forall(int x : a) { }
+/// \endcode
+AST_MATCHER_P(CXXForAllRangeStmt, hasRangeInit, internal::Matcher<Expr>,
+	      InnerMatcher) {
   const Expr *const Init = Node.getRangeInit();
   return (Init != nullptr && InnerMatcher.matches(*Init, Finder, Builder));
 }
@@ -3632,7 +3710,7 @@ AST_POLYMORPHIC_MATCHER(isConstexpr,
 /// \endcode
 AST_POLYMORPHIC_MATCHER_P(
     hasCondition,
-    AST_POLYMORPHIC_SUPPORTED_TYPES(IfStmt, ForStmt, WhileStmt, DoStmt,
+    AST_POLYMORPHIC_SUPPORTED_TYPES(IfStmt, ForStmt, ForAllStmt, WhileStmt, DoStmt,
                                     SwitchStmt, AbstractConditionalOperator),
     internal::Matcher<Expr>, InnerMatcher) {
   const Expr *const Condition = Node.getCond();
@@ -3763,6 +3841,7 @@ AST_MATCHER_P(ArraySubscriptExpr, hasBase,
 ///   matching '{}'
 AST_POLYMORPHIC_MATCHER_P(hasBody,
                           AST_POLYMORPHIC_SUPPORTED_TYPES(DoStmt, ForStmt,
+							  ForAllStmt, 
                                                           WhileStmt,
                                                           CXXForRangeStmt,
                                                           FunctionDecl),

@@ -1255,6 +1255,8 @@ namespace clang {
       STMT_DO,
       /// \brief A ForStmt record.
       STMT_FOR,
+      /// \brief A ForAllStmt record.
+      STMT_FORALL,      
       /// \brief A GotoStmt record.
       STMT_GOTO,
       /// \brief An IndirectGotoStmt record.
@@ -1412,6 +1414,8 @@ namespace clang {
       STMT_CXX_TRY,
       /// \brief A CXXForRangeStmt record.
       STMT_CXX_FOR_RANGE,
+      /// \brief A CXXForAllRangeStmt record.
+      STMT_CXX_FORALL_RANGE,      
 
       /// \brief A CXXOperatorCallExpr record.
       EXPR_CXX_OPERATOR_CALL,

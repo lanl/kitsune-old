@@ -474,7 +474,7 @@ public:
                            HandlesStmtFunc isForStmtFn);
   void _registerForPostStmt(CheckStmtFunc checkfn,
                             HandlesStmtFunc isForStmtFn);
-
+  
   void _registerForPreObjCMessage(CheckObjCMessageFunc checkfn);
   void _registerForPostObjCMessage(CheckObjCMessageFunc checkfn);
 

@@ -48,16 +48,21 @@
   *
   ***************************************************************************/
 
-#ifndef KITSUNE_LLVM_CLANG_AST_STMT_H
-#define KITSUNE_LLVM_CLANG_AST_STMT_H
+#ifndef FORALL_STMT_H
+#define FORALL_STMT_H
 
 #include "clang/AST/Stmt.h"
 
-#include "clang/AST/StmtCXX.h"
-
-
 namespace clang {
 
+/// ForAllStmt -- This represents a 'forall(init; cond; inc)' statement.  Just
+/// like the ForStmt, any of the init/cond/inc parts of the ForAllStmt will be
+/// null if they were not specified in the source.
+///
+/// Why ForAllStmt?  We use ForAllStmts as a hint of a parallel loop construct
+/// where each interation of a loop is independent of all others.  You can always
+/// argue that this could be done with things like pragmas/attributes... But we
+/// found this implementation path cleaner in the grand scheme of things...
 class ForAllStmt : public Stmt {
   SourceLocation ForLoc;
   enum { INIT, CONDVAR, COND, INC, BODY, END_EXPR };
@@ -69,12 +74,13 @@ public:
     Expr *Inc, Stmt *Body, SourceLocation FL, SourceLocation LP,
     SourceLocation RP);
 
-  /// \brief Build an empty for statement.
-  explicit ForAllStmt(EmptyShell Empty) : Stmt(ForStmtClass, Empty) { }
+  /// \brief Build an empty forall statement.
+  explicit ForAllStmt(EmptyShell Empty) : Stmt(ForAllStmtClass, Empty) { }
 
   Stmt *getInit() { return SubExprs[INIT]; }
 
-  /// \brief Retrieve the variable declared in this "for" statement, if any.
+  /// \brief Retrieve the condition variable declared in this "forall"
+  /// statement, if any.
   ///
   /// In the following example, "y" is the condition variable.
   /// \code
@@ -85,88 +91,45 @@ public:
   VarDecl *getConditionVariable() const;
   void setConditionVariable(const ASTContext &C, VarDecl *V);
 
-  /// If this ForStmt has a condition variable, return the faux DeclStmt
-  /// associated with the creation of that condition variable.
+  /// If this ForAllStmt has a condition variable, return the faux
+  /// DeclStmt associated with the creation of that condition
+  /// variable.
   const DeclStmt *getConditionVariableDeclStmt() const {
     return reinterpret_cast<DeclStmt*>(SubExprs[CONDVAR]);
   }
 
-  };
+  Expr *getCond() { return reinterpret_cast<Expr*>(SubExprs[COND]); }
+  Expr *getInc()  { return reinterpret_cast<Expr*>(SubExprs[INC]); }
+  Stmt *getBody() { return SubExprs[BODY]; }
 
-  
-// +===== Kitsune
+  const Stmt *getInit() const { return SubExprs[INIT]; }
+  const Expr *getCond() const { return reinterpret_cast<Expr*>(SubExprs[COND]);}
+  const Expr *getInc()  const { return reinterpret_cast<Expr*>(SubExprs[INC]); }
+  const Stmt *getBody() const { return SubExprs[BODY]; }
 
-class KitsuneStmt : public Stmt {
-public:
-  enum KitsuneStmtKind{
-    Forall
-  };
+  SourceLocation getForLoc() const { return ForLoc; }
+  void setForLoc(SourceLocation L) { ForLoc = L; }
+  SourceLocation getLParenLoc() const { return LParenLoc; }
+  void setLParenLoc(SourceLocation L) { LParenLoc = L; }
+  SourceLocation getRParenLoc() const { return RParenLoc; }
+  void setRParenLoc(SourceLocation L) { RParenLoc = L; }  
 
-  KitsuneStmt(KitsuneStmtKind K)
-  : Stmt(KitsuneStmtClass),
-    Kind(K){}
-
-  virtual ~KitsuneStmt(){}
-
-  /// \brief Build an empty for statement.
-  explicit KitsuneStmt(EmptyShell Empty) : Stmt(KitsuneStmtClass, Empty) { }
+  SourceLocation getLocStart() const LLVM_READONLY { return ForLoc; }
+  SourceLocation getLocEnd() const LLVM_READONLY {
+    return SubExprs[BODY]->getLocEnd();
+  }
 
   static bool classof(const Stmt *T) {
-    return T->getStmtClass() == KitsuneStmtClass;
+    return T->getStmtClass() == ForAllStmtClass;
   }
 
-  KitsuneStmtKind kind() const{
-    return Kind;
-  }
-  
-  static bool classof(const KitsuneStmt *){ return true; }
-  
-  virtual child_range children(){
-    return child_range(child_iterator(), child_iterator());
-  }
-
-  SourceLocation getLocStart() const LLVM_READONLY{
-    return StartLoc;
-  }
-  
-  void setLocStart(SourceLocation Loc){
-    StartLoc = Loc;
-  }
-  
-  SourceLocation getLocEnd() const LLVM_READONLY{
-    return EndLoc;
-  }
-  
-  void setLocEnd(SourceLocation Loc){
-    EndLoc = Loc;
-  }
-
-private:
-  KitsuneStmtKind Kind;
-  SourceLocation StartLoc;
-  SourceLocation EndLoc;
+  // Iterators
+  child_range children() {
+    return child_range(&SubExprs[0], &SubExprs[0]+END_EXPR);
+  }  
 };
 
-class ForallStmt : public KitsuneStmt{
-public:
-  ForallStmt(ForStmt *TheForStmt, CXXForRangeStmt *ForRangeStmt)
-  : KitsuneStmt(KitsuneStmt::Forall),
-  ForStmt_(TheForStmt),
-  ForRangeStmt(ForRangeStmt){}
-
-  ForStmt *getForStmt() { return ForStmt_; }
-  CXXForRangeStmt *getForRangeStmt() { return ForRangeStmt; }
-
-  const ForStmt *getForStmt() const { return ForStmt_; }
-  const CXXForRangeStmt *getForRangeStmt() const { return ForRangeStmt; }
-
-private:
-  ForStmt* ForStmt_;
-  CXXForRangeStmt *ForRangeStmt;
-};
-
-// +============
-
-}  // end namespace clang
+} // clang namespace
 
 #endif
+

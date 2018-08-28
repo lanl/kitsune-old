@@ -468,6 +468,7 @@ private:
   CFGBlock *VisitCXXNewExpr(CXXNewExpr *DE, AddStmtChoice asc);
   CFGBlock *VisitCXXDeleteExpr(CXXDeleteExpr *DE, AddStmtChoice asc);
   CFGBlock *VisitCXXForRangeStmt(CXXForRangeStmt *S);
+  CFGBlock *VisitCXXForAllRangeStmt(CXXForRangeStmt *S);  
   CFGBlock *VisitCXXFunctionalCastExpr(CXXFunctionalCastExpr *E,
                                        AddStmtChoice asc);
   CFGBlock *VisitCXXTemporaryObjectExpr(CXXTemporaryObjectExpr *C,
@@ -480,6 +481,7 @@ private:
   CFGBlock *VisitDoStmt(DoStmt *D);
   CFGBlock *VisitExprWithCleanups(ExprWithCleanups *E, AddStmtChoice asc);
   CFGBlock *VisitForStmt(ForStmt *F);
+  CFGBlock *VisitForAllStmt(ForAllStmt *F);  
   CFGBlock *VisitGotoStmt(GotoStmt *G);
   CFGBlock *VisitIfStmt(IfStmt *I);
   CFGBlock *VisitImplicitCastExpr(ImplicitCastExpr *E, AddStmtChoice asc);
@@ -1665,6 +1667,9 @@ CFGBlock *CFGBuilder::Visit(Stmt * S, AddStmtChoice asc) {
     case Stmt::ForStmtClass:
       return VisitForStmt(cast<ForStmt>(S));
 
+    case Stmt::ForAllStmtClass:
+      return VisitForAllStmt(cast<ForAllStmt>(S));
+
     case Stmt::GotoStmtClass:
       return VisitGotoStmt(cast<GotoStmt>(S));
 
@@ -2691,6 +2696,174 @@ CFGBlock *CFGBuilder::VisitForStmt(ForStmt *F) {
   return EntryConditionBlock;
 }
 
+CFGBlock *CFGBuilder::VisitForAllStmt(ForAllStmt *F) {
+  CFGBlock *LoopSuccessor = nullptr;
+
+  // Save local scope position because in case of condition variable ScopePos
+  // won't be restored when traversing AST.
+  SaveAndRestore<LocalScope::const_iterator> save_scope_pos(ScopePos);
+
+  // Create local scope for init statement and possible condition variable.
+  // Add destructor for init statement and condition variable.
+  // Store scope position for continue statement.
+  if (Stmt *Init = F->getInit())
+    addLocalScopeForStmt(Init);
+  LocalScope::const_iterator LoopBeginScopePos = ScopePos;
+
+  if (VarDecl *VD = F->getConditionVariable())
+    addLocalScopeForVarDecl(VD);
+  LocalScope::const_iterator ContinueScopePos = ScopePos;
+  addAutomaticObjHandling(ScopePos, save_scope_pos.get(), F);
+
+  // "for" is a control-flow statement.  Thus we stop processing the current
+  // block.
+  if (Block) {
+    if (badCFG)
+      return nullptr;
+    LoopSuccessor = Block;
+  } else
+    LoopSuccessor = Succ;
+
+  // Save the current value for the break targets.
+  // All breaks should go to the code following the loop.
+  SaveAndRestore<JumpTarget> save_break(BreakJumpTarget);
+  BreakJumpTarget = JumpTarget(LoopSuccessor, ScopePos);
+
+  CFGBlock *BodyBlock = nullptr, *TransitionBlock = nullptr;
+
+  // Now create the loop body.
+  {
+    assert(F->getBody());
+
+    // Save the current values for Block, Succ, continue and break targets.
+    SaveAndRestore<CFGBlock*> save_Block(Block), save_Succ(Succ);
+    SaveAndRestore<JumpTarget> save_continue(ContinueJumpTarget);
+
+    // Create an empty block to represent the transition block for looping back
+    // to the head of the loop.  If we have increment code, it will
+    // go in this block as well.
+    Block = Succ = TransitionBlock = createBlock(false);
+    TransitionBlock->setLoopTarget(F);
+
+    if (Stmt *I = F->getInc()) {
+      // Generate increment code in its own basic block.  This is the target of
+      // continue statements.
+      Succ = addStmt(I);
+    }
+
+    // Finish up the increment (or empty) block if it hasn't been already.
+    if (Block) {
+      assert(Block == Succ);
+      if (badCFG)
+	return nullptr;
+      Block = nullptr;
+    }
+
+    // The starting block for the loop increment is the block that should
+    // represent the 'loop target' for looping back to the start of the loop.
+    ContinueJumpTarget = JumpTarget(Succ, ContinueScopePos);
+    ContinueJumpTarget.block->setLoopTarget(F);
+
+    // Loop body should end with destructor of Condition variable (if any).
+    addAutomaticObjHandling(ScopePos, LoopBeginScopePos, F);
+    
+    // If body is not a compound statement create implicit scope
+    // and add destructors.
+    if (!isa<CompoundStmt>(F->getBody()))
+      addLocalScopeAndDtors(F->getBody());
+
+    // Now populate the body block, and in the process create new blocks as we
+    // walk the body of the loop.
+    BodyBlock = addStmt(F->getBody());
+
+    if (!BodyBlock) {
+      // In the case of "for (...;...;...);" we can have a null BodyBlock.
+      // Use the continue jump target as the proxy for the body.
+      BodyBlock = ContinueJumpTarget.block;
+    }
+    else if (badCFG)
+      return nullptr;
+  }
+
+  // Because of short-circuit evaluation, the condition of the loop can span
+  // multiple basic blocks.  Thus we need the "Entry" and "Exit" blocks that
+  // evaluate the condition.
+  CFGBlock *EntryConditionBlock = nullptr, *ExitConditionBlock = nullptr;
+
+  do {
+    Expr *C = F->getCond();
+
+    // Specially handle logical operators, which have a slightly
+    // more optimal CFG representation.
+    if (BinaryOperator *Cond =
+	dyn_cast_or_null<BinaryOperator>(C ? C->IgnoreParens() : nullptr))
+      if (Cond->isLogicalOp()) {
+	std::tie(EntryConditionBlock, ExitConditionBlock) =
+	  VisitLogicalOperator(Cond, F, BodyBlock, LoopSuccessor);
+	break;
+      }
+
+    // The default case when not handling logical operators.
+    EntryConditionBlock = ExitConditionBlock = createBlock(false);
+    ExitConditionBlock->setTerminator(F);
+
+    // See if this is a known constant.
+    TryResult KnownVal(true);
+
+    if (C) {
+      // Now add the actual condition to the condition block.
+      // Because the condition itself may contain control-flow, new blocks may
+      // be created.  Thus we update "Succ" after adding the condition.
+      Block = ExitConditionBlock;
+      EntryConditionBlock = addStmt(C);
+
+      // If this block contains a condition variable, add both the condition
+      // variable and initializer to the CFG.
+      if (VarDecl *VD = F->getConditionVariable()) {
+	if (Expr *Init = VD->getInit()) {
+	  autoCreateBlock();
+	  appendStmt(Block, F->getConditionVariableDeclStmt());
+	  EntryConditionBlock = addStmt(Init);
+	  assert(Block == EntryConditionBlock);
+	}
+      }
+      
+      if (Block && badCFG)
+	return nullptr;
+
+      KnownVal = tryEvaluateBool(C);
+    }
+
+    // Add the loop body entry as a successor to the condition.
+    addSuccessor(ExitConditionBlock, KnownVal.isFalse() ? nullptr : BodyBlock);
+    // Link up the condition block with the code that follows the loop.  (the
+    // false branch).
+    addSuccessor(ExitConditionBlock,
+		 KnownVal.isTrue() ? nullptr : LoopSuccessor);
+
+  } while (false);
+
+  // Link up the loop-back block to the entry condition block.
+  addSuccessor(TransitionBlock, EntryConditionBlock);
+
+  // The condition block is the implicit successor for any code above the loop.
+  Succ = EntryConditionBlock;
+
+  // If the loop contains initialization, create a new block for those
+  // statements.  This block can also contain statements that precede the loop.
+  if (Stmt *I = F->getInit()) {
+    Block = createBlock();
+    return addStmt(I);
+  }
+
+  // There is no loop initialization.  We are thus basically a while loop.
+  // NULL out Block to force lazy block construction.
+  Block = nullptr;
+  Succ = EntryConditionBlock;
+  return EntryConditionBlock;
+}
+      
+  
 CFGBlock *CFGBuilder::VisitMemberExpr(MemberExpr *M, AddStmtChoice asc) {
   if (asc.alwaysAdd(*this, M)) {
     autoCreateBlock();
@@ -3651,20 +3824,143 @@ CFGBlock *CFGBuilder::VisitCXXForRangeStmt(CXXForRangeStmt *S) {
   return addStmt(S->getRangeStmt());
 }
 
+CFGBlock *CFGBuilder::VisitCXXForAllRangeStmt(CXXForAllRangeStmt *S) {
+  // C++0x forall-range statements are specified as [stmt.ranged]:
+  //
+  // {
+  //   auto && __range = range-init;
+  //   forall ( auto __begin = begin-expr,
+  //         __end = end-expr;
+  //         __begin != __end;
+  //         ++__begin ) {
+  //     forall-range-declaration = *__begin;
+  //     statement
+  //   }
+  // }
+
+  // Save local scope position before the addition of the implicit variables.
+  SaveAndRestore<LocalScope::const_iterator> save_scope_pos(ScopePos);
+
+  // Create local scopes and destructors for range, begin and end variables.
+  if (Stmt *Range = S->getRangeStmt())
+    addLocalScopeForStmt(Range);
+  if (Stmt *Begin = S->getBeginStmt())
+    addLocalScopeForStmt(Begin);
+  if (Stmt *End = S->getEndStmt())
+    addLocalScopeForStmt(End);
+  addAutomaticObjHandling(ScopePos, save_scope_pos.get(), S);
+
+  LocalScope::const_iterator ContinueScopePos = ScopePos;
+
+  // "forall" is a control-flow statement.  Thus we stop processing the current
+  // block.
+  CFGBlock *LoopSuccessor = nullptr;
+  if (Block) {
+    if (badCFG)
+      return nullptr;
+    LoopSuccessor = Block;
+  } else
+    LoopSuccessor = Succ;
+
+  // Save the current value for the break targets.
+  // All breaks should go to the code following the loop.
+  SaveAndRestore<JumpTarget> save_break(BreakJumpTarget);
+  BreakJumpTarget = JumpTarget(LoopSuccessor, ScopePos);
+
+  // The block for the __begin != __end expression.
+  CFGBlock *ConditionBlock = createBlock(false);
+  ConditionBlock->setTerminator(S);
+
+  // Now add the actual condition to the condition block.
+  if (Expr *C = S->getCond()) {
+    Block = ConditionBlock;
+    CFGBlock *BeginConditionBlock = addStmt(C);
+    if (badCFG)
+      return nullptr;
+    assert(BeginConditionBlock == ConditionBlock &&
+	   "condition block in for-range was unexpectedly complex");
+    (void)BeginConditionBlock;
+  }
+
+
+  // The condition block is the implicit successor for the loop body as well as
+  // any code above the loop.
+  Succ = ConditionBlock;
+
+  // See if this is a known constant.
+  TryResult KnownVal(true);
+
+  if (S->getCond())
+    KnownVal = tryEvaluateBool(S->getCond());
+
+  // Now create the loop body.
+  {
+    assert(S->getBody());
+
+    // Save the current values for Block, Succ, and continue targets.
+    SaveAndRestore<CFGBlock*> save_Block(Block), save_Succ(Succ);
+    SaveAndRestore<JumpTarget> save_continue(ContinueJumpTarget);
+
+    // Generate increment code in its own basic block.  This is the target of
+    // continue statements.
+    Block = nullptr;
+    Succ = addStmt(S->getInc());
+    if (badCFG)
+      return nullptr;
+    ContinueJumpTarget = JumpTarget(Succ, ContinueScopePos);
+
+    // The starting block for the loop increment is the block that should
+    // represent the 'loop target' for looping back to the start of the loop.
+    ContinueJumpTarget.block->setLoopTarget(S);
+
+    // Finish up the increment block and prepare to start the loop body.
+    assert(Block);
+    if (badCFG)
+      return nullptr;
+    Block = nullptr;
+
+    // Add implicit scope and dtors for loop variable.
+    addLocalScopeAndDtors(S->getLoopVarStmt());
+
+    // Populate a new block to contain the loop body and loop variable.
+    addStmt(S->getBody());
+    if (badCFG)
+      return nullptr;
+    CFGBlock *LoopVarStmtBlock = addStmt(S->getLoopVarStmt());
+    if (badCFG)
+      return nullptr;
+
+    // This new body block is a successor to our condition block.
+    addSuccessor(ConditionBlock,
+		 KnownVal.isFalse() ? nullptr : LoopVarStmtBlock);
+  }
+
+  // Link up the condition block with the code that follows the loop (the
+  // false branch).
+  addSuccessor(ConditionBlock, KnownVal.isTrue() ? nullptr : LoopSuccessor);
+  
+  // Add the initialization statements.
+  Block = createBlock();
+  addStmt(S->getBeginStmt());
+  addStmt(S->getEndStmt());
+  return addStmt(S->getRangeStmt());
+}
+
 CFGBlock *CFGBuilder::VisitExprWithCleanups(ExprWithCleanups *E,
-    AddStmtChoice asc) {
+					    AddStmtChoice asc) {
   if (BuildOpts.AddTemporaryDtors) {
     // If adding implicit destructors visit the full expression for adding
     // destructors of temporaries.
     TempDtorContext Context;
     VisitForTemporaryDtors(E->getSubExpr(), false, Context);
-
+    
     // Full expression has to be added as CFGStmt so it will be sequenced
     // before destructors of it's temporaries.
     asc = asc.withAlwaysAdd(true);
   }
   return Visit(E->getSubExpr(), asc);
 }
+  
 
 CFGBlock *CFGBuilder::VisitCXXBindTemporaryExpr(CXXBindTemporaryExpr *E,
                                                 AddStmtChoice asc) {
@@ -4170,6 +4466,12 @@ public:
                 DeclMap[var] = P;
               break;
             }
+  	    case Stmt::ForAllStmtClass: {
+	      const VarDecl *var = cast<ForAllStmt>(stmt)->getConditionVariable();
+	      if (var)
+		DeclMap[var] = P;
+	      break;
+	    }
             case Stmt::WhileStmtClass: {
               const VarDecl *var =
                 cast<WhileStmt>(stmt)->getConditionVariable();
@@ -4270,6 +4572,19 @@ public:
 
   void VisitForStmt(ForStmt *F) {
     OS << "for (" ;
+    if (F->getInit())
+      OS << "...";
+    OS << "; ";
+    if (Stmt *C = F->getCond())
+      C->printPretty(OS, Helper, Policy);
+    OS << "; ";
+    if (F->getInc())
+      OS << "...";
+    OS << ")";
+  }
+
+  void VisitForAllStmt(ForAllStmt *F) {
+    OS << "forall (";
     if (F->getInit())
       OS << "...";
     OS << "; ";
@@ -4726,9 +5041,17 @@ Stmt *CFGBlock::getTerminatorCondition(bool StripParens) {
       E = cast<CXXForRangeStmt>(Terminator)->getCond();
       break;
 
+    case Stmt::CXXForAllRangeStmtClass:
+      E = cast<CXXForAllRangeStmt>(Terminator)->getCond();
+      break;
+
     case Stmt::ForStmtClass:
       E = cast<ForStmt>(Terminator)->getCond();
       break;
+
+    case Stmt::ForAllStmtClass:
+      E = cast<ForAllStmt>(Terminator)->getCond();
+      break;      
 
     case Stmt::WhileStmtClass:
       E = cast<WhileStmt>(Terminator)->getCond();

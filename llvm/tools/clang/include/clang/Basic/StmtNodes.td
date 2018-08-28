@@ -18,6 +18,7 @@ def SwitchStmt : Stmt;
 def WhileStmt : Stmt;
 def DoStmt : Stmt;
 def ForStmt : Stmt;
+def ForAllStmt : Stmt;
 def GotoStmt : Stmt;
 def IndirectGotoStmt : Stmt;
 def ContinueStmt : Stmt;
@@ -51,6 +52,7 @@ def ObjCAutoreleasePoolStmt : Stmt;
 def CXXCatchStmt : Stmt;
 def CXXTryStmt : Stmt;
 def CXXForRangeStmt : Stmt;
+def CXXForAllRangeStmt : Stmt;
 
 // C++ Coroutines TS statements
 def CoroutineBodyStmt : Stmt;

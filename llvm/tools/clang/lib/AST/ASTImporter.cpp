@@ -203,6 +203,7 @@ namespace clang {
     Stmt *VisitWhileStmt(WhileStmt *S);
     Stmt *VisitDoStmt(DoStmt *S);
     Stmt *VisitForStmt(ForStmt *S);
+    Stmt *VisitForAllStmt(ForAllStmt *S);
     Stmt *VisitGotoStmt(GotoStmt *S);
     Stmt *VisitIndirectGotoStmt(IndirectGotoStmt *S);
     Stmt *VisitContinueStmt(ContinueStmt *S);
@@ -217,6 +218,7 @@ namespace clang {
     Stmt *VisitCXXCatchStmt(CXXCatchStmt *S);
     Stmt *VisitCXXTryStmt(CXXTryStmt *S);
     Stmt *VisitCXXForRangeStmt(CXXForRangeStmt *S);
+    Stmt *VisitCXXForAllRangeStmt(CXXForRangeStmt *S);    
     // FIXME: MSDependentExistsStmt
     Stmt *VisitObjCForCollectionStmt(ObjCForCollectionStmt *S);
     Stmt *VisitObjCAtCatchStmt(ObjCAtCatchStmt *S);
@@ -228,9 +230,7 @@ namespace clang {
     Stmt *VisitCilkSpawnStmt(CilkSpawnStmt *S);
     Stmt *VisitCilkSyncStmt(CilkSyncStmt *S);
     Stmt *VisitCilkForStmt(CilkForStmt *S);
-    // +===== Kitsune
-    Stmt *VisitKitsuneStmt(KitsuneStmt *S);
-    // ======
+
     // Importing expressions
     Expr *VisitExpr(Expr *E);
     Expr *VisitVAArgExpr(VAArgExpr *E);
@@ -4159,6 +4159,37 @@ Stmt *ASTNodeImporter::VisitForStmt(ForStmt *S) {
                                                ToRParenLoc);
 }
 
+Stmt *ASTNodeImporter::VisitForAllStmt(ForAllStmt *S) {
+  Stmt *ToInit = Importer.Import(S->getInit());
+  if (!ToInit && S->getInit())
+    return nullptr;
+  Expr *ToCondition = Importer.Import(S->getCond());
+  if (!ToCondition && S->getCond())
+    return nullptr;
+  /VarDecl *ToConditionVariable = nullptr;
+  if (VarDecl *FromConditionVariable = S->getConditionVariable()) {
+        ToConditionVariable =
+	  dyn_cast_or_null<VarDecl>(Importer.Import(FromConditionVariable));
+	if (!ToConditionVariable)
+	  return nullptr;
+  }
+  Expr *ToInc = Importer.Import(S->getInc());
+  if (!ToInc && S->getInc())
+    return nullptr;
+  Stmt *ToBody = Importer.Import(S->getBody());
+  if (!ToBody && S->getBody())
+    return nullptr;
+  SourceLocation ToForLoc = Importer.Import(S->getForLoc());
+  ExSourceLocation ToLParenLoc = Importer.Import(S->getLParenLoc());
+  SourceLocation ToRParenLoc = Importer.Import(S->getRParenLoc());
+  return new (Importer.getToContext()) ForStmt(Importer.getToContext(),
+					       ToInit, ToCondition,
+					       ToConditionVariable,
+					       ToInc, ToBody,
+					       ToForLoc, ToLParenLoc,
+					       ToRParenLoc);
+}
+
 Stmt *ASTNodeImporter::VisitGotoStmt(GotoStmt *S) {
   LabelDecl *ToLabel = nullptr;
   if (LabelDecl *FromLabel = S->getLabel()) {
@@ -4274,6 +4305,43 @@ Stmt *ASTNodeImporter::VisitCXXForRangeStmt(CXXForRangeStmt *S) {
                                                        ToLoopVar, ToBody,
                                                        ToForLoc, ToCoawaitLoc,
                                                        ToColonLoc, ToRParenLoc);
+}
+
+Stmt *ASTNodeImporter::VisitCXXForAllRangeStmt(CXXForAllRangeStmt *S) {
+  DeclStmt *ToRange =
+    dyn_cast_or_null<DeclStmt>(Importer.Import(S->getRangeStmt()));
+  if (!ToRange && S->getRangeStmt())
+    return nullptr;
+  DeclStmt *ToBegin =
+    dyn_cast_or_null<DeclStmt>(Importer.Import(S->getBeginStmt()));
+  if (!ToBegin && S->getBeginStmt())
+    return nullptr;
+  DeclStmt *ToEnd =
+    dyn_cast_or_null<DeclStmt>(Importer.Import(S->getEndStmt()));
+  if (!ToEnd && S->getEndStmt())
+    return nullptr;
+  Expr *ToCond = Importer.Import(S->getCond());
+  if (!ToCond && S->getCond())
+    return nullptr;
+  Expr *ToInc = Importer.Import(S->getInc());
+  if (!ToInc && S->getInc())
+    return nullptr;
+  DeclStmt *ToLoopVar =
+    dyn_cast_or_null<DeclStmt>(Importer.Import(S->getLoopVarStmt()));
+  if (!ToLoopVar && S->getLoopVarStmt())
+    return nullptr;
+  Stmt *ToBody = Importer.Import(S->getBody());
+  if (!ToBody && S->getBody())
+    return nullptr;
+  SourceLocation ToForLoc = Importer.Import(S->getForLoc());
+  SourceLocation ToCoawaitLoc = Importer.Import(S->getCoawaitLoc());
+  SourceLocation ToColonLoc = Importer.Import(S->getColonLoc());
+  SourceLocation ToRParenLoc = Importer.Import(S->getRParenLoc());
+  return new (Importer.getToContext()) CXXForRangeStmt(ToRange, ToBegin, ToEnd,
+						       ToCond, ToInc,
+						       ToLoopVar, ToBody,
+						       ToForLoc, ToCoawaitLoc,
+						       ToColonLoc, ToRParenLoc);
 }
 
 Stmt *ASTNodeImporter::VisitObjCForCollectionStmt(ObjCForCollectionStmt *S) {

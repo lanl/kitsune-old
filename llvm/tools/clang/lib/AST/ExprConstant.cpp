@@ -3852,6 +3852,19 @@ static EvalStmtResult EvaluateStmt(StmtResult &Result, EvalInfo &Info,
       break;
     }
 
+    case Stmt::ForAllStmtClass: {
+      const ForAllStmt *FAS = cast<ForAllStmt>(S);
+      EvalStmtResult ESR =
+	EvaluateLoopBody(Result, Info, FAS->getBody(), Case);
+      if (ESR != ESR_Continue)
+	return ESR;
+      if (FS->getInc()) {
+	FullExpressionRAII IncScope(Info);
+	if (!EvaluateIgnoredValue(Info, FS->getInch()))
+	  return ESR_Failed;
+      }
+      break;
+
     case Stmt::DeclStmtClass:
       // FIXME: If the variable has initialization that can't be jumped over,
       // bail out of any immediately-surrounding compound-statement too.
@@ -4043,6 +4056,53 @@ static EvalStmtResult EvaluateStmt(StmtResult &Result, EvalInfo &Info,
       // Increment: ++__begin
       if (!EvaluateIgnoredValue(Info, FS->getInc()))
         return ESR_Failed;
+    }
+
+    return ESR_Succeeded;
+  }
+
+  case Stmt::CXXForAllRangeStmtClass: {
+    const CXXForAllRangeStmt *FAS = cast<CXXForAllRangeStmt>(S);
+    BlockScopeRAII Scope(Info);
+
+    // Initialize the __range variable.
+    EvalStmtResult ESR = EvaluateStmt(Result, Info, FAS->getRangeStmt());
+    if (ESR != ESR_Succeeded)
+      return ESR;
+
+    // Create the __begin and __end iterators.
+    ESR = EvaluateStmt(Result, Info, FAS->getBeginStmt());
+    if (ESR != ESR_Succeeded)
+      return ESR;
+    ESR = EvaluateStmt(Result, Info, FAS->getEndStmt());
+    if (ESR != ESR_Succeeded)
+      return ESR;
+
+    while (true) {
+      // Condition: __begin != __end.
+      {
+	bool Continue = true;
+	FullExpressionRAII CondExpr(Info);
+	if (!EvaluateAsBooleanCondition(FS->getCond(), Continue, Info))
+	  return ESR_Failed;
+	if (!Continue)
+	  break;
+      }
+
+      // User's variable declaration, initialized by *__begin.
+      BlockScopeRAII InnerScope(Info);
+      ESR = EvaluateStmt(Result, Info, FAS->getLoopVarStmt());
+      if (ESR != ESR_Succeeded)
+	return ESR;
+
+      // Loop body.
+      ESR = EvaluateLoopBody(Result, Info, FAS->getBody());
+      if (ESR != ESR_Continue)
+	return ESR;
+
+      // Increment: ++__begin
+      if (!EvaluateIgnoredValue(Info, FAS->getInc()))
+	return ESR_Failed;
     }
 
     return ESR_Succeeded;
