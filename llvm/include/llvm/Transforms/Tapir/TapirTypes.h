@@ -27,6 +27,7 @@ enum class TapirTargetType {
   // +===== Kitsune
   PTX = 6
   // ==============
+  Realm = 7
 };
 
 } // end namespace llvm
