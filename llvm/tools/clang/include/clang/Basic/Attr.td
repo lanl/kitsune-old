@@ -2784,8 +2784,9 @@ def TapirTarget : StmtAttr {
   let Spellings = [CXX11<"tapir","target">];
   let Args = [
       EnumArgument<"TapirTargetType", "TapirTargetTy",
-      ["ptx", "cilk", "qthreads", "realm", "rocm"],
-      ["TapirTargetPTX", "TapirTargetCilk", "TapirTargetQthreads", "TapirTargetRealm", "TapirTargetROCm"], 0> 
+      ["ptx", "cilk", "qthreads", "realm", "rocm", "omp"],
+      ["TapirTargetPTX", "TapirTargetCilk", "TapirTargetQthreads", 
+       "TapirTargetRealm", "TapirTargetROCm", "TapirTargetOMP"], 0> 
   ];
   let Documentation = [Undocumented];
 }

@@ -79,7 +79,7 @@ static Attr *handleSuppressAttr(Sema &S, Stmt *St, const AttributeList &A,
       DiagnosticIdentifiers.size(), A.getAttributeSpellingListIndex());
 }
 
-static Attr *handleTapirAttr(Sema &S, Stmt *St, const AttributeList &A, 
+static Attr *handleTapirTargetAttr(Sema &S, Stmt *St, const AttributeList &A, 
                              SourceRange Range) {
   if (!isa<ForStmt>(St)) {
     S.Diag(A.getLoc(), diag::err_tapir_target_invalid_stmt);
@@ -369,7 +369,7 @@ static Attr *ProcessStmtAttribute(Sema &S, Stmt *St, const AttributeList &A,
     return handleSuppressAttr(S, St, A, Range);
   // +===== Kitsune: TODO -- 
   case AttributeList::AT_TapirTarget:
-    return handleTapirAttr(S, St, A, Range);
+    return handleTapirTargetAttr(S, St, A, Range);
     break;
   // ======
   default:
