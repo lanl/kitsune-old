@@ -2493,7 +2493,15 @@ enum CXCursorKind {
    */
   CXCursor_CilkForStmt                   = 283,
 
-  CXCursor_LastStmt = CXCursor_CilkForStmt,
+  /** \brief A forall statement.
+   */
+  CXCursor_ForAllStmt                    = 284,
+
+  /** \brief Modified C++'s forall (* : *) statement.
+   */
+  CXCursor_CXXForAllRangeStmt            = 285,  
+
+  CXCursor_LastStmt = CXCursor_CXXForAllRangeStmt,
 
   /**
    * \brief Cursor that represents the translation unit itself.

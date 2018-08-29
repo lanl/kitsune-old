@@ -59,7 +59,6 @@ add_clang_library(clangSema
 
   # +===== Kitsune
     Kitsune/FleCSIAnalyzer.cpp
-    Kitsune/SemaStmt.cpp
   # +=============
 
   LINK_LIBS
