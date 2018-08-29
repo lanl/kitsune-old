@@ -37,7 +37,7 @@ static cl::opt<TapirTargetType> ClTapirTarget(
                           "openmp", "OpenMP"),
                // +===== Kitsune
                clEnumValN(TapirTargetType::PTX,
-                          "ptx", "PTX")
+                          "ptx", "PTX"),
                clEnumValN(TapirTargetType::Realm,
                           "realm", "Realm")
                // ==============
