@@ -3329,10 +3329,14 @@ def note_protocol_decl_undefined : Note<
   "protocol %0 has no definition">;
 
 // +===== Kitsune/Tapir-Specific Attributes 
-def err_tapir_target_single_argument: Error<
-  "tapir target requires a single argument.">;
-def err_tapir_target_invalid_stmt: Error<
-  "tapir target attribute may only be applied to for[all] statements">;
+def err_tapir_attr_single_argument: Error<
+  "tapir attribute requires a single argument.">;
+def err_tapir_attr_invalid_stmt: Error<
+  "tapir attribute not applicable for given statement type">;
+def err_tapir_attr_unrecognized_target: Error<
+  "unrecognized tapir target">;
+def err_tapir_attr_unrecognized_strategy: Error<
+  "unrecognized tapir strategy">;
 def err_tapir_target_unrecognized: Error<
   "unrecognized tapir target">;
 // ======

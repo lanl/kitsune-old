@@ -2790,4 +2790,14 @@ def TapirTarget : StmtAttr {
   ];
   let Documentation = [Undocumented];
 }
+
+def TapirStrategy : StmtAttr {
+  let Spellings = [CXX11<"tapir", "strategy">];
+  let Args = [
+      EnumArgument<"TapirStrategyType", "TapirStrategyTy",
+      ["gpu", "seq", "dac"],
+      ["TapirGPUStrategy", "TapirSequentialStrategy", "TapirDivAndConquerStrategy"], 0> 
+  ];
+  let Documentation = [Undocumented];
+}
 // ==============

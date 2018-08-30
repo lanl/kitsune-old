@@ -82,12 +82,12 @@ static Attr *handleSuppressAttr(Sema &S, Stmt *St, const AttributeList &A,
 static Attr *handleTapirTargetAttr(Sema &S, Stmt *St, const AttributeList &A, 
                              SourceRange Range) {
   if (!isa<ForStmt>(St)) {
-    S.Diag(A.getLoc(), diag::err_tapir_target_invalid_stmt);
+    S.Diag(A.getLoc(), diag::err_tapir_attr_invalid_stmt);
     return nullptr;
   }
 
   if (A.getNumArgs() != 1) {
-    S.Diag(A.getLoc(), diag::err_tapir_target_single_argument);
+    S.Diag(A.getLoc(), diag::err_tapir_attr_single_argument);
     return nullptr;
   }
 
@@ -95,13 +95,14 @@ static Attr *handleTapirTargetAttr(Sema &S, Stmt *St, const AttributeList &A,
   SourceLocation ArgLoc;
 
   if (!S.checkStringLiteralArgumentAttr(A, 0, Str, &ArgLoc))  {
-    S.Diag(A.getLoc(), diag::err_tapir_target_unrecognized); 
+    S.Diag(A.getLoc(), diag::err_tapir_attr_unrecognized_target); 
     return nullptr;
   }
 
   TapirTargetAttr::TapirTargetTy Kind;
   if (!TapirTargetAttr::ConvertStrToTapirTargetTy(Str, Kind)) {
-    S.Diag(A.getLoc(), diag::err_tapir_target_unrecognized) 
+    // FIXME: Is this redundant w/ CheckString call above???
+    S.Diag(A.getLoc(), diag::err_tapir_attr_unrecognized_target) 
       << A.getName() << Str << ArgLoc;
     return nullptr;
   }
@@ -111,6 +112,39 @@ static Attr *handleTapirTargetAttr(Sema &S, Stmt *St, const AttributeList &A,
     TapirTargetAttr(A.getLoc(), S.Context, Kind, Index);
 }
 
+static Attr* handleTapirStrategyAttr(Sema &S, Stmt *St, const AttributeList &A,
+				     SourceRange Range) {
+  if (!isa<ForStmt>(St)) {
+    S.Diag(A.getLoc(), diag::err_tapir_attr_invalid_stmt);
+    return nullptr;
+  }
+
+  if (A.getNumArgs() != 1) {
+    S.Diag(A.getLoc(), diag::err_tapir_attr_single_argument);
+    return nullptr;
+  }
+
+  StringRef Str;
+  SourceLocation ArgLoc;
+
+  if (!S.checkStringLiteralArgumentAttr(A, 0, Str, &ArgLoc))  {
+    S.Diag(A.getLoc(), diag::err_tapir_attr_unrecognized_strategy); 
+    return nullptr;
+  }
+
+  TapirStrategyAttr::TapirStrategyTy Kind;
+  if (!TapirStrategyAttr::ConvertStrToTapirStrategyTy(Str, Kind)) {
+    // FIXME: Is this redundant w/ CheckString call above???
+    S.Diag(A.getLoc(), diag::err_tapir_attr_unrecognized_strategy) 
+      << A.getName() << Str << ArgLoc;
+    return nullptr;
+  }
+
+  unsigned Index = A.getAttributeSpellingListIndex();
+  return ::new (S.Context) 
+    TapirStrategyAttr(A.getLoc(), S.Context, Kind, Index);
+
+}
 
 static Attr *handleLoopHintAttr(Sema &S, Stmt *St, const AttributeList &A,
                                 SourceRange) {
@@ -370,6 +404,9 @@ static Attr *ProcessStmtAttribute(Sema &S, Stmt *St, const AttributeList &A,
   // +===== Kitsune: TODO -- 
   case AttributeList::AT_TapirTarget:
     return handleTapirTargetAttr(S, St, A, Range);
+    break;
+  case AttributeList::AT_TapirStrategy:
+    return handleTapirStrategyAttr(S, St, A, Range);
     break;
   // ======
   default:

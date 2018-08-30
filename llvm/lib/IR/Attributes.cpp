@@ -342,8 +342,10 @@ std::string Attribute::getAsString(bool InAttrGrp) const {
   // +===== Kitsune 
   if (hasAttribute(Attribute::FleCSITask))
     return "task";
-  if (hasAttribute(Attribute::Tapir))
-    return "tapir";
+  if (hasAttribute(Attribute::TapirTarget))
+    return "tapir-target";
+  if (hasAttribute(Attribute::TapirStrategy))
+    return "tapir-strategy";
   // ======
 
   // FIXME: These should be output like this:
