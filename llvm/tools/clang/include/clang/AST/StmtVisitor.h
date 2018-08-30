@@ -23,10 +23,6 @@
 #include "clang/AST/StmtObjC.h"
 #include "clang/AST/StmtOpenMP.h"
 
-// +===== Kitsune
-#include "clang/AST/Kitsune/Stmt.h"
-// ==============
-
 namespace clang {
 
 template <typename T> struct make_ptr       { typedef       T *type; };

@@ -1580,13 +1580,13 @@ public:
   /// the type \p Base.
   bool isProvablyNotDerivedFrom(const CXXRecordDecl *Base) const;
 
-  /// \brief Function type used by forAllBases() as a callback.
+  /// \brief Function type used by forallBases() as a callback.
   ///
   /// \param BaseDefinition the definition of the base class
   ///
   /// \returns true if this base matched the search criteria
   typedef llvm::function_ref<bool(const CXXRecordDecl *BaseDefinition)>
-      ForAllBasesCallback;
+      ForallBasesCallback;
 
   /// \brief Determines if the given callback holds for all the direct
   /// or indirect base classes of this type.
@@ -1601,7 +1601,7 @@ public:
   /// \param AllowShortCircuit if false, forces the callback to be called
   /// for every base class, even if a dependent or non-matching base was
   /// found.
-  bool forAllBases(ForAllBasesCallback BaseMatches,
+  bool forallBases(ForallBasesCallback BaseMatches,
                    bool AllowShortCircuit = true) const;
 
   /// \brief Function type used by lookupInBases() to determine whether a

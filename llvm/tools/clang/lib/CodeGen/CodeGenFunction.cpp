@@ -1145,12 +1145,12 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD, llvm::Function *Fn,
   if (FD->hasAttr<NoDebugAttr>())
     DebugInfo = nullptr; // disable debug info indefinitely for this function
 
-  // +===== Kitsune 
-  // Check to see if the FD has a FleCSI task attribute. 
-  //if (FD->hasAttr<FleCSITaskAttr>()) {
-  //  
-  //}
-  // ======
+
+  // Check to see if this task has been flagged with a "task" attribute.
+  // TODO: we should generalize this to not just be flecsi-centric... --PM
+  if (FD->hasAttr<FleCSITaskAttr()) {
+
+  }
 
   // The function might not have a body if we're generating thunks for a
   // function declaration.

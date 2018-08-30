@@ -210,6 +210,101 @@ public:
   }
 };
 
+/// CXXForAllRangeStmt -- This represents a C++0x ranged for statement
+/// but with additional semantics for parallel execution.  The
+/// statement is represented as 'forall(range-declarator :
+/// range-expression)'.
+///
+/// Like the standard CXXForRangeStmt, this is stored in a
+/// partially-desured form to allow full semantic analysis of the
+/// constituent components.  The original syntatic components can be
+/// extracted using getLoopVariable() and getRangeInit().
+class CXXForAllRangeStmt : public Stmt {
+  SourceLocation ForLoc;
+  enum { RANGE, BEGINSTMT, ENDSTMT, COND, INC, LOOPVAR, BODY, END };
+  // SubExprs[RANGE] is an expression or declstmt.
+  // SubExprs[COND] and SubExprs[INC] are expressions.
+  Stmt *SubExprs[END];
+  SourceLocation CoawaitLoc;
+  SourceLocation ColonLoc;
+  SourceLocation RParenLoc;
+
+  friend class ASTStmtReader;
+public:
+  CXXForAllRangeStmt(DeclStmt *Range, DeclStmt *Begin, DeclStmt *End,
+		  Expr *Cond, Expr *Inc, DeclStmt *LoopVar, Stmt *Body,
+		  SourceLocation FL, SourceLocation CAL, SourceLocation CL,
+		  SourceLocation RPL);
+  CXXForAllRangeStmt(EmptyShell Empty) : Stmt(CXXForAllRangeStmtClass, Empty) { }
+
+
+  VarDecl *getLoopVariable();
+  Expr *getRangeInit();
+
+  const VarDecl *getLoopVariable() const;
+  const Expr *getRangeInit() const;
+
+
+  DeclStmt *getRangeStmt() { return cast<DeclStmt>(SubExprs[RANGE]); }
+  DeclStmt *getBeginStmt() {
+    return cast_or_null<DeclStmt>(SubExprs[BEGINSTMT]);
+  }
+  DeclStmt *getEndStmt() { return cast_or_null<DeclStmt>(SubExprs[ENDSTMT]); }
+  Expr *getCond() { return cast_or_null<Expr>(SubExprs[COND]); }
+  Expr *getInc() { return cast_or_null<Expr>(SubExprs[INC]); }
+  DeclStmt *getLoopVarStmt() { return cast<DeclStmt>(SubExprs[LOOPVAR]); }
+  Stmt *getBody() { return SubExprs[BODY]; }
+
+  const DeclStmt *getRangeStmt() const {
+    return cast<DeclStmt>(SubExprs[RANGE]);
+  }
+  const DeclStmt *getBeginStmt() const {
+    return cast_or_null<DeclStmt>(SubExprs[BEGINSTMT]);
+  }
+  const DeclStmt *getEndStmt() const {
+    return cast_or_null<DeclStmt>(SubExprs[ENDSTMT]);
+  }
+  const Expr *getCond() const {
+    return cast_or_null<Expr>(SubExprs[COND]);
+  }
+  const Expr *getInc() const {
+    return cast_or_null<Expr>(SubExprs[INC]);
+  }
+  const DeclStmt *getLoopVarStmt() const {
+    return cast<DeclStmt>(SubExprs[LOOPVAR]);
+  }
+  const Stmt *getBody() const { return SubExprs[BODY]; }
+
+  void setRangeInit(Expr *E) { SubExprs[RANGE] = reinterpret_cast<Stmt*>(E); }
+  void setRangeStmt(Stmt *S) { SubExprs[RANGE] = S; }
+  void setBeginStmt(Stmt *S) { SubExprs[BEGINSTMT] = S; }
+  void setEndStmt(Stmt *S) { SubExprs[ENDSTMT] = S; }
+  void setCond(Expr *E) { SubExprs[COND] = reinterpret_cast<Stmt*>(E); }
+  void setInc(Expr *E) { SubExprs[INC] = reinterpret_cast<Stmt*>(E); }
+  void setLoopVarStmt(Stmt *S) { SubExprs[LOOPVAR] = S; }
+  void setBody(Stmt *S) { SubExprs[BODY] = S; }
+
+  SourceLocation getForLoc() const { return ForLoc; }
+  SourceLocation getCoawaitLoc() const { return CoawaitLoc; }
+  SourceLocation getColonLoc() const { return ColonLoc; }
+  SourceLocation getRParenLoc() const { return RParenLoc; }
+
+  SourceLocation getLocStart() const LLVM_READONLY { return ForLoc; }
+  SourceLocation getLocEnd() const LLVM_READONLY {
+    return SubExprs[BODY]->getLocEnd();
+  }
+
+  static bool classof(const Stmt *T) {
+    return T->getStmtClass() == CXXForAllRangeStmtClass;
+  }
+
+  // Iterators
+  child_range children() {
+    return child_range(&SubExprs[0], &SubExprs[END]);
+  }
+};
+
+
 /// \brief Representation of a Microsoft __if_exists or __if_not_exists
 /// statement with a dependent name.
 ///

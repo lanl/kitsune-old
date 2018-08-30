@@ -23,7 +23,7 @@ add_clang_library(clangParse
   Parser.cpp
 
   # +===== Kitsune
-    Kitsune/ParseStmt.cpp
+  #  Kitsune/ParseStmt.cpp
   # +=============
 
   LINK_LIBS

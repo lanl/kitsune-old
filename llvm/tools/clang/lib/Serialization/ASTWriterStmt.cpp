@@ -185,6 +185,19 @@ void ASTStmtWriter::VisitForStmt(ForStmt *S) {
   Code = serialization::STMT_FOR;
 }
 
+void ASTStmtWriter::VisitForAllStmt(ForAllStmt *S) {
+  VisitStmt(S);
+  AddStmt(S->getInit());
+  Record.AddStmt(S->getCond());
+  Record.AddDeclRef(S->getConditionVariable());
+  Record.AddStmt(S->getInc());
+  Record.AddStmt(S->getBody());
+  Record.AddSourceLocation(S->getForLoc());
+  Record.AddSourceLocation(S->getLParenLoc());
+  Record.AddSourceLocation(S->getRParenLoc());
+  Code = serialization::STMT_FORALL;
+}
+
 void ASTStmtWriter::VisitGotoStmt(GotoStmt *S) {
   VisitStmt(S);
   Record.AddDeclRef(S->getLabel());
@@ -1223,6 +1236,22 @@ void ASTStmtWriter::VisitCXXForRangeStmt(CXXForRangeStmt *S) {
   Code = serialization::STMT_CXX_FOR_RANGE;
 }
 
+void ASTStmtWriter::VisitCXXForAllRangeStmt(CXXForAllRangeStmt *S) {
+  VisitStmt(S);
+  Record.AddSourceLocation(S->getForLoc());
+  Record.AddSourceLocation(S->getCoawaitLoc());
+  Record.AddSourceLocation(S->getColonLoc());
+  Record.AddSourceLocation(S->getRParenLoc());
+  Record.AddStmt(S->getRangeStmt());
+  Record.AddStmt(S->getBeginStmt());
+  Record.AddStmt(S->getEndStmt());
+  Record.AddStmt(S->getCond());
+  Record.AddStmt(S->getInc());
+  Record.AddStmt(S->getLoopVarStmt());
+  Record.AddStmt(S->getBody());
+  Code = serialization::STMT_CXX_FORALL_RANGE;
+}
+
 void ASTStmtWriter::VisitMSDependentExistsStmt(MSDependentExistsStmt *S) {
   VisitStmt(S);
   Record.AddSourceLocation(S->getKeywordLoc());
@@ -1233,11 +1262,6 @@ void ASTStmtWriter::VisitMSDependentExistsStmt(MSDependentExistsStmt *S) {
   Code = serialization::STMT_MS_DEPENDENT_EXISTS;
 }
 
-// +===== Kitsune
-void ASTStmtWriter::VisitKitsuneStmt(KitsuneStmt *S){
-  assert(false && "unimplemented");
-}
-// ==============
 
 void ASTStmtWriter::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
   VisitCallExpr(E);

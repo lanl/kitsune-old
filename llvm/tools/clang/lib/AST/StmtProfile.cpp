@@ -260,6 +260,10 @@ void StmtProfiler::VisitForStmt(const ForStmt *S) {
   VisitStmt(S);
 }
 
+void StmtProfiler::VisitForAllStmt(const ForAllStmt *S) {
+  VisitStmt(S);
+}
+
 void StmtProfiler::VisitGotoStmt(const GotoStmt *S) {
   VisitStmt(S);
   VisitDecl(S->getLabel());
@@ -316,6 +320,10 @@ void StmtProfiler::VisitCXXTryStmt(const CXXTryStmt *S) {
 }
 
 void StmtProfiler::VisitCXXForRangeStmt(const CXXForRangeStmt *S) {
+  VisitStmt(S);
+}
+
+void StmtProfiler::VisitCXXForAllRangeStmt(const CXXForAllRangeStmt *S) {
   VisitStmt(S);
 }
 
@@ -378,12 +386,6 @@ void
 StmtProfiler::VisitObjCAutoreleasePoolStmt(const ObjCAutoreleasePoolStmt *S) {
   VisitStmt(S);
 }
-
-// +===== Kitsune
-void StmtProfiler::VisitKitsuneStmt(const KitsuneStmt *S){
-  VisitStmt(S);
-}
-// ==============
 
 namespace {
 class OMPClauseProfiler : public ConstOMPClauseVisitor<OMPClauseProfiler> {

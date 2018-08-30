@@ -218,7 +218,7 @@ namespace clang {
     Stmt *VisitCXXCatchStmt(CXXCatchStmt *S);
     Stmt *VisitCXXTryStmt(CXXTryStmt *S);
     Stmt *VisitCXXForRangeStmt(CXXForRangeStmt *S);
-    Stmt *VisitCXXForAllRangeStmt(CXXForRangeStmt *S);    
+    Stmt *VisitCXXForAllRangeStmt(CXXForAllRangeStmt *S);    
     // FIXME: MSDependentExistsStmt
     Stmt *VisitObjCForCollectionStmt(ObjCForCollectionStmt *S);
     Stmt *VisitObjCAtCatchStmt(ObjCAtCatchStmt *S);
@@ -4166,7 +4166,7 @@ Stmt *ASTNodeImporter::VisitForAllStmt(ForAllStmt *S) {
   Expr *ToCondition = Importer.Import(S->getCond());
   if (!ToCondition && S->getCond())
     return nullptr;
-  /VarDecl *ToConditionVariable = nullptr;
+  VarDecl *ToConditionVariable = nullptr;
   if (VarDecl *FromConditionVariable = S->getConditionVariable()) {
         ToConditionVariable =
 	  dyn_cast_or_null<VarDecl>(Importer.Import(FromConditionVariable));
@@ -4180,14 +4180,14 @@ Stmt *ASTNodeImporter::VisitForAllStmt(ForAllStmt *S) {
   if (!ToBody && S->getBody())
     return nullptr;
   SourceLocation ToForLoc = Importer.Import(S->getForLoc());
-  ExSourceLocation ToLParenLoc = Importer.Import(S->getLParenLoc());
+  SourceLocation ToLParenLoc = Importer.Import(S->getLParenLoc());
   SourceLocation ToRParenLoc = Importer.Import(S->getRParenLoc());
-  return new (Importer.getToContext()) ForStmt(Importer.getToContext(),
-					       ToInit, ToCondition,
-					       ToConditionVariable,
-					       ToInc, ToBody,
-					       ToForLoc, ToLParenLoc,
-					       ToRParenLoc);
+  return new (Importer.getToContext()) ForAllStmt(Importer.getToContext(),
+						  ToInit, ToCondition,
+						  ToConditionVariable,
+						  ToInc, ToBody,
+						  ToForLoc, ToLParenLoc,
+						  ToRParenLoc);
 }
 
 Stmt *ASTNodeImporter::VisitGotoStmt(GotoStmt *S) {
@@ -4337,11 +4337,11 @@ Stmt *ASTNodeImporter::VisitCXXForAllRangeStmt(CXXForAllRangeStmt *S) {
   SourceLocation ToCoawaitLoc = Importer.Import(S->getCoawaitLoc());
   SourceLocation ToColonLoc = Importer.Import(S->getColonLoc());
   SourceLocation ToRParenLoc = Importer.Import(S->getRParenLoc());
-  return new (Importer.getToContext()) CXXForRangeStmt(ToRange, ToBegin, ToEnd,
-						       ToCond, ToInc,
-						       ToLoopVar, ToBody,
-						       ToForLoc, ToCoawaitLoc,
-						       ToColonLoc, ToRParenLoc);
+  return new (Importer.getToContext()) CXXForAllRangeStmt(ToRange, ToBegin, ToEnd,
+							  ToCond, ToInc,
+							  ToLoopVar, ToBody,
+							  ToForLoc, ToCoawaitLoc,
+							  ToColonLoc, ToRParenLoc);
 }
 
 Stmt *ASTNodeImporter::VisitObjCForCollectionStmt(ObjCForCollectionStmt *S) {
@@ -4451,12 +4451,6 @@ Stmt *ASTNodeImporter::VisitCilkSpawnStmt(CilkSpawnStmt *S) {
     return nullptr;
   return new (Importer.getToContext()) CilkSpawnStmt(SpawnLoc, Child);
 }
-
-// +===== Kitsune
-Stmt *ASTNodeImporter::VisitKitsuneStmt(KitsuneStmt *S){
-  assert(false && "unimplemented");
-}
-// ==============
 
 Stmt *ASTNodeImporter::VisitCilkSyncStmt(CilkSyncStmt *S) {
   SourceLocation SyncLoc = Importer.Import(S->getSyncLoc());

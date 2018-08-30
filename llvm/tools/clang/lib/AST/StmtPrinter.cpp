@@ -292,6 +292,35 @@ void StmtPrinter::VisitForStmt(ForStmt *Node) {
   }
 }
 
+void StmtPrinter::VisitForAllStmt(ForAllStmt *Node) {
+  Indent() << "forall (";
+  if (Node->getInit()) {
+    if (DeclStmt *DS = dyn_cast<DeclStmt>(Node->getInit()))
+      PrintRawDeclStmt(DS);
+    else
+      PrintExpr(cast<Expr>(Node->getInit()));
+  }
+  OS << ";";
+  if (Node->getCond()) {
+    OS << " ";
+    PrintExpr(Node->getCond());
+  }
+  OS << ";";
+  if (Node->getInc()) {
+    OS << " ";
+    PrintExpr(Node->getInc());
+  }
+  OS << ") ";
+
+  if (CompoundStmt *CS = dyn_cast<CompoundStmt>(Node->getBody())) {
+    PrintRawCompoundStmt(CS);
+    OS << "\n";
+  } else {
+    OS << "\n";
+    PrintStmt(Node->getBody());
+  }
+}
+
 void StmtPrinter::VisitObjCForCollectionStmt(ObjCForCollectionStmt *Node) {
   Indent() << "for (";
   if (DeclStmt *DS = dyn_cast<DeclStmt>(Node->getElement()))
@@ -313,6 +342,19 @@ void StmtPrinter::VisitObjCForCollectionStmt(ObjCForCollectionStmt *Node) {
 
 void StmtPrinter::VisitCXXForRangeStmt(CXXForRangeStmt *Node) {
   Indent() << "for (";
+  PrintingPolicy SubPolicy(Policy);
+  SubPolicy.SuppressInitializers = true;
+  Node->getLoopVariable()->print(OS, SubPolicy, IndentLevel);
+  OS << " : ";
+  PrintExpr(Node->getRangeInit());
+  OS << ") {\n";
+  PrintStmt(Node->getBody());
+  Indent() << "}";
+  if (Policy.IncludeNewlines) OS << "\n";
+}
+
+void StmtPrinter::VisitCXXForAllRangeStmt(CXXForAllRangeStmt *Node) {
+  Indent() << "forall (";
   PrintingPolicy SubPolicy(Policy);
   SubPolicy.SuppressInitializers = true;
   Node->getLoopVariable()->print(OS, SubPolicy, IndentLevel);
@@ -383,12 +425,6 @@ void StmtPrinter::VisitReturnStmt(ReturnStmt *Node) {
   OS << ";";
   if (Policy.IncludeNewlines) OS << "\n";
 }
-
-// +===== Kitsune
-void StmtPrinter::VisitKitsuneStmt(KitsuneStmt *Node){
-  assert(false && "unimplemented");
-}
-// ==============
 
 
 void StmtPrinter::VisitGCCAsmStmt(GCCAsmStmt *Node) {

@@ -1653,6 +1653,13 @@ namespace {
         Visit(Init);
     }
 
+    void VisitForAllStmt(const ForAllStmt *S) {
+      // Only visit the init statement of a for loop; the body
+      // has a different break/continue scope.
+      if (const Stmt *Init = S->getInit())
+        Visit(Init);
+    }
+
     void VisitWhileStmt(const WhileStmt *) {
       // Do nothing; the children of a while loop have a different
       // break/continue scope.
@@ -1665,6 +1672,17 @@ namespace {
 
     void VisitCXXForRangeStmt(const CXXForRangeStmt *S) {
       // Only visit the initialization of a for loop; the body
+      // has a different break/continue scope.
+      if (const Stmt *Range = S->getRangeStmt())
+        Visit(Range);
+      if (const Stmt *Begin = S->getBeginStmt())
+        Visit(Begin);
+      if (const Stmt *End = S->getEndStmt())
+        Visit(End);
+    }
+
+    void VisitCXXForAllRangeStmt(const CXXForAllRangeStmt *S) {
+      // Only visit the initialization of a forall range loop; the body
       // has a different break/continue scope.
       if (const Stmt *Range = S->getRangeStmt())
         Visit(Range);
@@ -2045,6 +2063,32 @@ void NoteForRangeBeginEndFunction(Sema &SemaRef, Expr *E,
     << BEF << IsTemplate << Description << E->getType();
 }
 
+  /// Produce a note indicating which begin/end function was implicitly called
+  /// by a C++11 for-range statement. This is often not obvious from the code,
+  /// nor from the diagnostics produced when analysing the implicit expressions
+  /// required in a for-range statement.
+  void NoteForAllRangeBeginEndFunction(Sema &SemaRef, Expr *E,
+				       BeginEndFunction BEF) {
+    CallExpr *CE = dyn_cast<CallExpr>(E);
+    if (!CE)
+      return;
+    FunctionDecl *D = dyn_cast<FunctionDecl>(CE->getCalleeDecl());
+    if (!D)
+      return;
+    SourceLocation Loc = D->getLocation();
+
+    Fstd::string Description;
+    bool IsTemplate = false;
+    F if (FunctionTemplateDecl *FunTmpl = D->getPrimaryTemplate()) {
+      Description = SemaRef.getTemplateArgumentBindingsText(
+							    FunTmpl->getTemplateParameters(), *D->getTemplateSpecializationArgs());
+      IsTemplate = true;
+    }
+
+    SemaRef.Diag(Loc, diag::note_for_range_begin_end)
+      << BEF << IsTemplate << Description << E->getType();
+  }
+
 /// Build a variable declaration for a for-range statement.
 VarDecl *BuildForRangeVarDecl(Sema &SemaRef, SourceLocation Loc,
                               QualType Type, const char *Name) {
@@ -2056,6 +2100,20 @@ VarDecl *BuildForRangeVarDecl(Sema &SemaRef, SourceLocation Loc,
   Decl->setImplicit();
   return Decl;
 }
+
+
+/// Build a variable declaration for a for-range statement.
+VarDecl *BuildForAllRangeVarDecl(Sema &SemaRef, SourceLocation Loc,
+				 QualType Type, const char *Name) {
+  DeclContext *DC = SemaRef.CurContext;
+  IdentifierInfo *II = &SemaRef.PP.getIdentifierTable().get(Name);
+  TypeSourceInfo *TInfo = SemaRef.Context.getTrivialTypeSourceInfo(Type, Loc);
+  VarDecl *Decl = VarDecl::Create(SemaRef.Context, DC, Loc, Loc, II, Type,
+                                  TInfo, SC_None);
+  Decl->setImplicit();
+  return Decl;
+}  
+
 
 }
 
@@ -3191,6 +3249,10 @@ StmtResult Sema::LiftCilkForLoopLimit(SourceLocation CilkForLoc,
     ToExtract = E->getRHS();
   else if (DeclUseInRHS)
     ToExtract = E->getLHS();
+  else {
+    ToExtract = nullptr;
+    assert(false && "should this happen?");
+  }
 
   // Create a new VarDecl that stores the result of the lifted
   // expression.
@@ -4670,24 +4732,6 @@ StmtResult Sema::ActOnCapturedRegionEnd(Stmt *S) {
 using namespace clang;
 using namespace sema;
 
-void VisitForAllStmt(const ForAllStmt *S) {
-  // Only visit the init statement of a for loop; the body
-  // has a different break/continue scope.
-  if (const Stmt *Init = S->getInit())
-    Visit(Init);
-}
-
-void VisitCXXForAllRangeStmt(const CXXForAllRangeStmt *S) {
-  // Only visit the initialization of a for loop; the body
-  // has a different break/continue scope.
-  if (const Stmt *Range = S->getRangeStmt())
-    Visit(Range);
-  if (const Stmt *Begin = S->getBeginStmt())
-    Visit(Begin);
-  if (const Stmt *End = S->getEndStmt())
-    Visit(End);
-}
-
 StmtResult Sema::ActOnForAllStmt(SourceLocation ForLoc, SourceLocation LParenLoc,
 				 Stmt *First, ConditionResult Second,
 				 FullExprArg third, SourceLocation RParenLoc,
@@ -4800,7 +4844,7 @@ StmtResult Sema::ActOnCXXForAllRangeStmt(Scope *S, SourceLocation ForLoc,
 					 SourceLocation CoawaitLoc, Stmt *First,
 					 SourceLocation ColonLoc, Expr *Range,
 					 SourceLocation RParenLoc,
-					 BuildForAllRangeKind Kind) {
+					 BuildForRangeKind Kind) {
   if (!First)
     return StmtError();
 
@@ -4864,7 +4908,7 @@ StmtResult Sema::ActOnCXXForAllRangeStmt(Scope *S, SourceLocation ForLoc,
 /// BeginExpr and EndExpr are set and FRS_Success is returned on success;
 /// CandidateSet and BEF are set and some non-success value is returned on
 /// failure.
-static Sema::ForAllRangeStatus
+static Sema::ForRangeStatus
 BuildNonArrayForAllRange(Sema &SemaRef, Expr *BeginRange, Expr *EndRange,
 			 QualType RangeType, VarDecl *BeginVar, VarDecl *EndVar,
 			 SourceLocation ColonLoc, SourceLocation CoawaitLoc,
@@ -4905,7 +4949,7 @@ BuildNonArrayForAllRange(Sema &SemaRef, Expr *BeginRange, Expr *EndRange,
   }
 
   *BEF = BEF_begin;
-  Sema::ForAllRangeStatus RangeStatus =
+  Sema::ForRangeStatus RangeStatus =
       SemaRef.BuildForAllRangeBeginEndCall(ColonLoc, ColonLoc, BeginNameInfo,
                                         BeginMemberLookup, CandidateSet,
                                         BeginRange, BeginExpr);
@@ -4994,7 +5038,7 @@ Sema::BuildCXXForAllRangeStmt(SourceLocation ForLoc, SourceLocation CoawaitLoc,
 			      SourceLocation ColonLoc, Stmt *RangeDecl,
 			      Stmt *Begin, Stmt *End, Expr *Cond,
 			      Expr *Inc, Stmt *LoopVarDecl,
-			      SourceLocation RParenLoc, BuildForAllRangeKind Kind) {
+			      SourceLocation RParenLoc, BuildForRangeKind Kind) {
   // FIXME: This should not be used during template instantiation. We should
   // pick up the set of unqualified lookup results for the != and + operators
   // in the initial parse.

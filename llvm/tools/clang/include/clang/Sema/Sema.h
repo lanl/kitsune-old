@@ -1703,8 +1703,8 @@ public:
 
     NameClassification(ParsedType Type) : Kind(NC_Type), Type(Type) {}
 
-    NameClassification(const IdentifierInfo *Keyword)
-      : Kind(NC_Keyword), Keyword(Keyword) { }
+    NameClassification(const IdentifierInfo *KW)
+      : Kind(NC_Keyword), Keyword(KW) { }
 
     static NameClassification Error() {
       return NameClassification(NC_Error);
@@ -3747,7 +3747,7 @@ public:
 				     Stmt *LoopVar,
 				     SourceLocation ColonLoc, Expr *Collection,
 				     SourceLocation RParenLoc,
-				     BuildForAllRangeKind Kind);
+				     BuildForRangeKind Kind);
     StmtResult BuildCXXForAllRangeStmt(SourceLocation ForLoc,
 				       SourceLocation CoawaitLoc,
 				       SourceLocation ColonLoc,
@@ -3755,7 +3755,7 @@ public:
 				       Expr *Cond, Expr *Inc,
 				       Stmt *LoopVarDecl,
 				       SourceLocation RParenLoc,
-				       BuildForAllRangeKind Kind);
+				       BuildForRangeKind Kind);
   StmtResult FinishCXXForAllRangeStmt(Stmt *ForAllRange, Stmt *Body);
 
   StmtResult ActOnGotoStmt(SourceLocation GotoLoc,

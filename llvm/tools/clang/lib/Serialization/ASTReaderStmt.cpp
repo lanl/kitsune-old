@@ -230,6 +230,18 @@ void ASTStmtReader::VisitForStmt(ForStmt *S) {
   S->setRParenLoc(ReadSourceLocation());
 }
 
+void ASTStmtReader::VisitForAllStmt(ForAllStmt *S) {
+  VisitStmt(S);
+  S->setInit(Record.readSubStmt());
+  S->setCond(Record.readSubExpr());
+  S->setConditionVariable(Record.getContext(), ReadDeclAs<VarDecl>());
+  S->setInc(Record.readSubExpr());
+  S->setBody(Record.readSubStmt());
+  S->setForLoc(ReadSourceLocation());
+  S->setLParenLoc(ReadSourceLocation());
+  S->setRParenLoc(ReadSourceLocation());
+}
+
 void ASTStmtReader::VisitGotoStmt(GotoStmt *S) {
   VisitStmt(S);
   S->setLabel(ReadDeclAs<LabelDecl>());
@@ -433,12 +445,6 @@ void ASTStmtReader::VisitCapturedStmt(CapturedStmt *S) {
     I.Loc = ReadSourceLocation();
   }
 }
-
-// +===== Kitsune
-void ASTStmtReader::VisitKitsuneStmt(KitsuneStmt *S){
-  assert(false && "unimplemented");
-}
-// ==============
 
 void ASTStmtReader::VisitExpr(Expr *E) {
   VisitStmt(E);
@@ -1221,6 +1227,21 @@ void ASTStmtReader::VisitCXXTryStmt(CXXTryStmt *S) {
 }
 
 void ASTStmtReader::VisitCXXForRangeStmt(CXXForRangeStmt *S) {
+  VisitStmt(S);
+  S->ForLoc = ReadSourceLocation();
+  S->CoawaitLoc = ReadSourceLocation();
+  S->ColonLoc = ReadSourceLocation();
+  S->RParenLoc = ReadSourceLocation();
+  S->setRangeStmt(Record.readSubStmt());
+  S->setBeginStmt(Record.readSubStmt());
+  S->setEndStmt(Record.readSubStmt());
+  S->setCond(Record.readSubExpr());
+  S->setInc(Record.readSubExpr());
+  S->setLoopVarStmt(Record.readSubStmt());
+  S->setBody(Record.readSubStmt());
+}
+
+void ASTStmtReader::VisitCXXForAllRangeStmt(CXXForAllRangeStmt *S) {
   VisitStmt(S);
   S->ForLoc = ReadSourceLocation();
   S->CoawaitLoc = ReadSourceLocation();
@@ -3116,6 +3137,10 @@ Stmt *ASTReader::ReadStmtFromStream(ModuleFile &F) {
       S = new (Context) ForStmt(Empty);
       break;
 
+    case STMT_FORALL:
+      S = new (Context) ForAllStmt(Empty);
+      break;
+      
     case STMT_GOTO:
       S = new (Context) GotoStmt(Empty);
       break;
@@ -3490,6 +3515,10 @@ Stmt *ASTReader::ReadStmtFromStream(ModuleFile &F) {
     case STMT_CXX_FOR_RANGE:
       S = new (Context) CXXForRangeStmt(Empty);
       break;
+
+    case STMT_CXX_FORALL_RANGE:
+      S = new (Context) CXXForAllRangeStmt(Empty);
+      break;      
 
     case STMT_MS_DEPENDENT_EXISTS:
       S = new (Context) MSDependentExistsStmt(SourceLocation(), true,

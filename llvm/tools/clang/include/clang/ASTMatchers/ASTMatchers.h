@@ -1567,11 +1567,10 @@ AST_MATCHER_P(ForStmt, hasIncrement, internal::Matcher<Stmt>,
 /// \code
 ///     forall(x; x < N; ++x) { }
 /// \endcode
-AST_MATCHER_P(ForAllStmt, hasIncrement, internal::Matcher<Stmt>,
-		InnerMatcher) {
-    const Stmt *const Increment = Node.getInc();
-    return (Increment != nullptr &&
-	    InnerMatcher.matches(*Increment, Finder, Builder));
+AST_MATCHER_P(ForAllStmt, hasInc, internal::Matcher<Stmt>,InnerMatcher) {
+  const Stmt *const Increment = Node.getInc();
+  return (Increment != nullptr &&
+	  InnerMatcher.matches(*Increment, Finder, Builder));
 }
   
 /// \brief Matches the initialization statement of a for loop.
@@ -1596,8 +1595,7 @@ AST_MATCHER_P(ForStmt, hasLoopInit, internal::Matcher<Stmt>,
 /// \code
 ///     forall(int x = 0; x < N; ++x) { }
 /// \endcode
-AST_MATCHER_P(ForAllStmt, hasLoopInit, internal::Matcher<Stmt>,
-	      InnerMatcher) {
+AST_MATCHER_P(ForAllStmt, hasInit, internal::Matcher<Stmt>,InnerMatcher) {
     const Stmt *const Init = Node.getInit();
     return (Init != nullptr && InnerMatcher.matches(*Init, Finder, Builder));
 }
@@ -1621,8 +1619,7 @@ const internal::VariadicDynCastAllOfMatcher<
 ///   forall(int j = 0; j < 5; ++j);
 /// \endcode
 const internal::VariadicDynCastAllOfMatcher<
-    Stmt,
-    CXXForAllRangeStmt> cxxForRangeStmt;
+    Stmt, CXXForAllRangeStmt> cxxForAllRangeStmt;
   
 
 /// \brief Matches the initialization statement of a for loop.
@@ -1647,8 +1644,7 @@ AST_MATCHER_P(CXXForRangeStmt, hasLoopVariable, internal::Matcher<VarDecl>,
 /// \code
 ///     forall(int x : a) { }
 /// \endcode
-AST_MATCHER_P(CXXForAllRangeStmt, hasLoopVariable, internal::Matcher<VarDecl>,
-	      InnerMatcher) {
+AST_MATCHER_P(CXXForAllRangeStmt, hasLoopVar, internal::Matcher<VarDecl>, InnerMatcher) {
   const VarDecl *const Var = Node.getLoopVariable();
   return (Var != nullptr && InnerMatcher.matches(*Var, Finder, Builder));
 }
@@ -1675,8 +1671,7 @@ AST_MATCHER_P(CXXForRangeStmt, hasRangeInit, internal::Matcher<Expr>,
 /// \code
 ///     forall(int x : a) { }
 /// \endcode
-AST_MATCHER_P(CXXForAllRangeStmt, hasRangeInit, internal::Matcher<Expr>,
-	      InnerMatcher) {
+AST_MATCHER_P(CXXForAllRangeStmt, hasInitRange, internal::Matcher<Expr>, InnerMatcher) {
   const Expr *const Init = Node.getRangeInit();
   return (Init != nullptr && InnerMatcher.matches(*Init, Finder, Builder));
 }

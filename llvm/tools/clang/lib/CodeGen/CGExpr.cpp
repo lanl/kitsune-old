@@ -2294,7 +2294,7 @@ LValue CodeGenFunction::EmitDeclRefLValue(const DeclRefExpr *E) {
     // Check for captured variables.
     if (E->refersToEnclosingVariableOrCapture()) {
       // +===== Kitsune
-      if(InKokkosConstruct){
+      if (InKokkosConstruct){
         auto I = LocalDeclMap.find(VD);
         assert(I != LocalDeclMap.end());
         return MakeAddrLValue(I->second, T);  

@@ -31,7 +31,7 @@
 using namespace clang;
 
 // +===== Kitsune
-#include "clang/AST/Kitsune/Stmt.h"
+//#include "clang/AST/Kitsune/Stmt.h"
 // ==============
 
 static struct StmtClassNameTable {

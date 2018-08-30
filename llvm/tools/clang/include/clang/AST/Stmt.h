@@ -1245,6 +1245,80 @@ public:
   }
 };
 
+/// ForAllStmt -- This represents a 'forall(init; cond; inc)' statement.  Just
+/// like the ForStmt, any of the init/cond/inc parts of the ForAllStmt will be
+/// null if they were not specified in the source.
+///
+/// Why ForAllStmt?  We use ForAllStmts as a hint of a parallel loop construct
+/// where each interation of a loop is independent of all others.  You can always
+/// argue that this could be done with things like pragmas/attributes... But we
+/// found this implementation path cleaner in the grand scheme of things...
+class ForAllStmt : public Stmt {
+  SourceLocation ForLoc;
+  enum { INIT, CONDVAR, COND, INC, BODY, END_EXPR };
+  Stmt* SubExprs[END_EXPR]; // SubExprs[INIT] is an expression or declstmt.
+  SourceLocation LParenLoc, RParenLoc;
+
+public:
+  ForAllStmt(ASTContext &C, Stmt *Init, Expr *Cond, VarDecl *condVar,
+    Expr *Inc, Stmt *Body, SourceLocation FL, SourceLocation LP,
+    SourceLocation RP);
+
+  /// \brief Build an empty forall statement.
+  explicit ForAllStmt(EmptyShell Empty) : Stmt(ForAllStmtClass, Empty) { }
+
+  Stmt *getInit() { return SubExprs[INIT]; }
+
+  /// \brief Retrieve the condition variable declared in this "forall"
+  /// statement, if any.
+  ///
+  /// In the following example, "y" is the condition variable.
+  /// \code
+  /// for (int x = random(); int y = mangle(x); ++x) {
+  ///   // ...
+  /// }
+  /// \endcode
+  VarDecl *getConditionVariable() const;
+  void setConditionVariable(const ASTContext &C, VarDecl *V);
+
+  /// If this ForAllStmt has a condition variable, return the faux
+  /// DeclStmt associated with the creation of that condition
+  /// variable.
+  const DeclStmt *getConditionVariableDeclStmt() const {
+    return reinterpret_cast<DeclStmt*>(SubExprs[CONDVAR]);
+  }
+
+  Expr *getCond() { return reinterpret_cast<Expr*>(SubExprs[COND]); }
+  Expr *getInc()  { return reinterpret_cast<Expr*>(SubExprs[INC]); }
+  Stmt *getBody() { return SubExprs[BODY]; }
+
+  const Stmt *getInit() const { return SubExprs[INIT]; }
+  const Expr *getCond() const { return reinterpret_cast<Expr*>(SubExprs[COND]);}
+  const Expr *getInc()  const { return reinterpret_cast<Expr*>(SubExprs[INC]); }
+  const Stmt *getBody() const { return SubExprs[BODY]; }
+
+  SourceLocation getForLoc() const { return ForLoc; }
+  void setForLoc(SourceLocation L) { ForLoc = L; }
+  SourceLocation getLParenLoc() const { return LParenLoc; }
+  void setLParenLoc(SourceLocation L) { LParenLoc = L; }
+  SourceLocation getRParenLoc() const { return RParenLoc; }
+  void setRParenLoc(SourceLocation L) { RParenLoc = L; }  
+
+  SourceLocation getLocStart() const LLVM_READONLY { return ForLoc; }
+  SourceLocation getLocEnd() const LLVM_READONLY {
+    return SubExprs[BODY]->getLocEnd();
+  }
+
+  static bool classof(const Stmt *T) {
+    return T->getStmtClass() == ForAllStmtClass;
+  }
+
+  // Iterators
+  child_range children() {
+    return child_range(&SubExprs[0], &SubExprs[0]+END_EXPR);
+  }  
+};
+
 /// GotoStmt - This represents a direct goto.
 ///
 class GotoStmt : public Stmt {

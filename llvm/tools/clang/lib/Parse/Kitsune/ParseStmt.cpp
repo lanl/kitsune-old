@@ -382,5 +382,5 @@ StmtResult Parser::ParseForAllStatement(SourceLocation *TrailingElseLoc) {
     ForRangeStmtOut = nullptr;
   }
 
-  return Actions.ActOnForallStmt(ForStmtOut, ForRangeStmtOut);
+  return Actions.ActOnForAllStmt(ForStmtOut, ForRangeStmtOut);
 }

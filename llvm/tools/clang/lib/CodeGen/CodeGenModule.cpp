@@ -942,17 +942,17 @@ void CodeGenModule::SetLLVMFunctionAttributesForDefinition(const Decl *D,
     return;
   }
 
-  // +===== Kitsune 
-  // Make sure we pass task attributes down to the IR level. 
-  // Not sure we need the first if conditional here; the 'task'
-  // attribute is specified as 'function-only' and thus the only
-  // Decl that should have it would be a function... 
+  // For our extensions to Clang we need to make sure we pass some
+  // attributes down to the IR level...
+  //
+  // TODO: As noted elsewhere in the code, we should probably
+  // generalize the tasking attribute here to be more general
+  // vs. flecsi-centric... --PM
   if (const FunctionDecl *FD = dyn_cast_or_null<FunctionDecl>(D)) {
     if (D->hasAttr<FleCSITaskAttr>()) {
       B.addAttribute(llvm::Attribute::FleCSITask);
     }
   }
-  // ======
 
   // Track whether we need to add the optnone LLVM attribute,
   // starting with the default for this optimization level.
@@ -2141,7 +2141,8 @@ llvm::Constant *CodeGenModule::GetOrCreateLLVMFunction(
     F->addAttributes(llvm::AttributeList::FunctionIndex, B);
   }
 
-  // +===== Kitsune 
+  // TODO: We should generalize "task" here and make it more general
+  // vs. flecsi-centric... 
   if (D) {
     const FunctionDecl *FD = cast_or_null<FunctionDecl>(D);
     if (FD && FD->hasAttr<FleCSITaskAttr>()) {
@@ -2149,7 +2150,6 @@ llvm::Constant *CodeGenModule::GetOrCreateLLVMFunction(
       F->addAttributes(llvm::Attribute::FleCSITask, B);
     }
   }
-  // ======
 
   if (!DontDefer) {
     // All MSVC dtors other than the base dtor are linkonce_odr and delegate to

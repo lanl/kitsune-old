@@ -3858,13 +3858,14 @@ static EvalStmtResult EvaluateStmt(StmtResult &Result, EvalInfo &Info,
 	EvaluateLoopBody(Result, Info, FAS->getBody(), Case);
       if (ESR != ESR_Continue)
 	return ESR;
-      if (FS->getInc()) {
+      if (FAS->getInc()) {
 	FullExpressionRAII IncScope(Info);
-	if (!EvaluateIgnoredValue(Info, FS->getInch()))
+	if (!EvaluateIgnoredValue(Info, FAS->getInc()))
 	  return ESR_Failed;
       }
       break;
-
+    }
+      
     case Stmt::DeclStmtClass:
       // FIXME: If the variable has initialization that can't be jumped over,
       // bail out of any immediately-surrounding compound-statement too.
@@ -4083,7 +4084,7 @@ static EvalStmtResult EvaluateStmt(StmtResult &Result, EvalInfo &Info,
       {
 	bool Continue = true;
 	FullExpressionRAII CondExpr(Info);
-	if (!EvaluateAsBooleanCondition(FS->getCond(), Continue, Info))
+	if (!EvaluateAsBooleanCondition(FAS->getCond(), Continue, Info))
 	  return ESR_Failed;
 	if (!Continue)
 	  break;

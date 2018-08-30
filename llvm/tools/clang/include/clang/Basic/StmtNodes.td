@@ -30,10 +30,6 @@ def CaseStmt : DStmt<SwitchCase>;
 def DefaultStmt : DStmt<SwitchCase>;
 def CapturedStmt : Stmt;
 
-// +===== Kitsune
-def KitsuneStmt : Stmt;
-// ======
-
 // Asm statements
 def AsmStmt : Stmt<1>;
 def GCCAsmStmt : DStmt<AsmStmt>;
