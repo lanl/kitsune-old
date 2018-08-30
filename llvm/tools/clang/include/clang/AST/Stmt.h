@@ -1297,6 +1297,11 @@ public:
   const Expr *getInc()  const { return reinterpret_cast<Expr*>(SubExprs[INC]); }
   const Stmt *getBody() const { return SubExprs[BODY]; }
 
+  void setInit(Stmt *S) { SubExprs[INIT] = S; }
+  void setCond(Expr *E) { SubExprs[COND] = reinterpret_cast<Stmt*>(E); }
+  void setInc(Expr *E) { SubExprs[INC] = reinterpret_cast<Stmt*>(E); }
+  void setBody(Stmt *S) { SubExprs[BODY] = S; }  
+
   SourceLocation getForLoc() const { return ForLoc; }
   void setForLoc(SourceLocation L) { ForLoc = L; }
   SourceLocation getLParenLoc() const { return LParenLoc; }

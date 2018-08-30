@@ -40,10 +40,6 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Transforms/Utils/SanitizerStats.h"
 
-// +===== Kitsune
-#include "clang/AST/Kitsune/Stmt.h"
-// ==============
-
 namespace llvm {
 class BasicBlock;
 class LLVMContext;
@@ -2708,6 +2704,8 @@ public:
   void EmitDoStmt(const DoStmt &S, ArrayRef<const Attr *> Attrs = None);
   void EmitForStmt(const ForStmt &S,
                    ArrayRef<const Attr *> Attrs = None);
+  void EmitForAllStmt(const ForAllStmt &S, ArrayRef<const Attr *> ForAttrs = None);
+  
   void EmitReturnStmt(const ReturnStmt &S);
   void EmitDeclStmt(const DeclStmt &S);
   void EmitBreakStmt(const BreakStmt &S);
@@ -2752,14 +2750,6 @@ public:
   void EnterSEHTryStmt(const SEHTryStmt &S);
   void ExitSEHTryStmt(const SEHTryStmt &S);
 
-
-  void EmitForallStmt(const ForallStmt &S,
-                      ArrayRef<const Attr *> ForAttrs = None);
-
-  void EmitForallRangeStmt(const ForallStmt &S,
-                           ArrayRef<const Attr *> ForAttrs = None);
-
-
   bool isMainStmt(const Stmt* S){
     return getContext().getSourceManager().isInMainFile(S->getLocStart());
   }
@@ -2801,6 +2791,8 @@ public:
 
   void EmitCXXForRangeStmt(const CXXForRangeStmt &S,
                            ArrayRef<const Attr *> Attrs = None);
+  void EmitCXXForAllRangeStmt(const CXXForAllRangeStmt &S,
+			      ArrayRef<const Attr *> Attrs = None);
 
   /// Returns calculated size of the specified type.
   llvm::Value *getTypeSize(QualType Ty);

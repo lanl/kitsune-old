@@ -954,7 +954,7 @@ void CodeGenFunction::EmitForStmt(const ForStmt &S,
 }
 
 
-void CodeGenFunction::EmitForAllStmt(const ForStmt &S,
+void CodeGenFunction::EmitForAllStmt(const ForAllStmt &S,
 				     ArrayRef<const Attr *> ForAllAttrs) {
 
   JumpDest LoopExit = getJumpDestInCurrentScope("forall.end");
@@ -1000,7 +1000,7 @@ void CodeGenFunction::EmitForAllStmt(const ForStmt &S,
     llvm::BasicBlock *ExitBlock = LoopExit.getBlock();
     // If there are any cleanups between here and the loop-exit scope,
     // create a block to stage a loop exit along.
-    if (ForScope.requiresCleanups())
+    if (ForAllScope.requiresCleanups())
       ExitBlock = createBasicBlock("forall.cond.cleanup");
 
     // As long as the condition is true, iterate the loop.
@@ -1231,7 +1231,7 @@ void CodeGenFunction::EmitReturnStmt(const ReturnStmt &S) {
 }
 
 
-void CodeGenFunction::EmitCXXForAllRangeStmt(const CXXForRangeStmt &S,
+void CodeGenFunction::EmitCXXForAllRangeStmt(const CXXForAllRangeStmt &S,
 					     ArrayRef<const Attr*> ForAllAttrs) {
   JumpDest LoopExit = getJumpDestInCurrentScope("forall.end");
 
@@ -1248,6 +1248,7 @@ void CodeGenFunction::EmitCXXForAllRangeStmt(const CXXForRangeStmt &S,
   llvm::BasicBlock *CondBlock = createBasicBlock("forall.cond");
   EmitBlock(CondBlock);
 
+  const SourceRange &R = S.getSourceRange();  
   LoopStack.push(CondBlock, CGM.getContext(), ForAllAttrs,
 		 SourceLocToDebugLoc(R.getBegin()),
 		 SourceLocToDebugLoc(R.getEnd()));

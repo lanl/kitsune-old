@@ -1148,8 +1148,8 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD, llvm::Function *Fn,
 
   // Check to see if this task has been flagged with a "task" attribute.
   // TODO: we should generalize this to not just be flecsi-centric... --PM
-  if (FD->hasAttr<FleCSITaskAttr()) {
-
+  if (FD->hasAttr<FleCSITaskAttr>()) {
+    // FIXME -- what do we need to decide here???
   }
 
   // The function might not have a body if we're generating thunks for a

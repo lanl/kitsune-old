@@ -468,7 +468,7 @@ private:
   CFGBlock *VisitCXXNewExpr(CXXNewExpr *DE, AddStmtChoice asc);
   CFGBlock *VisitCXXDeleteExpr(CXXDeleteExpr *DE, AddStmtChoice asc);
   CFGBlock *VisitCXXForRangeStmt(CXXForRangeStmt *S);
-  CFGBlock *VisitCXXForAllRangeStmt(CXXForRangeStmt *S);  
+  CFGBlock *VisitCXXForAllRangeStmt(CXXForAllRangeStmt *S);  
   CFGBlock *VisitCXXFunctionalCastExpr(CXXFunctionalCastExpr *E,
                                        AddStmtChoice asc);
   CFGBlock *VisitCXXTemporaryObjectExpr(CXXTemporaryObjectExpr *C,
@@ -1654,6 +1654,9 @@ CFGBlock *CFGBuilder::Visit(Stmt * S, AddStmtChoice asc) {
 
     case Stmt::CXXForRangeStmtClass:
       return VisitCXXForRangeStmt(cast<CXXForRangeStmt>(S));
+
+    case Stmt::CXXForAllRangeStmtClass:
+      return VisitCXXForAllRangeStmt(cast<CXXForAllRangeStmt>(S));      
 
     case Stmt::DeclStmtClass:
       return VisitDeclStmt(cast<DeclStmt>(S));

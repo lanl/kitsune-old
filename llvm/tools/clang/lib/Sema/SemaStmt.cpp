@@ -2077,11 +2077,12 @@ void NoteForRangeBeginEndFunction(Sema &SemaRef, Expr *E,
       return;
     SourceLocation Loc = D->getLocation();
 
-    Fstd::string Description;
+    std::string Description;
     bool IsTemplate = false;
-    F if (FunctionTemplateDecl *FunTmpl = D->getPrimaryTemplate()) {
+    if (FunctionTemplateDecl *FunTmpl = D->getPrimaryTemplate()) {
       Description = SemaRef.getTemplateArgumentBindingsText(
-							    FunTmpl->getTemplateParameters(), *D->getTemplateSpecializationArgs());
+							    FunTmpl->getTemplateParameters(),
+							    *D->getTemplateSpecializationArgs());
       IsTemplate = true;
     }
 
@@ -2668,17 +2669,6 @@ Sema::BuildCXXForRangeStmt(SourceLocation ForLoc, SourceLocation CoawaitLoc,
       cast_or_null<DeclStmt>(EndDeclStmt.get()), NotEqExpr.get(),
       IncrExpr.get(), LoopVarDS, /*Body=*/nullptr, ForLoc, CoawaitLoc,
       ColonLoc, RParenLoc);
-}
-
-/// FinishObjCForCollectionStmt - Attach the body to a objective-C foreach
-/// statement.
-StmtResult Sema::FinishObjCForCollectionStmt(Stmt *S, Stmt *B) {
-  if (!S || !B)
-    return StmtError();
-  ObjCForCollectionStmt * ForStmt = cast<ObjCForCollectionStmt>(S);
-
-  ForStmt->setBody(B);
-  return S;
 }
 
 // Warn when the loop variable is a const reference that creates a copy.
@@ -4904,7 +4894,7 @@ StmtResult Sema::ActOnCXXForAllRangeStmt(Scope *S, SourceLocation ForLoc,
 /// This function does not handle array-based for loops,
 /// which are created in Sema::BuildCXXForAllRangeStmt.
 ///
-/// \returns a ForAllRangeStatus indicating success or what kind of error occurred.
+/// \returns a ForRangeStatus indicating success or what kind of error occurred.
 /// BeginExpr and EndExpr are set and FRS_Success is returned on success;
 /// CandidateSet and BEF are set and some non-success value is returned on
 /// failure.
@@ -5206,7 +5196,7 @@ Sema::BuildCXXForAllRangeStmt(SourceLocation ForLoc, SourceLocation CoawaitLoc,
       OverloadCandidateSet CandidateSet(RangeLoc,
                                         OverloadCandidateSet::CSK_Normal);
       BeginEndFunction BEFFailure;
-      ForAllRangeStatus RangeStatus = BuildNonArrayForAllRange(
+      ForRangeStatus RangeStatus = BuildNonArrayForAllRange(
           *this, BeginRangeRef.get(), EndRangeRef.get(), RangeType, BeginVar,
           EndVar, ColonLoc, CoawaitLoc, &CandidateSet, &BeginExpr, &EndExpr,
           &BEFFailure);

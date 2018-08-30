@@ -187,7 +187,7 @@ void ASTStmtWriter::VisitForStmt(ForStmt *S) {
 
 void ASTStmtWriter::VisitForAllStmt(ForAllStmt *S) {
   VisitStmt(S);
-  AddStmt(S->getInit());
+  Record.AddStmt(S->getInit());
   Record.AddStmt(S->getCond());
   Record.AddDeclRef(S->getConditionVariable());
   Record.AddStmt(S->getInc());

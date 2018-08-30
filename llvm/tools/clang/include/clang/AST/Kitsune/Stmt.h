@@ -52,7 +52,6 @@
 #define KITSUNE_LLVM_CLANG_AST_STMT_H
 
 #include "clang/AST/Stmt.h"
-
 #include "clang/AST/StmtCXX.h"
 
 
