@@ -341,9 +341,9 @@ BuildNonArrayForAllRange(Sema &SemaRef, Expr *BeginRange, Expr *EndRange,
 
   *BEF = BEF_begin;
   Sema::ForRangeStatus RangeStatus =
-      SemaRef.BuildForAllRangeBeginEndCall(ColonLoc, ColonLoc, BeginNameInfo,
-                                        BeginMemberLookup, CandidateSet,
-                                        BeginRange, BeginExpr);
+    SemaRef.BuildForRangeBeginEndCall(ColonLoc, ColonLoc, BeginNameInfo,  // we can "borrow" standard for range version... 
+				      BeginMemberLookup, CandidateSet,
+				      BeginRange, BeginExpr);
 
   if (RangeStatus != Sema::FRS_Success) {
     if (RangeStatus == Sema::FRS_DiagnosticIssued)
@@ -368,9 +368,9 @@ BuildNonArrayForAllRange(Sema &SemaRef, Expr *BeginRange, Expr *EndRange,
 
   *BEF = BEF_end;
   RangeStatus =
-      SemaRef.BuildForAllRangeBeginEndCall(ColonLoc, ColonLoc, EndNameInfo,
-					   EndMemberLookup, CandidateSet,
-					   EndRange, EndExpr);
+      SemaRef.BuildForRangeBeginEndCall(ColonLoc, ColonLoc, EndNameInfo,
+					EndMemberLookup, CandidateSet,
+					EndRange, EndExpr);
   if (RangeStatus != Sema::FRS_Success) {
     if (RangeStatus == Sema::FRS_DiagnosticIssued)
       SemaRef.Diag(EndRange->getLocStart(), diag::note_in_for_range)

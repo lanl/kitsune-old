@@ -983,7 +983,7 @@ public:
 // particular, it implies that each iteration of the loop can execute
 // independently of all others.  It follows similar logic to ForStmt
 // but utilizes Tapir's detach+reattach+sync constructs to express
-// the parallel form... 
+// the parallel form.
 void
 CodeGenFunction::EmitForAllStmt(const ForAllStmt &S,
 				ArrayRef<const Attr *> ForAllAttrs) {
@@ -1367,36 +1367,59 @@ void CodeGenFunction::EmitReturnStmt(const ReturnStmt &S) {
 }
 
 
+// Perform code generation for the forall range statement -- this is a
+// another version of our augmented 'forall' constructs that has explicit
+// parallel semantics.  In particular, it implies that each iteration of
+// the loop can execute independently of all others.  It follows a similar
+// logic to ForStmt, ForAllStmt and EmitCXXForRangeStmt -- and like the
+// other forall constructs, utilizes Tapir's detach+rettach+sync constructs
+// to express the parallel form. 
 void CodeGenFunction::EmitCXXForAllRangeStmt(const CXXForAllRangeStmt &S,
 					     ArrayRef<const Attr*> ForAllAttrs) {
-  JumpDest LoopExit = getJumpDestInCurrentScope("forall.end");
-
+  
+  JumpDest LoopExit = getJumpDestInCurrentScope("forall.range.end");
   LexicalScope ForAllScope(*this, S.getSourceRange());
 
-  // Evaluate the first pieces before the loop.
+  PushSyncRegion();
+  llvm::Instruction *SyncRegionStart = EmitSyncRegionStart();
+  CurSyncRegion->setSyncRegionStart(SyncRegionStart);
+
+  // Evaluate the first pieces before the loop begins.
   EmitStmt(S.getRangeStmt());
   EmitStmt(S.getBeginStmt());
   EmitStmt(S.getEndStmt());
 
+  JumpDest Continue = getJumpDestInCurrentScope("forall.range.cond");
+  llvm::BasicBlock *CondBlock = Continue.getBlock();
+  EmitBlock(CondBlock);
+  
   // Start the loop with a block that tests the condition.
   // If there's an increment, the continue scope will be overwritten
   // later.
-  llvm::BasicBlock *CondBlock = createBasicBlock("forall.cond");
+  llvm::BasicBlock *CondBlock = createBasicBlock("forall.range.cond");
   EmitBlock(CondBlock);
 
+  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
+  // !!! FIXME -- Check to see if we need to get strategy !!!
+  // !!!          from attributes...                      !!!
+  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  LoopStack.setSpawnStrategy(LoopAttributes::DAC);  
   const SourceRange &R = S.getSourceRange();  
   LoopStack.push(CondBlock, CGM.getContext(), ForAllAttrs,
 		 SourceLocToDebugLoc(R.getBegin()),
 		 SourceLocToDebugLoc(R.getEnd()));
 
+  JumpDest Preattach = getJumpDestInCurrentScope("forall.range.preattach");
+  Continue = getJumpDestInCurrentScope("forall.range.inc");
+
   // If there are any cleanups between here and the loop-exit scope,
   // create a block to stage a loop exit along.
   llvm::BasicBlock *ExitBlock = LoopExit.getBlock();
   if (ForAllScope.requiresCleanups())
-    ExitBlock = createBasicBlock("forall.cond.cleanup");
+    ExitBlock = createBasicBlock("forall.range.cond.cleanup");
 
   // The loop body, consisting of the specified body and the loop variable.
-  llvm::BasicBlock *ForAllBody = createBasicBlock("forall.body");
+  llvm::BasicBlock *ForAllBody = createBasicBlock("forall.range.body");
 
   // The body is executed if the expression, contextually converted
   // to bool, is true.
@@ -1413,7 +1436,7 @@ void CodeGenFunction::EmitCXXForAllRangeStmt(const CXXForAllRangeStmt &S,
   incrementProfileCounter(&S);
 
   // Create a block for the increment. In case of a 'continue', we jump there.
-  JumpDest Continue = getJumpDestInCurrentScope("forall.inc");
+  JumpDest Continue = getJumpDestInCurrentScope("forall.range.inc");
 
   // Store the blocks to use for break and continue.
   BreakContinueStack.push_back(BreakContinue(LoopExit, Continue));

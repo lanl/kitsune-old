@@ -4080,6 +4080,8 @@ RValue CodeGenFunction::EmitRValueForField(LValue LV,
 
 RValue CodeGenFunction::EmitCallExpr(const CallExpr *E,
                                      ReturnValueSlot ReturnValue) {
+#if 0
+  // !!! FIXME -- Kokkos bits disabled... 
   // +===== Kitsune
   if(getLangOpts().Kokkos/* && isMainStmt(E)*/){
     const FunctionDecl* f = E->getDirectCallee();
@@ -4092,7 +4094,8 @@ RValue CodeGenFunction::EmitCallExpr(const CallExpr *E,
     }
   }
   // ==============
-
+#endif 
+ 
   // Builtins never have block type.
   if (E->getCallee()->getType()->isBlockPointerType())
     return EmitBlockCallExpr(E, ReturnValue);
