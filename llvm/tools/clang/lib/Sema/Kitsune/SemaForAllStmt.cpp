@@ -41,23 +41,95 @@
 using namespace clang;
 using namespace sema;
 
-void VisitForAllStmt(const ForAllStmt *S) {
-  // Only visit the init statement of a for loop; the body
-  // has a different break/continue scope.
-  if (const Stmt *Init = S->getInit())
-    Visit(Init);
+
+namespace {
+  /// Produce a note indicating which begin/end function was implicitly called
+  /// by a C++11 for-range statement. This is often not obvious from the code,
+  /// nor from the diagnostics produced when analysing the implicit expressions
+  /// required in a for-range statement.
+  void NoteForAllRangeBeginEndFunction(Sema &SemaRef, Expr *E,
+				       BeginEndFunction BEF) {
+    CallExpr *CE = dyn_cast<CallExpr>(E);
+    if (!CE)
+      return;
+    FunctionDecl *D = dyn_cast<FunctionDecl>(CE->getCalleeDecl());
+    if (!D)
+      return;
+    SourceLocation Loc = D->getLocation();
+
+    std::string Description;
+    bool IsTemplate = false;
+    if (FunctionTemplateDecl *FunTmpl = D->getPrimaryTemplate()) {
+      Description = SemaRef.getTemplateArgumentBindingsText(
+							    FunTmpl->getTemplateParameters(), *D->getTemplateSpecializationArgs());
+      IsTemplate = true;
+    }
+
+    SemaRef.Diag(Loc, diag::note_for_range_begin_end)
+      << BEF << IsTemplate << Description << E->getType();
+  }
+
+  /// Build a variable declaration for a for-range statement.
+  VarDecl *BuildForAllRangeVarDecl(Sema &SemaRef, SourceLocation Loc,
+				   QualType Type, const char *Name) {
+    DeclContext *DC = SemaRef.CurContext;
+    IdentifierInfo *II = &SemaRef.PP.getIdentifierTable().get(Name);
+    TypeSourceInfo *TInfo = SemaRef.Context.getTrivialTypeSourceInfo(Type, Loc);
+    VarDecl *Decl = VarDecl::Create(SemaRef.Context, DC, Loc, Loc, II, Type,
+				    TInfo, SC_None);
+    Decl->setImplicit();
+    return Decl;
+  }
+
+  void CheckForAllLoopConditionalStatement(Sema &S, Expr *Second,
+					   Expr *Third, Stmt *Body) {
+    // Condition is empty
+    if (!Second) return;
+
+    if (S.Diags.isIgnored(diag::warn_variables_not_in_loop_body,
+                          Second->getLocStart()))
+      return;
+
+    PartialDiagnostic PDiag = S.PDiag(diag::warn_variables_not_in_loop_body);
+    DeclSetVector Decls;
+    SmallVector<SourceRange, 10> Ranges;
+    DeclExtractor DE(S, Decls, Ranges);
+    DE.Visit(Second);
+
+    // Don't analyze complex conditionals.
+    if (!DE.isSimple()) return;
+
+    // No decls found.
+    if (Decls.size() == 0) return;
+
+    // Don't warn on volatile, static, or global variables.
+    for (auto *VD : Decls)
+      if (VD->getType().isVolatileQualified() || VD->hasGlobalStorage())
+        return;
+
+    if (DeclMatcher(S, Decls, Second).FoundDeclInUse() ||
+        DeclMatcher(S, Decls, Third).FoundDeclInUse() ||
+        DeclMatcher(S, Decls, Body).FoundDeclInUse())
+      return;
+
+    // Load decl names into diagnostic.
+    if (Decls.size() > 4) {
+      PDiag << 0;
+    } else {
+      PDiag << (unsigned)Decls.size();
+      for (auto *VD : Decls)
+        PDiag << VD->getDeclName();
+    }
+
+    for (auto Range : Ranges)
+      PDiag << Range;
+
+    S.Diag(Ranges.begin()->getBegin(), PDiag);
+  }
+
+  
 }
 
-void VisitCXXForAllRangeStmt(const CXXForAllRangeStmt *S) {
-  // Only visit the initialization of a for loop; the body
-  // has a different break/continue scope.
-  if (const Stmt *Range = S->getRangeStmt())
-    Visit(Range);
-  if (const Stmt *Begin = S->getBeginStmt())
-    Visit(Begin);
-  if (const Stmt *End = S->getEndStmt())
-    Visit(End);
-}
 
 StmtResult Sema::ActOnForAllStmt(SourceLocation ForLoc, SourceLocation LParenLoc,
 				 Stmt *First, ConditionResult Second,
@@ -87,8 +159,7 @@ StmtResult Sema::ActOnForAllStmt(SourceLocation ForLoc, SourceLocation LParenLoc
   CheckBreakContinueBinding(third.get());
 
   if (!Second.get().first)
-    CheckForLoopConditionalStatement(*this, Second.get().second, third.get(),
-                                     Body);
+    CheckForAllLoopConditionalStatement(*this, Second.get().second, third.get(), Body);
   CheckForRedundantIteration(*this, third.get(), Body);
 
   if (Second.get().second &&
@@ -136,66 +207,10 @@ static bool FinishForAllRangeVarDecl(Sema &SemaRef, VarDecl *Decl, Expr *Init,
   }
   Decl->setType(InitType);
 
-  // In ARC, infer lifetime.
-  // FIXME: ARC may want to turn this into 'const __unsafe_unretained' if
-  // we're doing the equivalent of fast iteration.
-  if (SemaRef.getLangOpts().ObjCAutoRefCount &&
-      SemaRef.inferObjCARCLifetime(Decl))
-    Decl->setInvalidDecl();
-
   SemaRef.AddInitializerToDecl(Decl, Init, /*DirectInit=*/false);
   SemaRef.FinalizeDeclaration(Decl);
   SemaRef.CurContext->addHiddenDecl(Decl);
   return false;
-}
-
-namespace {
-
-// An enum to represent whether something is dealing with a call to begin()
-// or a call to end() in a range-based for loop.
-enum BeginEndFunction {
-  BEF_begin,
-  BEF_end
-};
-
-/// Produce a note indicating which begin/end function was implicitly called
-/// by a C++11 forall-range statement. This is often not obvious from the code,
-/// nor from the diagnostics produced when analysing the implicit expressions
-/// required in a for-range statement.
-void NoteForAllRangeBeginEndFunction(Sema &SemaRef, Expr *E,
-				     BeginEndFunction BEF) {
-  CallExpr *CE = dyn_cast<CallExpr>(E);
-  if (!CE)
-    return;
-  FunctionDecl *D = dyn_cast<FunctionDecl>(CE->getCalleeDecl());
-  if (!D)
-    return;
-  SourceLocation Loc = D->getLocation();
-
-  std::string Description;
-  bool IsTemplate = false;
-  if (FunctionTemplateDecl *FunTmpl = D->getPrimaryTemplate()) {
-    Description = SemaRef.getTemplateArgumentBindingsText(
-      FunTmpl->getTemplateParameters(), *D->getTemplateSpecializationArgs());
-    IsTemplate = true;
-  }
-
-  SemaRef.Diag(Loc, diag::note_for_range_begin_end)
-    << BEF << IsTemplate << Description << E->getType();
-}
-
-/// Build a variable declaration for a for-range statement.
-VarDecl *BuildForAllRangeVarDecl(Sema &SemaRef, SourceLocation Loc,
-                              QualType Type, const char *Name) {
-  DeclContext *DC = SemaRef.CurContext;
-  IdentifierInfo *II = &SemaRef.PP.getIdentifierTable().get(Name);
-  TypeSourceInfo *TInfo = SemaRef.Context.getTrivialTypeSourceInfo(Type, Loc);
-  VarDecl *Decl = VarDecl::Create(SemaRef.Context, DC, Loc, Loc, II, Type,
-                                  TInfo, SC_None);
-  Decl->setImplicit();
-  return Decl;
-}
-
 }
 
 /// ActOnCXXForAllRangeStmt - Check and build a C++11 for-range statement.
@@ -220,7 +235,7 @@ StmtResult Sema::ActOnCXXForAllRangeStmt(Scope *S, SourceLocation ForLoc,
 					 SourceLocation CoawaitLoc, Stmt *First,
 					 SourceLocation ColonLoc, Expr *Range,
 					 SourceLocation RParenLoc,
-					 BuildForAllRangeKind Kind) {
+					 BuildForRangeKind Kind) {
   if (!First)
     return StmtError();
 
@@ -280,11 +295,11 @@ StmtResult Sema::ActOnCXXForAllRangeStmt(Scope *S, SourceLocation ForLoc,
 /// This function does not handle array-based for loops,
 /// which are created in Sema::BuildCXXForAllRangeStmt.
 ///
-/// \returns a ForAllRangeStatus indicating success or what kind of error occurred.
+/// \returns a ForRangeStatus indicating success or what kind of error occurred.
 /// BeginExpr and EndExpr are set and FRS_Success is returned on success;
 /// CandidateSet and BEF are set and some non-success value is returned on
 /// failure.
-static Sema::ForAllRangeStatus
+static Sema::ForRangeStatus
 BuildNonArrayForAllRange(Sema &SemaRef, Expr *BeginRange, Expr *EndRange,
 			 QualType RangeType, VarDecl *BeginVar, VarDecl *EndVar,
 			 SourceLocation ColonLoc, SourceLocation CoawaitLoc,
@@ -325,7 +340,7 @@ BuildNonArrayForAllRange(Sema &SemaRef, Expr *BeginRange, Expr *EndRange,
   }
 
   *BEF = BEF_begin;
-  Sema::ForAllRangeStatus RangeStatus =
+  Sema::ForRangeStatus RangeStatus =
       SemaRef.BuildForAllRangeBeginEndCall(ColonLoc, ColonLoc, BeginNameInfo,
                                         BeginMemberLookup, CandidateSet,
                                         BeginRange, BeginExpr);
@@ -408,29 +423,13 @@ static StmtResult RebuildForAllRangeWithDereference(Sema &SemaRef, Scope *S,
 					 Sema::BFRK_Rebuild);
 }
 
-namespace {
-/// RAII object to automatically invalidate a declaration if an error occurs.
-struct InvalidateOnErrorScope {
-  InvalidateOnErrorScope(Sema &SemaRef, Decl *D, bool Enabled)
-      : Trap(SemaRef.Diags), D(D), Enabled(Enabled) {}
-  ~InvalidateOnErrorScope() {
-    if (Enabled && Trap.hasErrorOccurred())
-      D->setInvalidDecl();
-  }
-
-  DiagnosticErrorTrap Trap;
-  Decl *D;
-  bool Enabled;
-};
-}
-
 /// BuildCXXForAllRangeStmt - Build or instantiate a C++11 for-range statement.
 StmtResult
 Sema::BuildCXXForAllRangeStmt(SourceLocation ForLoc, SourceLocation CoawaitLoc,
 			      SourceLocation ColonLoc, Stmt *RangeDecl,
 			      Stmt *Begin, Stmt *End, Expr *Cond,
 			      Expr *Inc, Stmt *LoopVarDecl,
-			      SourceLocation RParenLoc, BuildForAllRangeKind Kind) {
+			      SourceLocation RParenLoc, BuildForRangeKind Kind) {
   // FIXME: This should not be used during template instantiation. We should
   // pick up the set of unqualified lookup results for the != and + operators
   // in the initial parse.
@@ -598,7 +597,7 @@ Sema::BuildCXXForAllRangeStmt(SourceLocation ForLoc, SourceLocation CoawaitLoc,
       OverloadCandidateSet CandidateSet(RangeLoc,
                                         OverloadCandidateSet::CSK_Normal);
       BeginEndFunction BEFFailure;
-      ForAllRangeStatus RangeStatus = BuildNonArrayForAllRange(
+      ForRangeStatus RangeStatus = BuildNonArrayForAllRange(
           *this, BeginRangeRef.get(), EndRangeRef.get(), RangeType, BeginVar,
           EndVar, ColonLoc, CoawaitLoc, &CandidateSet, &BeginExpr, &EndExpr,
           &BEFFailure);
@@ -918,9 +917,6 @@ static void DiagnoseForAllRangeVariableCopies(Sema &SemaRef,
 StmtResult Sema::FinishCXXForAllRangeStmt(Stmt *S, Stmt *B) {
   if (!S || !B)
     return StmtError();
-
-  if (isa<ObjCForCollectionStmt>(S))
-    return FinishObjCForCollectionStmt(S, B);
 
   CXXForAllRangeStmt *ForStmt = cast<CXXForAllRangeStmt>(S);
   ForStmt->setBody(B);

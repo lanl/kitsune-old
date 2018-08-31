@@ -925,7 +925,7 @@ void CodeGenFunction::EmitForStmt(const ForStmt &S,
   }
   incrementProfileCounter(&S);
 
-  {
+    {
     // Create a separate cleanup scope for the body, in case it is not
     // a compound statement.
     RunCleanupsScope BodyScope(*this);
@@ -953,17 +953,54 @@ void CodeGenFunction::EmitForStmt(const ForStmt &S,
   EmitBlock(LoopExit.getBlock(), true);
 }
 
+static void EmitIfUsed(CodeGenFunction &CGF, llvm::BasicBlock *BB) {
+  if (!BB) return;
+  if (!BB->use_empty())
+    return CGF.CurFn->getBasicBlockList().push_back(BB);
+  delete BB;
+}
 
-void CodeGenFunction::EmitForAllStmt(const ForAllStmt &S,
-				     ArrayRef<const Attr *> ForAllAttrs) {
+struct RethrowCleanup : public EHScopeStack::Cleanup {
+  llvm::BasicBlock *InvokeDest;
+public:
+  RethrowCleanup(llvm::BasicBlock *InvokeDest = nullptr)
+      : InvokeDest(InvokeDest) {}
+  void Emit(CodeGenFunction &CGF, Flags F) {
+    llvm::BasicBlock *DetRethrowBlock = CGF.createBasicBlock("det.rethrow");
+    if (InvokeDest)
+      CGF.Builder.CreateInvoke(
+          CGF.CGM.getIntrinsic(llvm::Intrinsic::detached_rethrow),
+          DetRethrowBlock, InvokeDest);
+    else
+      CGF.Builder.CreateBr(DetRethrowBlock);
+    CGF.EmitBlock(DetRethrowBlock);
+  }
+};
 
+
+// Perform code generation for the forall statement -- this is our our
+// augmented 'for' construct that has explicit parallel semantics. In
+// particular, it implies that each iteration of the loop can execute
+// independently of all others.  It follows similar logic to ForStmt
+// but utilizes Tapir's detach+reattach+sync constructs to express
+// the parallel form... 
+void
+CodeGenFunction::EmitForAllStmt(const ForAllStmt &S,
+				ArrayRef<const Attr *> ForAllAttrs) {
+  
   JumpDest LoopExit = getJumpDestInCurrentScope("forall.end");
 
+  PushSyncRegion();
+  llvm::Instruction *SyncRegionStart = EmitSyncRegionStart();
+  CurSyncRegion->setSyncRegionStart(SyncRegionStart);
+  
   LexicalScope ForAllScope(*this, S.getSourceRange());
 
   // Evaluate the first part before the loop.
   if (S.getInit())
     EmitStmt(S.getInit());
+
+  assert(S.getCond() && "forall loop has no condition");
 
   // Start the loop with a block that tests the condition.
   // If there's an increment, the continue scope will be overwritten
@@ -972,10 +1009,18 @@ void CodeGenFunction::EmitForAllStmt(const ForAllStmt &S,
   llvm::BasicBlock *CondBlock = Continue.getBlock();
   EmitBlock(CondBlock);
 
+  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  // !!! FIXME -- Check to see if we need to get strategy !!!
+  // !!!          from attributes...                      !!! 
+  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  LoopStack.setSpawnStrategy(LoopAttributes::DAC);
   const SourceRange &R = S.getSourceRange();
   LoopStack.push(CondBlock, CGM.getContext(), ForAllAttrs,
-		 SourceLocToDebugLoc(R.getBegin()),
-		 SourceLocToDebugLoc(R.getEnd()));
+                 SourceLocToDebugLoc(R.getBegin()),
+                 SourceLocToDebugLoc(R.getEnd()));
+
+  JumpDest Preattach = getJumpDestInCurrentScope("forall.preattach");
+  Continue = getJumpDestInCurrentScope("forall.inc");
 
   // If the for loop doesn't have an increment we can just use the
   // condition as the continue block.  Otherwise we'll need to create
@@ -985,44 +1030,109 @@ void CodeGenFunction::EmitForAllStmt(const ForAllStmt &S,
     Continue = getJumpDestInCurrentScope("forall.inc");
 
   // Store the blocks to use for break and continue.
-  BreakContinueStack.push_back(BreakContinue(LoopExit, Continue));
+  // ???????????????????????????????????????????????????????
+  // ??? TODO: Wrap my head around why preattach here... ???
+  // ???                                       -PM       ???
+  // ???????????????????????????????????????????????????????  
+  BreakContinueStack.push_back(BreakContinue(Preattach, Preattach));
+  //BreakContinueStack.push_back(BreakContinue(LoopExit, Continue));
 
   // Create a cleanup scope for the condition variable cleanups.
   LexicalScope ConditionScope(*this, S.getSourceRange());
 
-  if (S.getCond()) {
+  // Save the alloca insertion point.
+  llvm::AssertingVH<llvm::Instruction>  SavedAllocaInsertPt = AllocaInsertPt;
+  // Save the exception handling state.
+  // ????????????????????????????????????????????????  
+  // ??? TODO: Do we only do this if in C++ mode? ???
+  // ???                                     -PM  ???
+  // ????????????????????????????????????????????????
+  llvm::BasicBlock *SavedEHResumeBlock  = EHResumeBlock;
+  llvm::Value      *SavedExceptionSlot  = ExceptionSlot;
+  llvm::AllocaInst *SavedEHSelectorSlot = EHSelectorSlot;
+
+  llvm::BasicBlock *SyncContinueBlock = createBasicBlock("forall.end.continue");
+  bool madeSync = false;
+  const VarDecl *LoopVar = S.getConditionVariable();
+
+  RValue            LoopVarInitRV;
+  llvm::BasicBlock  *DetachBlock     = nullptr;
+  llvm::BasicBlock  *ForAllBodyEntry = nullptr;
+  llvm::BasicBlock  *ForAllBody      = nullptr;  
+  {
     // If the for statement has a condition scope, emit the local variable
     // declaration.
-    if (S.getConditionVariable()) {
-      EmitAutoVarDecl(*S.getConditionVariable());
-    }
-
+    //if (S.getConditionVariable()) {
+    //  EmitAutoVarDecl(*S.getConditionVariable());
+    //}
     llvm::BasicBlock *ExitBlock = LoopExit.getBlock();
+
     // If there are any cleanups between here and the loop-exit scope,
     // create a block to stage a loop exit along.
     if (ForAllScope.requiresCleanups())
       ExitBlock = createBasicBlock("forall.cond.cleanup");
 
     // As long as the condition is true, iterate the loop.
-    llvm::BasicBlock *ForAllBody = createBasicBlock("forall.body");
-    
+    DetachBlock = createBasicBlock("forall.detach");
+    // Emit an extra entry block for the deatch body -- this ensures the
+    // detached entry block has just one predecessor.
+    ForAllBodyEntry  = createBasicBlock("forall.body.entry");    
+    ForAllBody       = createBasicBlock("forall.body");
+
     // C99 6.8.5p2/p4: The first substatement is executed if the expression
     // compares unequal to 0.  The condition must be a scalar type.
     llvm::Value *BoolCondVal = EvaluateExprAsBool(S.getCond());
     Builder.CreateCondBr(
-			 BoolCondVal, ForAllBody, ExitBlock,
+			 BoolCondVal, DetachBlock, ExitBlock,
 			 createProfileWeightsForLoop(S.getCond(), getProfileCount(S.getBody())));
 
     if (ExitBlock != LoopExit.getBlock()) {
       EmitBlock(ExitBlock);
+      Builder.CreateSync(SyncContinueBlock, SyncRegionStart);
+      EmitBlock(SyncContinueBlock);
+      PopSyncRegion();
+      madeSync = true;
       EmitBranchThroughCleanup(LoopExit);
     }
 
-    EmitBlock(ForAllBody);
-  } else {
-    // Treat it as a non-zero constant.  Don't even create a new block for the
-    // body, just fall into it.
+    EmitBlock(DetachBlock);
+    
+    // Get the value of the loop variable initialization before we emit the
+    // detach.
+    if (LoopVar)
+      LoopVarInitRV = EmitAnyExprToTemp(LoopVar->getInit());
+
+    Builder.CreateDetach(ForAllBodyEntry, Continue.getBlock(), SyncRegionStart);
+
+    // Create a new alloca insert point.
+    llvm::Value *Undef = llvm::UndefValue::get(Int32Ty);
+    AllocaInsertPt = new llvm::BitCastInst(Undef, Int32Ty, "", ForAllBodyEntry);
+    // Set up a nexted exception handling state.
+    EHResumeBlock  = nullptr;
+    ExceptionSlot  = nullptr;
+    EHSelectorSlot = nullptr;
+
+    EmitBlock(ForAllBodyEntry);
   }
+
+  // Create a cleanup scope for the loop-variable cleanups.
+  RunCleanupsScope DetachCleanupScope(*this);
+  EHStack.pushCleanup<RethrowCleanup>(EHCleanup);
+
+  // Inside the detached block, create a loop variable, setting its value
+  // to the saved initialization value.
+  if (LoopVar) {
+    AutoVarEmission LVEmission = EmitAutoVarAlloca(*LoopVar);
+    QualType type = LoopVar->getType();
+    Address  Loc  = LVEmission.getObjectAddress(*this);
+    LValue   LV   = MakeAddrLValue(Loc, type);
+    LV.setNonGC(true);
+    EmitStoreThroughLValue(LoopVarInitRV, LV, true);
+    EmitAutoVarCleanups(LVEmission);
+  }
+
+  Builder.CreateBr(ForAllBody);
+  EmitBlock(ForAllBody);
   incrementProfileCounter(&S);
 
   {
@@ -1030,16 +1140,37 @@ void CodeGenFunction::EmitForAllStmt(const ForAllStmt &S,
     // a compound statement.
     RunCleanupsScope BodyScope(*this);
     EmitStmt(S.getBody());
+    Builder.CreateBr(Preattach.getBlock());
+  }
+
+  // Finish detached body and emit the reattach.
+  {
+    EmitBlock(Preattach.getBlock());
+    DetachCleanupScope.ForceCleanup();
+    Builder.CreateReattach(Continue.getBlock(), SyncRegionStart);
+  }
+
+  // Restore CFG state after detached region.
+  {
+    // Restore the alloca insertion point.
+    llvm::Instruction *Ptr = AllocaInsertPt;
+    AllocaInsertPt = SavedAllocaInsertPt;
+    Ptr->eraseFromParent();
+
+    // Restore the exception handling state.
+    //EmitIfUsed(*this, EHResumeBlock);
+    EHResumeBlock  = SavedEHResumeBlock;
+    ExceptionSlot  = SavedExceptionSlot;
+    EHSelectorSlot = SavedEHSelectorSlot;
   }
 
   // If there is an increment, emit it next.
-  if (S.getInc()) {
-    EmitBlock(Continue.getBlock());
-    EmitStmt(S.getInc());
-  }
+  //if (S.getInc()) {
+  EmitBlock(Continue.getBlock());
+  EmitStmt(S.getInc());
+  //}
 
   BreakContinueStack.pop_back();
-
   ConditionScope.ForceCleanup();
 
   EmitStopPoint(&S);
@@ -1051,6 +1182,11 @@ void CodeGenFunction::EmitForAllStmt(const ForAllStmt &S,
 
   // Emit the fall-through block.
   EmitBlock(LoopExit.getBlock(), true);
+  if (!madeSync) {
+    Builder.CreateSync(SyncContinueBlock, SyncRegionStart);
+    EmitBlock(SyncContinueBlock);
+    PopSyncRegion();
+  }
 }
 
 
@@ -1090,8 +1226,8 @@ CodeGenFunction::EmitCXXForRangeStmt(const CXXForRangeStmt &S,
   // to bool, is true.
   llvm::Value *BoolCondVal = EvaluateExprAsBool(S.getCond());
   Builder.CreateCondBr(
-      BoolCondVal, ForBody, ExitBlock,
-      createProfileWeightsForLoop(S.getCond(), getProfileCount(S.getBody())));
+		       BoolCondVal, ForBody, ExitBlock,
+		       createProfileWeightsForLoop(S.getCond(), getProfileCount(S.getBody())));
 
   if (ExitBlock != LoopExit.getBlock()) {
     EmitBlock(ExitBlock);

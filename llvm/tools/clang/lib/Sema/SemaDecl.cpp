@@ -11001,6 +11001,79 @@ Sema::ActOnCXXForRangeIdentifier(Scope *S, SourceLocation IdentLoc,
                        AttrEnd.isValid() ? AttrEnd : IdentLoc);
 }
 
+void Sema::ActOnCXXForAllRangeDecl(Decl *D) {
+  // If there is no declaration, there was an error parsing it. Ignore it.
+  if (!D)
+    return;
+
+  VarDecl *VD = dyn_cast<VarDecl>(D);
+  if (!VD) {
+    Diag(D->getLocation(), diag::err_for_range_decl_must_be_var);
+    D->setInvalidDecl();
+    return;
+  }
+
+  VD->setCXXForAllRangeDecl(true);
+
+  // for-range-declaration cannot be given a storage class specifier.
+  int Error = -1;
+  switch (VD->getStorageClass()) {
+  case SC_None:
+    break;
+  case SC_Extern:
+    Error = 0;
+    break;
+  case SC_Static:
+    Error = 1;
+    break;
+  case SC_PrivateExtern:
+    Error = 2;
+    break;
+  case SC_Auto:
+    Error = 3;
+    break;
+  case SC_Register:
+    Error = 4;
+    break;
+  }
+  if (Error != -1) {
+    Diag(VD->getOuterLocStart(), diag::err_for_range_storage_class)
+      << VD->getDeclName() << Error;
+    D->setInvalidDecl();
+  }
+}
+
+StmtResult
+Sema::ActOnCXXForAllRangeIdentifier(Scope *S, SourceLocation IdentLoc,
+				    IdentifierInfo *Ident,
+				    ParsedAttributes &Attrs,
+				    SourceLocation AttrEnd) {
+  // C++1y [stmt.iter]p1:
+  //   A range-based for statement of the form
+  //      for ( for-range-identifier : for-range-initializer ) statement
+  //   is equivalent to
+  //      for ( auto&& for-range-identifier : for-range-initializer ) statement
+  DeclSpec DS(Attrs.getPool().getFactory());
+
+  const char *PrevSpec;
+  unsigned DiagID;
+  DS.SetTypeSpecType(DeclSpec::TST_auto, IdentLoc, PrevSpec, DiagID,
+                     getPrintingPolicy());
+
+  Declarator D(DS, Declarator::ForContext);
+  D.SetIdentifier(Ident, IdentLoc);
+  D.takeAttributes(Attrs, AttrEnd);
+
+  ParsedAttributes EmptyAttrs(Attrs.getPool().getFactory());
+  D.AddTypeInfo(DeclaratorChunk::getReference(0, IdentLoc, /*lvalue*/false),
+                EmptyAttrs, IdentLoc);
+    Decl *Var = ActOnDeclarator(S, D);
+  cast<VarDecl>(Var)->setCXXForAllRangeDecl(true);
+  FinalizeDeclaration(Var);
+  return ActOnDeclStmt(FinalizeDeclaratorGroup(S, DS, Var), IdentLoc,
+                       AttrEnd.isValid() ? AttrEnd : IdentLoc);
+}
+
 void Sema::CheckCompleteVariableDeclaration(VarDecl *var) {
   if (var->isInvalidDecl()) return;
 

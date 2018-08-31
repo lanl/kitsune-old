@@ -192,7 +192,7 @@ void ASTStmtWriter::VisitForAllStmt(ForAllStmt *S) {
   Record.AddDeclRef(S->getConditionVariable());
   Record.AddStmt(S->getInc());
   Record.AddStmt(S->getBody());
-  Record.AddSourceLocation(S->getForLoc());
+  Record.AddSourceLocation(S->getForAllLoc());
   Record.AddSourceLocation(S->getLParenLoc());
   Record.AddSourceLocation(S->getRParenLoc());
   Code = serialization::STMT_FORALL;

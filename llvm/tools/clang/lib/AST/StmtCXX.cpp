@@ -87,6 +87,52 @@ const VarDecl *CXXForRangeStmt::getLoopVariable() const {
   return const_cast<CXXForRangeStmt *>(this)->getLoopVariable();
 }
 
+// +==== Kitsune
+//
+CXXForAllRangeStmt::CXXForAllRangeStmt(DeclStmt *Range,
+				       DeclStmt *BeginStmt, DeclStmt *EndStmt,
+				       Expr *Cond, Expr *Inc, DeclStmt *LoopVar,
+				       Stmt *Body, SourceLocation FL,
+				       SourceLocation CAL, SourceLocation CL,
+				       SourceLocation RPL)
+    : Stmt(CXXForAllRangeStmtClass), ForLoc(FL), CoawaitLoc(CAL), ColonLoc(CL),
+      RParenLoc(RPL) {
+  SubExprs[RANGE] = Range;
+  SubExprs[BEGINSTMT] = BeginStmt;
+  SubExprs[ENDSTMT] = EndStmt;
+  SubExprs[COND] = Cond;
+  SubExprs[INC] = Inc;
+  SubExprs[LOOPVAR] = LoopVar;
+  SubExprs[BODY] = Body;
+}
+
+Expr *CXXForAllRangeStmt::getRangeInit() {
+  DeclStmt *RangeStmt = getRangeStmt();
+  VarDecl *RangeDecl = dyn_cast_or_null<VarDecl>(RangeStmt->getSingleDecl());
+  assert(RangeDecl && "forall-range should have a single var decl");
+  return RangeDecl->getInit();
+}
+
+const Expr *CXXForAllRangeStmt::getRangeInit() const {
+  return const_cast<CXXForAllRangeStmt *>(this)->getRangeInit();
+}
+
+VarDecl *CXXForAllRangeStmt::getLoopVariable() {
+  Decl *LV = cast<DeclStmt>(getLoopVarStmt())->getSingleDecl();
+  assert(LV && "No loop variable in CXXForAllRangeStmt");
+  return cast<VarDecl>(LV);
+}
+
+const VarDecl *CXXForAllRangeStmt::getLoopVariable() const {
+  return const_cast<CXXForAllRangeStmt *>(this)->getLoopVariable();
+}
+
+// =====
+
+
+
+
+
 CoroutineBodyStmt *CoroutineBodyStmt::Create(
     const ASTContext &C, CoroutineBodyStmt::CtorArgs const &Args) {
   std::size_t Size = totalSizeToAlloc<Stmt *>(

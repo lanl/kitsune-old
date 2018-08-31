@@ -6790,10 +6790,10 @@ TreeTransform<Derived>::TransformForAllStmt(ForAllStmt *S) {
   // In OpenMP loop region loop control variable must be captured and be
   // private. Perform analysis of first part (if any).
   if (getSema().getLangOpts().OpenMP && Init.isUsable())
-    getSema().ActOnOpenMPLoopInitialization(S->getForLoc(), Init.get());
+    getSema().ActOnOpenMPLoopInitialization(S->getForAllLoc(), Init.get());
 
   // Transform the condition
-  Sema::ConditionResult Cond = getDerived().TransformCondition(S->getForLoc(),
+  Sema::ConditionResult Cond = getDerived().TransformCondition(S->getForAllLoc(),
 							       S->getConditionVariable(),
 							       S->getCond(),
 							       Sema::ConditionKind::Boolean);
@@ -6821,7 +6821,7 @@ TreeTransform<Derived>::TransformForAllStmt(ForAllStmt *S) {
       Body.get() == S->getBody())
     return S;
 
-  return getDerived().RebuildForAllStmt(S->getForLoc(), S->getLParenLoc(),
+  return getDerived().RebuildForAllStmt(S->getForAllLoc(), S->getLParenLoc(),
 					Init.get(), Cond, FullInc,
 					S->getRParenLoc(), Body.get());
 }

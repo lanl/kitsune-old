@@ -4179,14 +4179,14 @@ Stmt *ASTNodeImporter::VisitForAllStmt(ForAllStmt *S) {
   Stmt *ToBody = Importer.Import(S->getBody());
   if (!ToBody && S->getBody())
     return nullptr;
-  SourceLocation ToForLoc = Importer.Import(S->getForLoc());
+  SourceLocation ToForAllLoc = Importer.Import(S->getForAllLoc());
   SourceLocation ToLParenLoc = Importer.Import(S->getLParenLoc());
   SourceLocation ToRParenLoc = Importer.Import(S->getRParenLoc());
   return new (Importer.getToContext()) ForAllStmt(Importer.getToContext(),
 						  ToInit, ToCondition,
 						  ToConditionVariable,
 						  ToInc, ToBody,
-						  ToForLoc, ToLParenLoc,
+						  ToForAllLoc, ToLParenLoc,
 						  ToRParenLoc);
 }
 

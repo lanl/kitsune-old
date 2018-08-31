@@ -1939,6 +1939,7 @@ public:
   void ActOnInitializerError(Decl *Dcl);
 
   void ActOnPureSpecifier(Decl *D, SourceLocation PureSpecLoc);
+
   void ActOnCXXForRangeDecl(Decl *D);
   StmtResult ActOnCXXForRangeIdentifier(Scope *S, SourceLocation IdentLoc,
                                         IdentifierInfo *Ident,
@@ -1950,7 +1951,7 @@ public:
 					   IdentifierInfo *Ident,
 					   ParsedAttributes &Attrs,
 					   SourceLocation AttrEnd);
-  
+
   void SetDeclDeleted(Decl *dcl, SourceLocation DelLoc);
   void SetDeclDefaulted(Decl *dcl, SourceLocation DefaultLoc);
   void FinalizeDeclaration(Decl *D);
@@ -3731,7 +3732,7 @@ public:
                                   SourceLocation ColonLoc, Expr *Collection,
                                   SourceLocation RParenLoc,
                                   BuildForRangeKind Kind);
-  StmtResult BuildCXXForRangeStmt(SourceLocation ForLoc,
+    StmtResult BuildCXXForRangeStmt(SourceLocation ForLoc,
                                   SourceLocation CoawaitLoc,
                                   SourceLocation ColonLoc,
                                   Stmt *RangeDecl, Stmt *Begin, Stmt *End,
