@@ -874,6 +874,10 @@ protected:
     /// for-range statement.
     unsigned CXXForRangeDecl : 1;
 
+    /// \brief Whether this variable is the forall-range-declaration in a C++0x
+    /// for-range statement.
+    unsigned CXXForAllRangeDecl : 1;    
+
     /// \brief Whether this variable is an ARC pseudo-__strong
     /// variable;  see isARCPseudoStrong() for details.
     unsigned ARCPseudoStrong : 1;
@@ -1264,6 +1268,11 @@ public:
     assert(!isa<ParmVarDecl>(this));
     NonParmVarDeclBits.CXXForRangeDecl = FRD;
   }
+
+  void setCXXForAllRangeDecl(bool FRD) {
+    assert(!isa<ParmVarDecl>(this));
+    NonParmVarDeclBits.CXXForAllRangeDecl = FRD;
+  }  
 
   /// \brief Determine whether this variable is an ARC pseudo-__strong
   /// variable.  A pseudo-__strong variable has a __strong-qualified

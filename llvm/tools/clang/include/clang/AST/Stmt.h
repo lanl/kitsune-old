@@ -1254,13 +1254,13 @@ public:
 /// argue that this could be done with things like pragmas/attributes... But we
 /// found this implementation path cleaner in the grand scheme of things...
 class ForAllStmt : public Stmt {
-  SourceLocation ForLoc;
+  SourceLocation ForAllLoc;
   enum { INIT, CONDVAR, COND, INC, BODY, END_EXPR };
   Stmt* SubExprs[END_EXPR]; // SubExprs[INIT] is an expression or declstmt.
   SourceLocation LParenLoc, RParenLoc;
 
 public:
-  ForAllStmt(ASTContext &C, Stmt *Init, Expr *Cond, VarDecl *condVar,
+  ForAllStmt(const ASTContext &C, Stmt *Init, Expr *Cond, VarDecl *condVar,
     Expr *Inc, Stmt *Body, SourceLocation FL, SourceLocation LP,
     SourceLocation RP);
 
@@ -1302,14 +1302,14 @@ public:
   void setInc(Expr *E) { SubExprs[INC] = reinterpret_cast<Stmt*>(E); }
   void setBody(Stmt *S) { SubExprs[BODY] = S; }  
 
-  SourceLocation getForLoc() const { return ForLoc; }
-  void setForLoc(SourceLocation L) { ForLoc = L; }
+  SourceLocation getForAllLoc() const { return ForAllLoc; }
+  void setForLoc(SourceLocation L) { ForAllLoc = L; }
   SourceLocation getLParenLoc() const { return LParenLoc; }
   void setLParenLoc(SourceLocation L) { LParenLoc = L; }
   SourceLocation getRParenLoc() const { return RParenLoc; }
   void setRParenLoc(SourceLocation L) { RParenLoc = L; }  
 
-  SourceLocation getLocStart() const LLVM_READONLY { return ForLoc; }
+  SourceLocation getLocStart() const LLVM_READONLY { return ForAllLoc; }
   SourceLocation getLocEnd() const LLVM_READONLY {
     return SubExprs[BODY]->getLocEnd();
   }
