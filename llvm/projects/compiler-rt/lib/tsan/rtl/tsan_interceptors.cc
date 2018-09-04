@@ -17,7 +17,6 @@
 #include "sanitizer_common/sanitizer_errno.h"
 #include "sanitizer_common/sanitizer_libc.h"
 #include "sanitizer_common/sanitizer_linux.h"
-#include "sanitizer_common/sanitizer_platform_limits_netbsd.h"
 #include "sanitizer_common/sanitizer_platform_limits_posix.h"
 #include "sanitizer_common/sanitizer_placement_new.h"
 #include "sanitizer_common/sanitizer_posix.h"
@@ -38,13 +37,6 @@ using namespace __tsan;  // NOLINT
 #if SANITIZER_FREEBSD || SANITIZER_MAC
 #define stdout __stdoutp
 #define stderr __stderrp
-#endif
-
-#if SANITIZER_NETBSD
-#define dirfd(dirp) (*(int *)(dirp))
-#define fileno_unlocked fileno
-#define stdout __sF[1]
-#define stderr __sF[2]
 #endif
 
 #if SANITIZER_ANDROID
@@ -92,25 +84,19 @@ DECLARE_REAL_AND_INTERCEPTOR(void, free, void *ptr)
 extern "C" void *pthread_self();
 extern "C" void _exit(int status);
 extern "C" int fileno_unlocked(void *stream);
-#if !SANITIZER_NETBSD
 extern "C" int dirfd(void *dirp);
-#endif
-#if !SANITIZER_FREEBSD && !SANITIZER_ANDROID && !SANITIZER_NETBSD
+#if !SANITIZER_FREEBSD && !SANITIZER_ANDROID
 extern "C" int mallopt(int param, int value);
 #endif
-#if SANITIZER_NETBSD
-extern __sanitizer_FILE **__sF;
-#else
 extern __sanitizer_FILE *stdout, *stderr;
-#endif
-#if !SANITIZER_FREEBSD && !SANITIZER_MAC && !SANITIZER_NETBSD
+#if !SANITIZER_FREEBSD && !SANITIZER_MAC
 const int PTHREAD_MUTEX_RECURSIVE = 1;
 const int PTHREAD_MUTEX_RECURSIVE_NP = 1;
 #else
 const int PTHREAD_MUTEX_RECURSIVE = 2;
 const int PTHREAD_MUTEX_RECURSIVE_NP = 2;
 #endif
-#if !SANITIZER_FREEBSD && !SANITIZER_MAC && !SANITIZER_NETBSD
+#if !SANITIZER_FREEBSD && !SANITIZER_MAC
 const int EPOLL_CTL_ADD = 1;
 #endif
 const int SIGILL = 4;
@@ -119,7 +105,7 @@ const int SIGFPE = 8;
 const int SIGSEGV = 11;
 const int SIGPIPE = 13;
 const int SIGTERM = 15;
-#if defined(__mips__) || SANITIZER_FREEBSD || SANITIZER_MAC || SANITIZER_NETBSD
+#if defined(__mips__) || SANITIZER_FREEBSD || SANITIZER_MAC
 const int SIGBUS = 10;
 const int SIGSYS = 12;
 #else
@@ -127,9 +113,7 @@ const int SIGBUS = 7;
 const int SIGSYS = 31;
 #endif
 void *const MAP_FAILED = (void*)-1;
-#if SANITIZER_NETBSD
-const int PTHREAD_BARRIER_SERIAL_THREAD = 1234567;
-#elif !SANITIZER_MAC
+#if !SANITIZER_MAC
 const int PTHREAD_BARRIER_SERIAL_THREAD = -1;
 #endif
 const int MAP_FIXED = 0x10;
@@ -153,15 +137,6 @@ struct sigaction_t {
   };
   __sanitizer_sigset_t sa_mask;
   void (*sa_restorer)();
-};
-#elif SANITIZER_NETBSD
-struct sigaction_t {
-  union {
-    sighandler_t sa_handler;
-    sigactionhandler_t sa_sigaction;
-  };
-  __sanitizer_sigset_t sa_mask;
-  int sa_flags;
 };
 #else
 struct sigaction_t {
@@ -191,7 +166,7 @@ struct sigaction_t {
 const sighandler_t SIG_DFL = (sighandler_t)0;
 const sighandler_t SIG_IGN = (sighandler_t)1;
 const sighandler_t SIG_ERR = (sighandler_t)-1;
-#if SANITIZER_FREEBSD || SANITIZER_MAC || SANITIZER_NETBSD
+#if SANITIZER_FREEBSD || SANITIZER_MAC
 const int SA_SIGINFO = 0x40;
 const int SIG_SETMASK = 3;
 #elif defined(__mips__)
@@ -307,7 +282,7 @@ void ScopedInterceptor::DisableIgnores() {
 }
 
 #define TSAN_INTERCEPT(func) INTERCEPT_FUNCTION(func)
-#if SANITIZER_FREEBSD || SANITIZER_NETBSD
+#if SANITIZER_FREEBSD
 # define TSAN_INTERCEPT_VER(func, ver) INTERCEPT_FUNCTION(func)
 #else
 # define TSAN_INTERCEPT_VER(func, ver) INTERCEPT_FUNCTION_VER(func, ver)
@@ -484,7 +459,7 @@ static void SetJmp(ThreadState *thr, uptr sp, uptr mangled_sp) {
 static void LongJmp(ThreadState *thr, uptr *env) {
 #ifdef __powerpc__
   uptr mangled_sp = env[0];
-#elif SANITIZER_FREEBSD || SANITIZER_NETBSD
+#elif SANITIZER_FREEBSD
   uptr mangled_sp = env[2];
 #elif SANITIZER_MAC
 # ifdef __aarch64__
@@ -609,7 +584,7 @@ TSAN_INTERCEPTOR(void*, malloc, uptr size) {
 
 TSAN_INTERCEPTOR(void*, __libc_memalign, uptr align, uptr sz) {
   SCOPED_TSAN_INTERCEPTOR(__libc_memalign, align, sz);
-  return user_memalign(thr, pc, align, sz);
+  return user_alloc(thr, pc, sz, align);
 }
 
 TSAN_INTERCEPTOR(void*, calloc, uptr size, uptr n) {
@@ -755,7 +730,7 @@ TSAN_INTERCEPTOR(int, munmap, void *addr, long_t sz) {
 #if SANITIZER_LINUX
 TSAN_INTERCEPTOR(void*, memalign, uptr align, uptr sz) {
   SCOPED_INTERCEPTOR_RAW(memalign, align, sz);
-  return user_memalign(thr, pc, align, sz);
+  return user_alloc(thr, pc, sz, align);
 }
 #define TSAN_MAYBE_INTERCEPT_MEMALIGN TSAN_INTERCEPT(memalign)
 #else
@@ -764,20 +739,21 @@ TSAN_INTERCEPTOR(void*, memalign, uptr align, uptr sz) {
 
 #if !SANITIZER_MAC
 TSAN_INTERCEPTOR(void*, aligned_alloc, uptr align, uptr sz) {
-  SCOPED_INTERCEPTOR_RAW(aligned_alloc, align, sz);
-  return user_aligned_alloc(thr, pc, align, sz);
+  SCOPED_INTERCEPTOR_RAW(memalign, align, sz);
+  return user_alloc(thr, pc, sz, align);
 }
 
 TSAN_INTERCEPTOR(void*, valloc, uptr sz) {
   SCOPED_INTERCEPTOR_RAW(valloc, sz);
-  return user_valloc(thr, pc, sz);
+  return user_alloc(thr, pc, sz, GetPageSizeCached());
 }
 #endif
 
 #if SANITIZER_LINUX
 TSAN_INTERCEPTOR(void*, pvalloc, uptr sz) {
   SCOPED_INTERCEPTOR_RAW(pvalloc, sz);
-  return user_pvalloc(thr, pc, sz);
+  sz = RoundUp(sz, GetPageSizeCached());
+  return user_alloc(thr, pc, sz, GetPageSizeCached());
 }
 #define TSAN_MAYBE_INTERCEPT_PVALLOC TSAN_INTERCEPT(pvalloc)
 #else
@@ -787,7 +763,8 @@ TSAN_INTERCEPTOR(void*, pvalloc, uptr sz) {
 #if !SANITIZER_MAC
 TSAN_INTERCEPTOR(int, posix_memalign, void **memptr, uptr align, uptr sz) {
   SCOPED_INTERCEPTOR_RAW(posix_memalign, memptr, align, sz);
-  return user_posix_memalign(thr, pc, memptr, align, sz);
+  *memptr = user_alloc(thr, pc, sz, align);
+  return 0;
 }
 #endif
 
@@ -1370,7 +1347,7 @@ TSAN_INTERCEPTOR(int, __fxstat, int version, int fd, void *buf) {
 #endif
 
 TSAN_INTERCEPTOR(int, fstat, int fd, void *buf) {
-#if SANITIZER_FREEBSD || SANITIZER_MAC || SANITIZER_ANDROID || SANITIZER_NETBSD
+#if SANITIZER_FREEBSD || SANITIZER_MAC || SANITIZER_ANDROID
   SCOPED_TSAN_INTERCEPTOR(fstat, fd, buf);
   if (fd > 0)
     FdAccess(thr, pc, fd);
@@ -1951,7 +1928,7 @@ TSAN_INTERCEPTOR(int, sigaction, int sig, sigaction_t *act, sigaction_t *old) {
   sigactions[sig].sa_flags = *(volatile int*)&act->sa_flags;
   internal_memcpy(&sigactions[sig].sa_mask, &act->sa_mask,
       sizeof(sigactions[sig].sa_mask));
-#if !SANITIZER_FREEBSD && !SANITIZER_MAC && !SANITIZER_NETBSD
+#if !SANITIZER_FREEBSD && !SANITIZER_MAC
   sigactions[sig].sa_restorer = act->sa_restorer;
 #endif
   sigaction_t newact;
@@ -2313,7 +2290,7 @@ struct ScopedSyscall {
   }
 };
 
-#if !SANITIZER_FREEBSD && !SANITIZER_MAC && !SANITIZER_NETBSD
+#if !SANITIZER_FREEBSD && !SANITIZER_MAC
 static void syscall_access_range(uptr pc, uptr p, uptr s, bool write) {
   TSAN_SYSCALL();
   MemoryAccessRange(thr, pc, p, s, write);

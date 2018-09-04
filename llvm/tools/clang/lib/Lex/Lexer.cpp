@@ -127,6 +127,10 @@ Lexer::Lexer(FileID FID, const llvm::MemoryBuffer *InputFile, Preprocessor &PP)
   InitLexer(InputFile->getBufferStart(), InputFile->getBufferStart(),
             InputFile->getBufferEnd());
 
+  // +===== Kitsune
+  if (isKitsuneLang(LangOpts)) KitsuneEnable(PP);
+  // +=============
+
   resetExtendedTokenMode();
 }
 
@@ -1541,8 +1545,15 @@ FinishIdentifier:
 
     // Finally, now that we know we have an identifier, pass this off to the
     // preprocessor, which may macro expand it or something.
-    if (II->isHandleIdentifierCase())
-      return PP->HandleIdentifier(Result);
+    if (II->isHandleIdentifierCase()) {
+      bool retval = PP->HandleIdentifier(Result);
+      // +===== Kitsune
+      // If we are lexing from a non-Kitsune file, then we need to treat 
+      // Kitsune keywords as ordinary identifiers…
+      if (!isKitsuneLang(LangOpts)) KitsuneKeywordsAsIdentifiers(Result);
+      //+===============
+      return retval;
+    }
 
     if (II->getTokenID() == tok::identifier && isCodeCompletionPoint(CurPtr)
         && II->getPPKeywordID() == tok::pp_not_keyword

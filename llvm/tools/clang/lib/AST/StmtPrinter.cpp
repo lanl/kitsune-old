@@ -384,6 +384,12 @@ void StmtPrinter::VisitReturnStmt(ReturnStmt *Node) {
   if (Policy.IncludeNewlines) OS << "\n";
 }
 
+// +===== Kitsune
+void StmtPrinter::VisitKitsuneStmt(KitsuneStmt *Node){
+  assert(false && "unimplemented");
+}
+// ==============
+
 
 void StmtPrinter::VisitGCCAsmStmt(GCCAsmStmt *Node) {
   Indent() << "asm ";

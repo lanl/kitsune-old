@@ -24,6 +24,10 @@
 #include <string>
 #include <vector>
 
+// +===== Kitsune
+#include "llvm/Transforms/Tapir/TapirTypes.h"
+// ==============
+
 namespace clang {
 
 /// Bitfields of LangOptions, split out from LangOptions in order to ensure that
@@ -201,6 +205,18 @@ public:
     return ObjCAutoRefCount || ObjCWeak;
   }
 };
+
+// +===== Kitsune
+
+inline bool isFleCSILang(const LangOptions &Opts) {
+  return Opts.FleCSI;
+}
+
+inline bool isKitsuneLang(const LangOptions &Opts) {
+  return Opts.FleCSI; /* || .... */
+}
+
+// ==============
 
 /// \brief Floating point control options
 class FPOptions {

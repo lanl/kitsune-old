@@ -202,7 +202,10 @@ __xray_ArgLoggerEntry:
 	.type __xray_CustomEvent,@function
 __xray_CustomEvent:
   .cfi_startproc
-	SAVE_REGISTERS
+	subq $16, %rsp
+	.cfi_def_cfa_offset 24
+	movq %rbp, 8(%rsp)
+	movq %rax, 0(%rsp)
 
 	// We take two arguments to this trampoline, which should be in rdi	and rsi
 	// already. We also make sure that we stash %rax because we use that register
@@ -212,20 +215,14 @@ __xray_CustomEvent:
 	je .LcustomEventCleanup
 
 	// At this point we know that rcx and rdx already has the data, so we just
-	// call the logging handler, after aligning the stack to a 16-byte boundary.
-	// The approach we're taking here uses additional stack space to stash the
-	// stack pointer twice before aligning the pointer to 16-bytes. If the stack
-	// was 8-byte aligned, it will become 16-byte aligned -- when restoring the
-	// pointer, we can always look -8 bytes from the current position to get
-	// either of the values we've stashed in the first place.
-	pushq %rsp
-	pushq (%rsp)
-	andq $-0x10, %rsp
+	// call the logging handler.
   callq *%rax
-	movq 8(%rsp), %rsp
 
 .LcustomEventCleanup:
-	RESTORE_REGISTERS
+	movq 0(%rsp), %rax
+	movq 8(%rsp), %rbp
+	addq $16, %rsp
+	.cfi_def_cfa_offset 8
 	retq
 
 .Ltmp8:

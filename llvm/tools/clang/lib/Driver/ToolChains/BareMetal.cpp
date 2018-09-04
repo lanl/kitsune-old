@@ -202,6 +202,11 @@ void baremetal::Linker::ConstructJob(Compilation &C, const JobAction &JA,
     TC.AddLinkRuntimeLib(Args, CmdArgs);
   }
 
+  // +===== Kitsune
+  if (C.getDriver().CCCIsFleCSI() || C.getDriver().CCCIsKokkos())
+    CmdArgs.push_back("-lcilkrts");
+  // ==============
+
   CmdArgs.push_back("-o");
   CmdArgs.push_back(Output.getFilename());
 

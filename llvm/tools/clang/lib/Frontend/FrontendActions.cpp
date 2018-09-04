@@ -573,6 +573,9 @@ void PrintPreambleAction::ExecuteAction() {
   case InputKind::ObjCXX:
   case InputKind::OpenCL:
   case InputKind::CUDA:
+  // +===== Kitsune
+  case InputKind::FleCSI_CXX:
+  // +=============
     break;
       
   case InputKind::Unknown:

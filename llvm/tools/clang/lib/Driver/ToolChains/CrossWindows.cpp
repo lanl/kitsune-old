@@ -184,6 +184,11 @@ void tools::CrossWindows::Linker::ConstructJob(
     }
   }
 
+  // +===== Kitsune
+  if (D.CCCIsFleCSI() || D.CCCIsKokkos())
+    CmdArgs.push_back("-lcilkrts");
+  // ==============
+
   if (TC.getSanitizerArgs().needsAsanRt()) {
     // TODO handle /MT[d] /MD[d]
     if (Args.hasArg(options::OPT_shared)) {

@@ -694,6 +694,10 @@ lltok::Kind LLLexer::LexIdentifier() {
   KEYWORD(uselistorder);
   KEYWORD(uselistorder_bb);
 
+  // +====== Kitsune 
+  KEYWORD(flecsiTask);
+  // =======
+
   KEYWORD(personality);
   KEYWORD(cleanup);
   KEYWORD(catch);

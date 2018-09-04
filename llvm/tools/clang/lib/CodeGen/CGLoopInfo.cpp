@@ -101,6 +101,7 @@ static MDNode *createMetadata(LLVMContext &Ctx, const LoopAttributes &Attrs,
     Args.push_back(MDNode::get(Ctx, Vals));
   }
 
+  // +===== Kitsune
   // Setting tapir.loop.spawn.strategy
   if (Attrs.SpawnStrategy != LoopAttributes::Sequential) {
     Metadata *Vals[] = {MDString::get(Ctx, "tapir.loop.spawn.strategy"),
@@ -108,6 +109,7 @@ static MDNode *createMetadata(LLVMContext &Ctx, const LoopAttributes &Attrs,
                             Type::getInt32Ty(Ctx), Attrs.SpawnStrategy))};
     Args.push_back(MDNode::get(Ctx, Vals));
   }
+  // ==============
 
   // Setting tapir.loop.grainsize
   if (Attrs.TapirGrainsize > 0) {

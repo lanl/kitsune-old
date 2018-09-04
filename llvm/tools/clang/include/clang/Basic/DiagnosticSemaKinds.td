@@ -3328,6 +3328,19 @@ def note_protocol_decl : Note<
 def note_protocol_decl_undefined : Note<
   "protocol %0 has no definition">;
 
+// +===== Kitsune/Tapir-Specific Attributes 
+def err_tapir_attr_single_argument: Error<
+  "tapir attribute requires a single argument.">;
+def err_tapir_attr_invalid_stmt: Error<
+  "tapir attribute not applicable for given statement type">;
+def err_tapir_attr_unrecognized_target: Error<
+  "unrecognized tapir target">;
+def err_tapir_attr_unrecognized_strategy: Error<
+  "unrecognized tapir strategy">;
+def err_tapir_target_unrecognized: Error<
+  "unrecognized tapir target">;
+// ======
+
 // objc_designated_initializer attribute diagnostics.
 def warn_objc_designated_init_missing_super_call : Warning<
   "designated initializer missing a 'super' call to a designated initializer of the super class">,
@@ -9340,5 +9353,16 @@ def warn_shadow_field :
   Warning<"non-static data member '%0' of '%1' shadows member inherited from type '%2'">,
   InGroup<ShadowField>, DefaultIgnore;
 def note_shadow_field : Note<"declared here">;
+
+// +===== Kitsune
+
+let CategoryName = "FleCSI Issue" in {
+
+def err_flecsi_not_a_data_client : Error<
+  "type is not derived from data client">;
+
+} // end "FleCSI Issue" category
+
+// +=============
 
 } // end of sema component.

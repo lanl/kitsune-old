@@ -161,6 +161,7 @@ public:
   /// \brief Set the unroll count for the next loop pushed.
   void setUnrollCount(unsigned C) { StagedAttrs.UnrollCount = C; }
 
+  // +===== Kitsune
   /// \brief Set the Tapir-loop spawning strategy for the next loop pushed.
   void setSpawnStrategy(const LoopAttributes::LSStrategy &Strat) {
     StagedAttrs.SpawnStrategy = Strat;
