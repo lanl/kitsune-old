@@ -55,6 +55,19 @@ namespace clang {
 /// been read.
 ///
 class Parser : public CodeCompletionHandler {
+
+  // +===== Kitsune
+
+  bool isFleCSILang() const{
+    return clang::isFleCSILang(getLangOpts());
+  }
+
+  bool isKitsuneLang() const{
+    return clang::isFleCSILang(getLangOpts()) /* || ... */;
+  }
+
+  // ==============
+
   friend class ColonProtectionRAIIObject;
   friend class InMessageExpressionRAIIObject;
   friend class PoisonSEHIdentifiersRAIIObject;
@@ -1761,6 +1774,11 @@ private:
   StmtResult ParseWhileStatement(SourceLocation *TrailingElseLoc);
   StmtResult ParseDoStatement();
   StmtResult ParseForStatement(SourceLocation *TrailingElseLoc);
+
+  // +===== Kitsune
+  StmtResult ParseForAllStatement(SourceLocation *TrailingElseLoc);
+  // +=============
+
   StmtResult ParseGotoStatement();
   StmtResult ParseContinueStatement();
   StmtResult ParseBreakStatement();
@@ -1768,6 +1786,7 @@ private:
   StmtResult ParseCilkSpawnStatement();
   StmtResult ParseCilkSyncStatement();
   StmtResult ParseCilkForStatement(SourceLocation *TrailingElseLoc);
+
   StmtResult ParseAsmStatement(bool &msAsm);
   StmtResult ParseMicrosoftAsmStatement(SourceLocation AsmLoc);
   StmtResult ParsePragmaLoopHint(StmtVector &Stmts,

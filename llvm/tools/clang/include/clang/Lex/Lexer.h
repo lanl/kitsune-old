@@ -483,6 +483,12 @@ public:
   static StringRef getIndentationForLine(SourceLocation Loc,
                                          const SourceManager &SM);
 
+  // +===== Kitsune
+  void KitsuneEnable(Preprocessor &PP);
+
+  void KitsuneKeywordsAsIdentifiers(Token &Result);
+  // +=============
+
   //===--------------------------------------------------------------------===//
   // Internal implementation interfaces.
 private:

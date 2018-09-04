@@ -3726,6 +3726,10 @@ public:
   StmtResult ActOnContinueStmt(SourceLocation ContinueLoc, Scope *CurScope);
   StmtResult ActOnBreakStmt(SourceLocation BreakLoc, Scope *CurScope);
 
+  // +===== Kitsune
+  StmtResult ActOnForallStmt(ForStmt *ForStmt, CXXForRangeStmt *ForRangeStmt);
+  // ==============
+
   void ActOnCapturedRegionStart(SourceLocation Loc, Scope *CurScope,
                                 CapturedRegionKind Kind, unsigned NumParams);
   typedef std::pair<StringRef, QualType> CapturedParamNameType;

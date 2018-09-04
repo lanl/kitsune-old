@@ -2,8 +2,8 @@
 // RUN: not %run %t 0 2>&1 | FileCheck %s
 // RUN: not %run %t n 2>&1 | FileCheck %s -check-prefix=CHECK -check-prefix=NON_EXEC
 
-// Not every OS lists every memory region in MemoryMappingLayout.
-// REQUIRES: linux || freebsd || netbsd
+// Only Linux and FreeBSD list every memory region in MemoryMappingLayout, for now.
+// REQUIRES: linux || freebsd
 
 #include <assert.h>
 

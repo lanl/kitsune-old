@@ -1404,7 +1404,7 @@ ExprResult Parser::ParseCastExpression(bool isUnaryExpression,
     //   SkipUntil(tok::semi, StopAtSemi | StopBeforeMatch);
     //   return ExprError();
     // }
-
+    
     Res = ParseCastExpression(false);
     if (!Res.isInvalid())
       Res = Actions.ActOnCilkSpawnExpr(SpawnLoc, Res.get());

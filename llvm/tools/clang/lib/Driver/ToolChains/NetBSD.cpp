@@ -216,6 +216,11 @@ void netbsd::Linker::ConstructJob(Compilation &C, const JobAction &JA,
     break;
   }
 
+  // +===== Kitsune
+  if (D.CCCIsFleCSI() || D.CCCIsKokkos())
+    CmdArgs.push_back("-lcilkrts");
+  // ==============
+
   if (Output.isFilename()) {
     CmdArgs.push_back("-o");
     CmdArgs.push_back(Output.getFilename());

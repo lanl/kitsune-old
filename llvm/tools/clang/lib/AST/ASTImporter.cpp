@@ -228,7 +228,9 @@ namespace clang {
     Stmt *VisitCilkSpawnStmt(CilkSpawnStmt *S);
     Stmt *VisitCilkSyncStmt(CilkSyncStmt *S);
     Stmt *VisitCilkForStmt(CilkForStmt *S);
-
+    // +===== Kitsune
+    Stmt *VisitKitsuneStmt(KitsuneStmt *S);
+    // ======
     // Importing expressions
     Expr *VisitExpr(Expr *E);
     Expr *VisitVAArgExpr(VAArgExpr *E);
@@ -4381,6 +4383,12 @@ Stmt *ASTNodeImporter::VisitCilkSpawnStmt(CilkSpawnStmt *S) {
     return nullptr;
   return new (Importer.getToContext()) CilkSpawnStmt(SpawnLoc, Child);
 }
+
+// +===== Kitsune
+Stmt *ASTNodeImporter::VisitKitsuneStmt(KitsuneStmt *S){
+  assert(false && "unimplemented");
+}
+// ==============
 
 Stmt *ASTNodeImporter::VisitCilkSyncStmt(CilkSyncStmt *S) {
   SourceLocation SyncLoc = Importer.Import(S->getSyncLoc());

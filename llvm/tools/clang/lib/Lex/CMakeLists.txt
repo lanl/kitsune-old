@@ -26,6 +26,10 @@ add_clang_library(clangLex
   TokenConcatenation.cpp
   TokenLexer.cpp
 
+  # +===== Kitsune
+    Kitsune/Lexer.cpp
+  # +=============
+
   LINK_LIBS
   clangBasic
   )

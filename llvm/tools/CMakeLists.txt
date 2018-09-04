@@ -44,15 +44,8 @@ add_llvm_tool_subdirectory(llvm-profdata)
 # specified.
 
 # +===== Kitsune
-
-if(KITSUNE_CLANG)
-  add_llvm_external_project(kitsune)
-  set(LLVM_TOOL_CLANG_BUILD OFF)
-else()
-  set(LLVM_TOOL_KITSUNE_BUILD OFF)
-  add_llvm_external_project(clang)
-endif()
-
+set(LLVM_TOOL_KITSUNE_BUILD ON)
+add_llvm_external_project(clang)
 # ====== 
 
 add_llvm_external_project(llgo)

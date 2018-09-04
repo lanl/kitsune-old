@@ -30,5 +30,8 @@ InputKind FrontendOptions::getInputKindForExtension(StringRef Extension) {
     .Case("cl", InputKind::OpenCL)
     .Case("cu", InputKind::CUDA)
     .Cases("ll", "bc", InputKind::LLVM_IR)
+    // +==== Kitsune
+    .Case("fcc", InputKind::FleCSI_CXX)
+    // +============
     .Default(InputKind::Unknown);
 }

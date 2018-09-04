@@ -1189,4 +1189,24 @@ def err_for_co_await_not_range_for : Error<
   "'co_await' modifier can only be applied to range-based for loop">;
 }
 
+// +===== Kitsune
+
+let CategoryName = "Kitsune Issue" in {
+
+def err_kitsune_for_missing_control_variable: Error<
+  "missing control variable declaration and initialization in 'forall'">;
+
+def err_kitsune_for_missing_condition: Error<
+  "missing loop condition expression in 'forall'">;
+
+def err_kitsune_for_missing_increment: Error<
+  "missing loop increment expression in 'forall'">;
+
+def err_kitsune_for_foreach_loop_not_supported: Error<
+  "'forall' not supported on for-each loops">;
+
+}
+
+// ==============
+
 } // end of Parser diagnostics

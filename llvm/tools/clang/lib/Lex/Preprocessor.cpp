@@ -79,6 +79,9 @@ Preprocessor::Preprocessor(std::shared_ptr<PreprocessorOptions> PPOpts,
       PCMCache(PCMCache), ScratchBuf(new ScratchBuffer(SourceMgr)),
       HeaderInfo(Headers), TheModuleLoader(TheModuleLoader),
       ExternalSource(nullptr), Identifiers(opts, IILookup),
+      // +===== Kitsune
+      KitsuneIdentifiers(LangOptions()),
+      // +=============
       PragmaHandlers(new PragmaNamespace(StringRef())),
       IncrementalProcessing(false), TUKind(TUKind), CodeComplete(nullptr),
       CodeCompletionFile(nullptr), CodeCompletionOffset(0),

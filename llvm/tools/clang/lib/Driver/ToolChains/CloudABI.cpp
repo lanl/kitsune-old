@@ -92,6 +92,11 @@ void cloudabi::Linker::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back("-lcompiler_rt");
   }
 
+  // +===== Kitsune
+  if (D.CCCIsFleCSI() || D.CCCIsKokkos())
+    CmdArgs.push_back("-lcilkrts");
+  // ==============
+
   if (!Args.hasArg(options::OPT_nostdlib, options::OPT_nostartfiles))
     CmdArgs.push_back(Args.MakeArgString(ToolChain.GetFilePath("crtend.o")));
 
