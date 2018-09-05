@@ -340,22 +340,33 @@ void RealmABI::postProcessFunction(Function &F) {}
 void RealmABI::postProcessHelper(Function &F) {}
 
 bool RealmABI::processMain(Function &F) {
+  std::cout << "beginning of processMain" << std::endl;
   Module *M = F.getParent(); 
   LLVMContext& C = M->getContext(); 
   IRBuilder<> B(C);
+  std::cout << "IRBuilder initialized" << std::endl;
 
   //get argc and argv - put them in an ArrayRef<Value*>
   //I think a std::vector<Value*> would also work here instead of the ArrayRef
   //ArrayRef<Value*> args (F.arg_begin(),F.arg_end());
   auto argTypes = F.getFunctionType()->params();
+  std::cout << "created argTypes" << std::endl;
+  std::cout << "size of argTypes: " << argTypes.size() << std::endl;
 
   //TEST
-  
   std::vector<Value*> args;
+
+  #if 0
   ValueSymbolTable *symtab = F.getValueSymbolTable();
-  args.push_back(symtab->lookup("argc"));
-  args.push_back(symtab->lookup("argv"));
-  
+  std::cout << "got symbol table" << std::endl;
+  if (symtab != nullptr) {
+    args.push_back(symtab->lookup("argc"));
+    args.push_back(symtab->lookup("argv"));
+    std::cout << "finished symbol table lookup" << std::endl;
+  }
+  else
+    std::cout << "symbol table is a nullptr" << std::endl;
+  #endif
 
   #if 0
   //This fixes the argument type issue, but fails because there's dereferencing a void ptr somewhere
@@ -364,14 +375,21 @@ bool RealmABI::processMain(Function &F) {
   std ::vector<Value*> args {zero,null};
   #endif
 
-  #if 0
+
   for (auto arg = F.arg_begin(); arg < F.arg_end(); arg++) {
-    if(auto* ci = dyn_cast<ConstantInt>(arg))
-      args.push_back(ci->getValue());
-    else { //array of arrays?
-    }
+    //if(auto* ci = dyn_cast<ConstantInt>(arg))
+    //args.push_back(&(ci->getValue()));
+    args.push_back(arg);
+    
+    std::cout << "found an argument" << std::endl;
+
+    //else { //array of arrays?
+      
+    //}
   }
-  #endif
+  std::cout << "finished iterating through arguments" << std::endl;
+
+  
   //CallInst::Create(get_qthread_initialize(*F.getParent()), "", F.getEntryBlock().getFirstNonPHIOrDbg());
   //Function * thisFunc = ::getFunction< void(*)(int*, char***)>(*M,"realmInitRuntime");
   //Function * thisFunc = M->getOrInsertFunction("realmInitRuntime",Type::getVoidTy(C), PointerType::getUnqual(Type::getInt32Ty(C)), PointerType::getUnqual(PointerType::getUnqual(Type::getInt32Ty(C))));
@@ -381,9 +399,9 @@ bool RealmABI::processMain(Function &F) {
   FunctionType * Fty = FunctionType::get(Type::getInt32Ty(C), {Type::getInt32Ty(C), PointerType::getUnqual(Type::getInt8PtrTy(C))}, false);
 
   Function * thisFunc = Function::Create(Fty, GlobalValue::ExternalLinkage, "realmInitRuntime", M);
-  //std::cout << "args size: " << args.size() << std::endl;
-  //std::cout << "thisFunc arg size: " << thisFunc->arg_size() << std::endl;
-  //std::cout << "thisFunc num params: " << thisFunc->getFunctionType()->getNumParams() << std::endl;
+  std::cout << "args size: " << args.size() << std::endl;
+  std::cout << "thisFunc arg size: " << thisFunc->arg_size() << std::endl;
+  std::cout << "thisFunc num params: " << thisFunc->getFunctionType()->getNumParams() << std::endl;
 
 
   //B.CreateCall(thisFunc, args, "realmInitRuntime");
