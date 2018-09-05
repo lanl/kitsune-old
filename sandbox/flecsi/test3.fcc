@@ -3,10 +3,16 @@
 using namespace std;
 
 int main(int argc, char** argv){
-  std::vector<int> v = {0, 1, 2, 3, 4, 5};
- 
-  forall(const int& i : v) // access by const reference
-    v[i] = i;
+  std::vector<int> v(10);
 
+  int i = 0;
+  forall(int& j : v) {
+    j = i;
+    i++;
+  }
+
+  forall(const int& i : v)
+    cout << v[i] << " ";
+  cout << endl;
   return 0;
 }

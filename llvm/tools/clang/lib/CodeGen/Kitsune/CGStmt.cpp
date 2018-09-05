@@ -444,8 +444,9 @@ void CodeGenFunction::EmitForallRangeStmt(const ForallStmt &FS,
     LexicalScope BodyScope(*this, S.getSourceRange());
     EmitStmt(S.getLoopVarStmt());
     EmitStmt(S.getBody());
-    Builder.CreateBr(Preattach.getBlock());
   }
+  Builder.CreateBr(Preattach.getBlock());
+  
 
   // Finish detached body and emit the reattach...
   {
