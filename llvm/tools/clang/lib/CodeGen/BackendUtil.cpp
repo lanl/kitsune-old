@@ -517,6 +517,9 @@ void EmitAssemblyHelper::CreatePasses(legacy::PassManager &MPM,
     case TapirTargetType::Qthreads:
       PMBuilder.tapirTarget = new llvm::QthreadsABI();
       break;
+    case TapirTargetType::Realm:
+      PMBuilder.tapirTarget = new llvm::RealmABI();
+      break;
     case TapirTargetType::Serial:
       assert(0 && "TODO MAKE OTHER TAPIR OPTS");
     case TapirTargetType::None:
