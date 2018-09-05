@@ -591,9 +591,9 @@ struct OptionEnumValue {
   StringRef Description;
 };
 
-#define clEnumVal(ENUMVAL, DESC)                                               \
+#define clEnumVal(ENUMVAL, DESC) \
   llvm::cl::OptionEnumValue { #ENUMVAL, int(ENUMVAL), DESC }
-#define clEnumValN(ENUMVAL, FLAGNAME, DESC)                                    \
+#define clEnumValN(ENUMVAL, FLAGNAME, DESC) \
   llvm::cl::OptionEnumValue { FLAGNAME, int(ENUMVAL), DESC }
 
 // values - For custom data types, allow specifying a group of values together

@@ -2705,6 +2705,8 @@ bool CompilerInvocation::CreateFromArgs(CompilerInvocation &Res,
         LangOpts.Tapir = llvm::TapirTargetType::OpenMP;
       else if (Name == "qthreads")
         LangOpts.Tapir = llvm::TapirTargetType::Qthreads;
+      else if (Name == "realm")
+	LangOpts.Tapir = llvm::TapirTargetType::Realm;
       else if (Name == "serial")
         LangOpts.Tapir = llvm::TapirTargetType::Serial;
       else
