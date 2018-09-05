@@ -289,7 +289,7 @@ bool PTXABILoopSpawning::processLoop(){
       }
     }
     else{
-      v->dump();
+      //v->dump();
       assert(false && "expected a pointer or array type");
     }
   }

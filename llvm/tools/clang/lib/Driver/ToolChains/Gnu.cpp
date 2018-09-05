@@ -577,6 +577,8 @@ void tools::gnutools::Linker::ConstructJob(Compilation &C, const JobAction &JA,
 	CmdArgs.push_back(ToolChain.getCompilerRTArgString(Args, "kitsune", false));
 	CmdArgs.push_back("-lcuda");
       }
+      else if (Name == "realm")
+	CmdArgs.push_back("-lrealm");
     }
   }
 

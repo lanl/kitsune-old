@@ -59,6 +59,7 @@
 #include "llvm/Transforms/Tapir/CilkABI.h"
 #include "llvm/Transforms/Tapir/OpenMPABI.h"
 #include "llvm/Transforms/Tapir/QthreadsABI.h"
+#include "llvm/Transforms/Tapir/RealmABI.h"
 #include "llvm/Transforms/Utils/NameAnonGlobals.h"
 #include "llvm/Transforms/Utils/SymbolRewriter.h"
 #include <memory>
@@ -527,6 +528,9 @@ void EmitAssemblyHelper::CreatePasses(legacy::PassManager &MPM,
       break;
     case TapirTargetType::PTX:
       PMBuilder.tapirTarget = new llvm::PTXABI();
+      break;
+    case TapirTargetType::Realm:
+      PMBuilder.tapirTarget = new llvm::RealmABI();
       break;
     case TapirTargetType::Serial:
       assert(0 && "TODO MAKE OTHER TAPIR OPTS");
