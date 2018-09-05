@@ -7,8 +7,10 @@ set(SANITIZER_SOURCES_NOTERMINATION
   sanitizer_deadlock_detector1.cc
   sanitizer_deadlock_detector2.cc
   sanitizer_errno.cc
+  sanitizer_file.cc
   sanitizer_flags.cc
   sanitizer_flag_parser.cc
+  sanitizer_fuchsia.cc
   sanitizer_libc.cc
   sanitizer_libignore.cc
   sanitizer_linux.cc
@@ -16,6 +18,7 @@ set(SANITIZER_SOURCES_NOTERMINATION
   sanitizer_mac.cc
   sanitizer_persistent_allocator.cc
   sanitizer_platform_limits_linux.cc
+  sanitizer_platform_limits_netbsd.cc
   sanitizer_platform_limits_posix.cc
   sanitizer_posix.cc
   sanitizer_printf.cc
@@ -29,6 +32,7 @@ set(SANITIZER_SOURCES_NOTERMINATION
   sanitizer_stoptheworld_mac.cc
   sanitizer_suppressions.cc
   sanitizer_symbolizer.cc
+  sanitizer_symbolizer_fuchsia.cc
   sanitizer_symbolizer_libbacktrace.cc
   sanitizer_symbolizer_mac.cc
   sanitizer_symbolizer_win.cc
@@ -55,6 +59,7 @@ set(SANITIZER_NOLIBC_SOURCES
 set(SANITIZER_LIBCDEP_SOURCES
   sanitizer_common_libcdep.cc
   sancov_flags.cc
+  sanitizer_coverage_fuchsia.cc
   sanitizer_coverage_libcdep_new.cc
   sanitizer_coverage_win_sections.cc
   sanitizer_linux_libcdep.cc
@@ -96,9 +101,11 @@ set(SANITIZER_HEADERS
   sanitizer_deadlock_detector_interface.h
   sanitizer_errno.h
   sanitizer_errno_codes.h
+  sanitizer_file.h
   sanitizer_flag_parser.h
   sanitizer_flags.h
   sanitizer_flags.inc
+  sanitizer_fuchsia.h
   sanitizer_interface_internal.h
   sanitizer_internal_defs.h
   sanitizer_lfstack.h
@@ -112,6 +119,7 @@ set(SANITIZER_HEADERS
   sanitizer_placement_new.h
   sanitizer_platform.h
   sanitizer_platform_interceptors.h
+  sanitizer_platform_limits_netbsd.h
   sanitizer_platform_limits_posix.h
   sanitizer_posix.h
   sanitizer_procmaps.h

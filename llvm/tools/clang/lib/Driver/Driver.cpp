@@ -144,10 +144,6 @@ void Driver::setDriverModeFromOption(StringRef Opt) {
                          .Case("g++", GXXMode)
                          .Case("cpp", CPPMode)
                          .Case("cl", CLMode)
-                         // +===== Kitsune
-                         .Case("flecsi", FleCSIMode)
-                         .Case("kokkos", KokkosMode)
-                         // +=============
                          .Default(~0U);
 
   if (M != ~0U)

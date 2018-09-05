@@ -91,11 +91,6 @@ public:
     OpenCL,
     CUDA,
     RenderScript,
-
-    // +===== Kitsune
-    FleCSI_CXX,
-    // ==============
-
     ///@}
   };
 

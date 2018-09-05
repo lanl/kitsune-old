@@ -190,10 +190,6 @@ class Preprocessor {
   /// the program, including program keywords.
   mutable IdentifierTable Identifiers;
 
-  // +===== Kitsune
-  mutable IdentifierTable KitsuneIdentifiers;
-  // +=============
-
   /// \brief This table contains all the selectors in the program.
   ///
   /// Unlike IdentifierTable above, this table *isn't* populated by the
@@ -1604,12 +1600,6 @@ public:
   /// identifier information for the token and install it into the token,
   /// updating the token kind accordingly.
   IdentifierInfo *LookUpIdentifierInfo(Token &Identifier) const;
-
-  // +===== Kitsune
-  IdentifierInfo* getKitsuneIdentifier(StringRef name) {
-    return &KitsuneIdentifiers.get(name);
-  }
-  // +=============
 
 private:
   llvm::DenseMap<IdentifierInfo*,unsigned> PoisonReasons;

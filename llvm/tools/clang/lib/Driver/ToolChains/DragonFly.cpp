@@ -161,11 +161,6 @@ void dragonfly::Linker::ConstructJob(Compilation &C, const JobAction &JA,
     }
   }
 
-  // +===== Kitsune
-  if (D.CCCIsFleCSI() || D.CCCIsKokkos())
-    CmdArgs.push_back("-lcilkrts");
-  // ==============
-
   if (!Args.hasArg(options::OPT_nostdlib, options::OPT_nostartfiles)) {
     if (Args.hasArg(options::OPT_shared) || Args.hasArg(options::OPT_pie))
       CmdArgs.push_back(

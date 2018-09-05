@@ -156,13 +156,6 @@ LANGSTANDARD_ALIAS_DEPR(opencl20, "CL2.0")
 LANGSTANDARD(cuda, "cuda", CUDA, "NVIDIA CUDA(tm)",
              LineComment | CPlusPlus | Digraphs)
 
-// +===== Kitsune
-LANGSTANDARD(flecsi, "flecsi",
-             FleCSI_CXX, "ISO C++ 2017 with amendments + FleCSI extensions",
-             LineComment | CPlusPlus | CPlusPlus11 | CPlusPlus14 | CPlusPlus1z
-             | Digraphs | HexFloat | FleCSI)
-// +=============
-
 #undef LANGSTANDARD
 #undef LANGSTANDARD_ALIAS
 #undef LANGSTANDARD_ALIAS_DEPR

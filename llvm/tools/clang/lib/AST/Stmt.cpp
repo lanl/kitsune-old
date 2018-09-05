@@ -30,10 +30,6 @@
 #include "llvm/Support/raw_ostream.h"
 using namespace clang;
 
-// +===== Kitsune
-#include "clang/AST/Kitsune/Stmt.h"
-// ==============
-
 static struct StmtClassNameTable {
   const char *Name;
   unsigned Counter;
