@@ -35,7 +35,6 @@ typedef void (*TaskFuncPtr)(const void *args, size_t arglen,
 			    const void *user_data, size_t user_data_len,
 			    unsigned long long);
 
-
 RealmABI::RealmABI() { }
 RealmABI::~RealmABI() { }
 
@@ -53,9 +52,9 @@ void RealmABI::createSync(SyncInst &SI, ValueToValueMapTy &DetachCtxToStackFrame
   std::vector<Value*> args; //empty because realmSync takes no arguments
   FunctionType * Fty = FunctionType::get(Type::getVoidTy(C), Type::getVoidTy(C), false);
   Function * thisFunc = Function::Create(Fty, GlobalValue::ExternalLinkage, "realmSync", M);
-  std::cout << "args size: " << args.size() << std::endl;
-  std::cout << "thisFunc arg size: " << thisFunc->arg_size() << std::endl;
-  std::cout << "thisFunc num params: " << thisFunc->getFunctionType()->getNumParams() << std::endl;
+  //std::cout << "args size: " << args.size() << std::endl;
+  //std::cout << "thisFunc arg size: " << thisFunc->arg_size() << std::endl;
+  //std::cout << "thisFunc num params: " << thisFunc->getFunctionType()->getNumParams() << std::endl;
 
   CallInst::Create(Fty, thisFunc, args, "", F->getEntryBlock().getFirstNonPHIOrDbg());
 
@@ -83,7 +82,8 @@ Function* formatFunctionToRealmF(Function* extracted, CallInst* cal){
   auto *ArgsPtrTy = PointerType::getUnqual(ArgsTy);
 
   //Create the canonical TaskFuncPtr
-  ArrayRef<Type*> typeArray = {ArgsPtrTy, Type::getInt64Ty(C), ArgsPtrTy, Type::getInt64Ty(C), Type::getInt64Ty(C)}; //trying int64 as stand-in for Realm::Processor because a ::realm_id_t is ultimately an unsigned long long
+  ArrayRef<Type*> typeArray = {ArgsPtrTy, Type::getInt64Ty(C), ArgsPtrTy, Type::getInt64Ty(C), Type::getInt64Ty(C)}; 
+  //trying int64 as stand-in for Realm::Processor because a ::realm_id_t is ultimately and unsigned long long
 
   FunctionType *OutlinedFnTy = FunctionType::get(
       Type::getVoidTy(C), 
@@ -133,6 +133,7 @@ Function* formatFunctionToRealmF(Function* extracted, CallInst* cal){
 
   // Caller code
   auto callerArgStruct = CallerIRBuilder.CreateAlloca(ArgsTy); 
+
   unsigned int cArgc = 0;
   for (auto& arg : LoadedCapturedArgs) {
     auto *DataAddrEP2 = CallerIRBuilder.CreateStructGEP(ArgsTy, callerArgStruct, cArgc); 
@@ -170,9 +171,9 @@ Function* formatFunctionToRealmF(Function* extracted, CallInst* cal){
 		Type::getInt64Ty(C)}, //end argument list
 		false);
   Function * thisFunc = Function::Create(Fty, GlobalValue::ExternalLinkage, "realmSync", M);
-  std::cout << "args size: " << callerArgs.size() << std::endl;
-  std::cout << "thisFunc arg size: " << thisFunc->arg_size() << std::endl;
-  std::cout << "thisFunc num params: " << thisFunc->getFunctionType()->getNumParams() << std::endl;
+  //std::cout << "args size: " << callerArgs.size() << std::endl;
+  //std::cout << "thisFunc arg size: " << thisFunc->arg_size() << std::endl;
+  //std::cout << "thisFunc num params: " << thisFunc->getFunctionType()->getNumParams() << std::endl;
 
   CallInst::Create(Fty, thisFunc, callerArgs, "", extracted->getEntryBlock().getFirstNonPHIOrDbg());
 
@@ -225,30 +226,26 @@ bool RealmABI::processMain(Function &F) {
   LLVMContext& C = M->getContext(); 
   IRBuilder<> B(C);
 
-  //get argc and argv
-  auto argTypes = F.getFunctionType()->params();
-  
+  //get argc and argv 
+  //auto argTypes = F.getFunctionType()->params();
+
   std::vector<Value*> args;
+
+  #if 0
   ValueSymbolTable *symtab = F.getValueSymbolTable();
-  args.push_back(symtab->lookup("argc"));
-  args.push_back(symtab->lookup("argv"));
-  
-
-  #if 0
-  //This fixes the argument type issue, but fails because there's dereferencing a void ptr somewhere
-  Value* zero = ConstantInt::get(Type::getInt32Ty(C), 0); 
-  Value* null = Constant::getNullValue(PointerType::getUnqual(Type::getInt32PtrTy(C))); 
-  std ::vector<Value*> args {zero,null};
-  #endif
-
-  #if 0
-  for (auto arg = F.arg_begin(); arg < F.arg_end(); arg++) {
-    if(auto* ci = dyn_cast<ConstantInt>(arg))
-      args.push_back(ci->getValue());
-    else { //array of arrays?
-    }
+  std::cout << "got symbol table" << std::endl;
+  if (symtab != nullptr) {
+    args.push_back(symtab->lookup("argc"));
+    args.push_back(symtab->lookup("argv"));
+    std::cout << "finished symbol table lookup" << std::endl;
   }
+  else
+    std::cout << "symbol table is a nullptr" << std::endl;
   #endif
+
+  for (auto arg = F.arg_begin(); arg < F.arg_end(); arg++) {
+    args.push_back(arg);
+  }
 
   //This is the real signature of realmInitRuntime, but there's a problem with voids
   //FunctionType * Fty = FunctionType::get(Type::getVoidTy(C), {Type::getInt32Ty(C), PointerType::getUnqual(Type::getInt8PtrTy(C))}, false);
@@ -258,7 +255,6 @@ bool RealmABI::processMain(Function &F) {
   std::cout << "args size: " << args.size() << std::endl;
   std::cout << "thisFunc arg size: " << thisFunc->arg_size() << std::endl;
   std::cout << "thisFunc num params: " << thisFunc->getFunctionType()->getNumParams() << std::endl;
-
 
   CallInst::Create(Fty, thisFunc, args, "", F.getEntryBlock().getFirstNonPHIOrDbg());
   return true;
