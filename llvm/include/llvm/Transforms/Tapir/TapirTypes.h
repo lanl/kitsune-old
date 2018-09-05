@@ -25,7 +25,8 @@ enum class TapirTargetType {
   CilkR = 4,
   Qthreads = 5,
   // +===== Kitsune
-  PTX = 6
+  PTX = 6,
+  Realm = 7
   // ==============
 };
 
