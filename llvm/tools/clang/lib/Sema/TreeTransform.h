@@ -7470,14 +7470,6 @@ TreeTransform<Derived>::TransformMSDependentExistsStmt(
                                                    SubStmt.get());
 }
 
-// +===== Kitsune
-template<typename Derived>
-StmtResult
-TreeTransform<Derived>::TransformKitsuneStmt(KitsuneStmt *S) {
-  assert(false && "unimplemented");
-}
-// ==============
-
 template<typename Derived>
 ExprResult
 TreeTransform<Derived>::TransformMSPropertyRefExpr(MSPropertyRefExpr *E) {

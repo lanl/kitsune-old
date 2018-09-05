@@ -31,10 +31,7 @@ enum LangFeatures {
   GNUMode = (1 << 9),
   HexFloat = (1 << 10),
   ImplicitInt = (1 << 11),
-  OpenCL = (1 << 12),
-  // +===== Kitsune
-  FleCSI = (1 << 13)
-  // ==============
+  OpenCL = (1 << 12)
 };
 
 }
@@ -103,10 +100,6 @@ public:
 
   /// isOpenCL - Language is a OpenCL variant.
   bool isOpenCL() const { return Flags & frontend::OpenCL; }
-  
-  // +===== Kitsune
-  bool isFleCSI() const { return Flags & frontend::FleCSI; }
-  // ==============
 
   static const LangStandard &getLangStandardForKind(Kind K);
   static const LangStandard *getLangStandardForName(StringRef Name);

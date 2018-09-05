@@ -434,12 +434,6 @@ void ASTStmtReader::VisitCapturedStmt(CapturedStmt *S) {
   }
 }
 
-// +===== Kitsune
-void ASTStmtReader::VisitKitsuneStmt(KitsuneStmt *S){
-  assert(false && "unimplemented");
-}
-// ==============
-
 void ASTStmtReader::VisitExpr(Expr *E) {
   VisitStmt(E);
   E->setType(Record.readType());

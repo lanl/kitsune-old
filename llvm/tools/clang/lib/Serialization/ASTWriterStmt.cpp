@@ -1233,12 +1233,6 @@ void ASTStmtWriter::VisitMSDependentExistsStmt(MSDependentExistsStmt *S) {
   Code = serialization::STMT_MS_DEPENDENT_EXISTS;
 }
 
-// +===== Kitsune
-void ASTStmtWriter::VisitKitsuneStmt(KitsuneStmt *S){
-  assert(false && "unimplemented");
-}
-// ==============
-
 void ASTStmtWriter::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
   VisitCallExpr(E);
   Record.push_back(E->getOperator());

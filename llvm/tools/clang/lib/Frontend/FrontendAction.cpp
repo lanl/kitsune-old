@@ -32,11 +32,6 @@
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/raw_ostream.h"
 #include <system_error>
-
-// +===== Kitsune
-#include "clang/Sema/Kitsune/FleCSIAnalyzer.h"
-// +=============
-
 using namespace clang;
 
 LLVM_INSTANTIATE_REGISTRY(FrontendPluginRegistry)
@@ -1007,11 +1002,6 @@ void ASTFrontendAction::ExecuteAction() {
 
   ParseAST(CI.getSema(), CI.getFrontendOpts().ShowStats,
            CI.getFrontendOpts().SkipFunctionBodies);
-
-  // +===== Kitsune
-  if (CI.getLangOpts().FleCSI)
-    sema::FleCSIAnalyzer::instance().finalizeMetadata(CI);
-  // +=============
 }
 
 void PluginASTAction::anchor() { }

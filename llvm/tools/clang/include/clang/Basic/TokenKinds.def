@@ -362,10 +362,6 @@ CXX11_KEYWORD(nullptr               , 0)
 CXX11_KEYWORD(static_assert         , 0)
 CXX11_KEYWORD(thread_local          , 0)
 
-// +===== Kitsune
-KEYWORD(forall                      , KEYFLECSI)
-// +=============
-
 // C++ concepts TS keywords
 CONCEPTS_KEYWORD(concept)
 CONCEPTS_KEYWORD(requires)

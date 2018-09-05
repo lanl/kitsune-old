@@ -61,10 +61,6 @@ add_dependencies(clang clang-headers)
 if(NOT CLANG_LINKS_TO_CREATE)
   set(CLANG_LINKS_TO_CREATE clang++ clang-cl clang-cpp)
 
-# +===== Kitsune
-list(APPEND CLANG_LINKS_TO_CREATE flecsi-clang++ kokkos-clang++)
-# ==============
-
   if (MSVC)
     list(APPEND CLANG_LINKS_TO_CREATE ../msbuild-bin/cl)
   endif()

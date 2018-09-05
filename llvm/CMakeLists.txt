@@ -172,10 +172,6 @@ if(LLVM_CCACHE_BUILD)
   endif()
 endif()
 
-# +===== Kitsune
-option(KITSUNE_CLANG "Build the Kitsune version of Clang" ON)
-# ====== 
-
 option(LLVM_DEPENDENCY_DEBUGGING "Dependency debugging mode to verify correctly expressed library dependencies (Darwin only)" OFF)
 
 # Some features of the LLVM build may be disallowed when dependency debugging is

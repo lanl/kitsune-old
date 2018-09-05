@@ -462,8 +462,6 @@ ThreadState *cur_thread();
 void cur_thread_finalize();
 #else
 __attribute__((tls_model("initial-exec")))
-// [CSI-TSan]: Required for instrumented shared objects.
-__attribute__((visibility("default")))
 extern THREADLOCAL char cur_thread_placeholder[];
 INLINE ThreadState *cur_thread() {
   return reinterpret_cast<ThreadState *>(&cur_thread_placeholder);
@@ -691,16 +689,12 @@ ReportStack *SymbolizeStackId(u32 stack_id);
 void PrintCurrentStack(ThreadState *thr, uptr pc);
 void PrintCurrentStackSlow(uptr pc);  // uses libunwind
 
-// [CSI-TSan]: Required for instrumented shared objects.
-__attribute__((visibility("default")))
 void Initialize(ThreadState *thr);
 int Finalize(ThreadState *thr);
 
 void OnUserAlloc(ThreadState *thr, uptr pc, uptr p, uptr sz, bool write);
 void OnUserFree(ThreadState *thr, uptr pc, uptr p, bool write);
 
-// [CSI-TSan]: Required for instrumented shared objects.
-__attribute__((visibility("default")))
 void MemoryAccess(ThreadState *thr, uptr pc, uptr addr,
     int kAccessSizeLog, bool kAccessIsWrite, bool kIsAtomic);
 void MemoryAccessImpl(ThreadState *thr, uptr addr,
@@ -710,8 +704,6 @@ void MemoryAccessRange(ThreadState *thr, uptr pc, uptr addr,
     uptr size, bool is_write);
 void MemoryAccessRangeStep(ThreadState *thr, uptr pc, uptr addr,
     uptr size, uptr step, bool is_write);
-// [CSI-TSan]: Required for instrumented shared objects.
-__attribute__((visibility("default")))
 void UnalignedMemoryAccess(ThreadState *thr, uptr pc, uptr addr,
     int size, bool kAccessIsWrite, bool kIsAtomic);
 
@@ -720,15 +712,11 @@ const int kSizeLog2 = 1;
 const int kSizeLog4 = 2;
 const int kSizeLog8 = 3;
 
-// [CSI-TSan]: Required for instrumented shared objects.
-__attribute__((visibility("default")))
 void ALWAYS_INLINE MemoryRead(ThreadState *thr, uptr pc,
                                      uptr addr, int kAccessSizeLog) {
   MemoryAccess(thr, pc, addr, kAccessSizeLog, false, false);
 }
 
-// [CSI-TSan]: Required for instrumented shared objects.
-__attribute__((visibility("default")))
 void ALWAYS_INLINE MemoryWrite(ThreadState *thr, uptr pc,
                                       uptr addr, int kAccessSizeLog) {
   MemoryAccess(thr, pc, addr, kAccessSizeLog, true, false);
@@ -753,11 +741,7 @@ void ThreadIgnoreEnd(ThreadState *thr, uptr pc);
 void ThreadIgnoreSyncBegin(ThreadState *thr, uptr pc, bool save_stack = true);
 void ThreadIgnoreSyncEnd(ThreadState *thr, uptr pc);
 
-// [CSI-TSan]: Required for instrumented shared objects.
-__attribute__((visibility("default")))
 void FuncEntry(ThreadState *thr, uptr pc);
-// [CSI-TSan]: Required for instrumented shared objects.
-__attribute__((visibility("default")))
 void FuncExit(ThreadState *thr);
 
 int ThreadCreate(ThreadState *thr, uptr pc, uptr uid, bool detached);
@@ -841,7 +825,7 @@ void ALWAYS_INLINE TraceAddEvent(ThreadState *thr, FastState fs,
     return;
   DCHECK_GE((int)typ, 0);
   DCHECK_LE((int)typ, 7);
-  DCHECK_EQ(GetLsb(addr, 61), addr);
+  DCHECK_EQ(GetLsb(addr, kEventPCBits), addr);
   StatInc(thr, StatEvents);
   u64 pos = fs.GetTracePos();
   if (UNLIKELY((pos % kTracePartSize) == 0)) {
@@ -853,7 +837,7 @@ void ALWAYS_INLINE TraceAddEvent(ThreadState *thr, FastState fs,
   }
   Event *trace = (Event*)GetThreadTrace(fs.tid());
   Event *evp = &trace[pos];
-  Event ev = (u64)addr | ((u64)typ << 61);
+  Event ev = (u64)addr | ((u64)typ << kEventPCBits);
   *evp = ev;
 }
 
