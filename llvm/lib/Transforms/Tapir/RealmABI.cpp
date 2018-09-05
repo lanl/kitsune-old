@@ -82,7 +82,8 @@ Function* formatFunctionToRealmF(Function* extracted, CallInst* cal){
   auto *ArgsPtrTy = PointerType::getUnqual(ArgsTy);
 
   //Create the canonical TaskFuncPtr
-  ArrayRef<Type*> typeArray = {ArgsPtrTy, Type::getInt64Ty(C), ArgsPtrTy, Type::getInt64Ty(C), Type::getInt64Ty(C)}; //trying int64 as stand-in for Realm::Processor because a ::realm_id_t is ultimately and unsigned long long
+  ArrayRef<Type*> typeArray = {ArgsPtrTy, Type::getInt64Ty(C), ArgsPtrTy, Type::getInt64Ty(C), Type::getInt64Ty(C)}; 
+  //trying int64 as stand-in for Realm::Processor because a ::realm_id_t is ultimately and unsigned long long
 
   FunctionType *OutlinedFnTy = FunctionType::get(
       Type::getVoidTy(C), 
@@ -126,7 +127,6 @@ Function* formatFunctionToRealmF(Function* extracted, CallInst* cal){
   Value * dummyVal = nullptr;
   Instruction * dummyInst = nullptr;
   for (auto& ret : retinsts) {
-    //qthread way: auto retzero = ReturnInst::Create(C, ConstantInt::get(Type::getInt64Ty(C), 0));
     auto retvoid = ReturnInst::Create(C, dummyVal, dummyInst);
     ReplaceInstWithInst(ret, retvoid);
   }
@@ -150,6 +150,7 @@ Function* formatFunctionToRealmF(Function* extracted, CallInst* cal){
 									   OutlinedFn, TypeBuilder<TaskFuncPtr, false>::get(M->getContext())); 
   auto argSize = ConstantInt::get(Type::getInt64Ty(C), ArgsTy->getNumElements()); 
   auto argDataSize = ConstantInt::get(Type::getInt64Ty(C), DL.getTypeAllocSize(ArgsTy)); 
+
   auto argsStructVoidPtr = CallerIRBuilder.CreateBitCast(callerArgStruct, Type::getInt8PtrTy(C)); 
 
   std::vector<Value *> callerArgs = { outlinedFnPtr, argsStructVoidPtr, argSize, argsStructVoidPtr, argDataSize}; 
@@ -251,9 +252,9 @@ bool RealmABI::processMain(Function &F) {
   FunctionType * Fty = FunctionType::get(Type::getInt32Ty(C), {Type::getInt32Ty(C), PointerType::getUnqual(Type::getInt8PtrTy(C))}, false);
 
   Function * thisFunc = Function::Create(Fty, GlobalValue::ExternalLinkage, "realmInitRuntime", M);
-  //std::cout << "args size: " << args.size() << std::endl;
-  //std::cout << "thisFunc arg size: " << thisFunc->arg_size() << std::endl;
-  //std::cout << "thisFunc num params: " << thisFunc->getFunctionType()->getNumParams() << std::endl;
+  std::cout << "args size: " << args.size() << std::endl;
+  std::cout << "thisFunc arg size: " << thisFunc->arg_size() << std::endl;
+  std::cout << "thisFunc num params: " << thisFunc->getFunctionType()->getNumParams() << std::endl;
 
   CallInst::Create(Fty, thisFunc, args, "", F.getEntryBlock().getFirstNonPHIOrDbg());
   return true;
