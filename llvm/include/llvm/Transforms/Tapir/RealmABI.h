@@ -16,8 +16,6 @@
 
 #define REALM_ENABLE_C_BINDINGS TRUE
 
-//#include "realm.h"
-//#include "realm/processor.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
