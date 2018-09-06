@@ -1027,10 +1027,6 @@ bool CompilerInstance::ExecuteAction(FrontendAction &Act) {
 /// \brief Determine the appropriate source input kind based on language
 /// options.
 static InputKind::Language getLanguageFromOptions(const LangOptions &LangOpts) {
-  // +===== Kitsune
-  if (LangOpts.FleCSI)
-    return InputKind::FleCSI_CXX;
-  // +=============
   if (LangOpts.OpenCL)
     return InputKind::OpenCL;
   if (LangOpts.CUDA)

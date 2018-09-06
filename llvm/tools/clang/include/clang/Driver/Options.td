@@ -2300,9 +2300,8 @@ def working_directory : JoinedOrSeparate<["-"], "working-directory">, Flags<[CC1
 def working_directory_EQ : Joined<["-"], "working-directory=">, Flags<[CC1Option]>,
   Alias<working_directory>;
 
-// +===== Kitsune
-def fkokkos : Flag<["-"], "fkokkos">, Group<f_Group>, Flags<[CC1Option]>, HelpText<"Enable Kitsune Kokkos code generation">;
-// ==============
+def fkokkos : Flag<["-"], "fkokkos">, Group<f_Group>, Flags<[CC1Option]>, HelpText<"Enable Kokkos-centric code generation">;
+def fflecsi : Flag<["-"], "ffecsi">, Group<f_Group>, Flags<[CC1Option]>, HelpText<"Enable FleCSI-centric code generation">;
 
 // Double dash options, which are usually an alias for one of the previous
 // options.

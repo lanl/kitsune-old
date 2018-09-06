@@ -157,9 +157,6 @@ static KeywordStatus getKeywordStatus(const LangOptions &LangOpts,
   if (LangOpts.CoroutinesTS && (Flags & KEYCOROUTINES)) return KS_Enabled;
   if (LangOpts.ModulesTS && (Flags & KEYMODULES)) return KS_Enabled;
   if (LangOpts.CPlusPlus && (Flags & KEYCXX11)) return KS_Future;
-  // +===== Kitsune
-  if (LangOpts.FleCSI && (Flags & KEYFLECSI)) return KS_Enabled;
-  // +=============
   return KS_Disabled;
 }
 

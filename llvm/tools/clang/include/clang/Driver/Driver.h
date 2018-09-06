@@ -74,10 +74,8 @@ class Driver {
     GXXMode,
     CPPMode,
     CLMode,
-    // +===== Kitsune
     FleCSIMode,
     KokkosMode,
-    // +=============
   } Mode;
 
   enum SaveTempsMode {
@@ -176,10 +174,7 @@ public:
 
   /// Whether the driver should follow g++ like behavior.
   bool CCCIsCXX() const { 
-    return Mode == GXXMode
-  // +===== Kitsune
-      || Mode == FleCSIMode || Mode == KokkosMode;
-  // ==============
+    return Mode == GXXMode || Mode == FleCSIMode || Mode == KokkosMode;
   }
 
   /// Whether the driver is just the preprocessor.
@@ -191,11 +186,8 @@ public:
   /// Whether the driver should follow cl.exe like behavior.
   bool IsCLMode() const { return Mode == CLMode; }
 
-  // +===== Kitsune
   bool CCCIsFleCSI() const { return Mode == FleCSIMode; }
-
   bool CCCIsKokkos() const { return Mode == KokkosMode; }
-  // ==============
 
   /// Only print tool bindings, don't build any jobs.
   unsigned CCCPrintBindings : 1;

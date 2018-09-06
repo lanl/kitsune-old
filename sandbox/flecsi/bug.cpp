@@ -1,7 +1,8 @@
 #include <iostream>
 using namespace std;
 
-const unsigned int SIZE = 100;
+#define SIZE 20
+//const unsigned int SIZE = 20;
 
 int main(int argc, char** argv){
 
@@ -24,8 +25,10 @@ int main(int argc, char** argv){
   }
   cout << endl << endl;;
 
-  forall(int &i : b) {
-    i += a[i];
+  int j = 0; 
+  for(int &i : b) {
+    i += a[];
+    j++;
   }
 
   cout << "b: ";

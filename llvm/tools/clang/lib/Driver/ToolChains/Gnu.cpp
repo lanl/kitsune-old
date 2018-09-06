@@ -580,10 +580,6 @@ void tools::gnutools::Linker::ConstructJob(Compilation &C, const JobAction &JA,
     }
   }
 
-  // +===== Auto-enable C++ 14 for FleCSI
-  if (D.CCCIsFleCSI())
-    CmdArgs.push_back("-std=c++14");  
-
   if (D.CCCIsCXX() &&
       !Args.hasArg(options::OPT_nostdlib, options::OPT_nodefaultlibs)) {
     bool OnlyLibstdcxxStatic = Args.hasArg(options::OPT_static_libstdcxx) &&

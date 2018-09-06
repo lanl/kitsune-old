@@ -56,18 +56,6 @@ namespace clang {
 ///
 class Parser : public CodeCompletionHandler {
 
-  // +===== Kitsune
-
-  bool isFleCSILang() const{
-    return clang::isFleCSILang(getLangOpts());
-  }
-
-  bool isKitsuneLang() const{
-    return clang::isFleCSILang(getLangOpts()) /* || ... */;
-  }
-
-  // ==============
-
   friend class ColonProtectionRAIIObject;
   friend class InMessageExpressionRAIIObject;
   friend class PoisonSEHIdentifiersRAIIObject;

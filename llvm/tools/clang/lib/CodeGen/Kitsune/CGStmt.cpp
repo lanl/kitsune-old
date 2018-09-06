@@ -47,7 +47,12 @@
   *  SUCH DAMAGE.
   *
   ***************************************************************************/
+
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// !!! FIXME -- this shoud be removed after debugging fun is over... !!!
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #include <iostream>
+
 #include "CodeGenFunction.h"
 
 using namespace clang;
@@ -104,7 +109,6 @@ static void EmitIfUsed(CodeGenFunction &CGF, llvm::BasicBlock *BB) {
     return CGF.CurFn->getBasicBlockList().push_back(BB);
   delete BB;
 }
-
 
 
 // Perform code generation for the forall statement -- this is our our
@@ -368,12 +372,45 @@ void CodeGenFunction::EmitForallRangeStmt(const ForallStmt &FS,
   if (ForAllScope.requiresCleanups())
     ExitBlock = createBasicBlock("forall.range.cond.cleanup");
 
-  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  // !!! FIXME -- Check to see if we need to get strategy !!!
-  // !!!          from attributes...                      !!! 
-  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  LoopStack.setSpawnStrategy(LoopAttributes::DAC);
-  //LoopStack.setSpawnStrategy(LoopAttributes::Sequential);  
+  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  // !!! FIXME -- Need to handle all cases here &  !!!
+  // !!!          should move this to a helper...  !!!
+  // !!!                                           !!!
+  // !!!          and remove cerr output...        !!! 
+  // !!!                            --PM           !!! 
+  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  auto A = ForAllAttrs.begin();
+  bool StrategySet = false;
+  while(A != ForAllAttrs.end()) {
+    const attr::Kind AKind = (*A)->getKind();
+    if (AKind == attr::TapirStrategy) {
+      const auto *SA = cast<const TapirStrategyAttr>(*A);
+      switch(SA->getTapirStrategyType()) {
+      case TapirStrategyAttr::TapirSequentialStrategy:
+	LoopStack.setSpawnStrategy(LoopAttributes::Sequential);
+	StrategySet = true;
+	std::cerr << "setting forall range tapir strategy to 'sequential'\n";
+	break;
+	
+      case TapirStrategyAttr::TapirDivAndConquerStrategy:
+	std::cerr << "setting forall range tapir strategy to 'divide-and-conquer'\n";
+	StrategySet = true;	
+	LoopStack.setSpawnStrategy(LoopAttributes::DAC);
+	break;
+
+      default:
+	std::cerr << "unsupported strategy: using default tapir forall range strategy 'sequential'\n";
+	StrategySet = true;	
+	LoopStack.setSpawnStrategy(LoopAttributes::Sequential);
+	break;
+      }
+    }
+    A++;
+  }
+  if (! StrategySet) {
+    std::cerr << "setting tapir forall range strategy to 'sequential'\n";    
+    LoopStack.setSpawnStrategy(LoopAttributes::Sequential);
+  }
   
   llvm::AssertingVH<llvm::Instruction>  SavedAllocaInsertPt = AllocaInsertPt;  
   llvm::BasicBlock *SavedEHResumeBlock  = EHResumeBlock;
@@ -400,11 +437,10 @@ void CodeGenFunction::EmitForallRangeStmt(const ForallStmt &FS,
 
   if (ExitBlock != LoopExit.getBlock()) {
     EmitBlock(ExitBlock);
-    EmitBranchThroughCleanup(LoopExit);
-    
     Builder.CreateSync(SyncContinueBlock, SyncRegionStart);
     EmitBlock(SyncContinueBlock);
     PopSyncRegion();
+    EmitBranchThroughCleanup(LoopExit);    
     madeSync = true;
   }
 
@@ -432,15 +468,13 @@ void CodeGenFunction::EmitForallRangeStmt(const ForallStmt &FS,
     LexicalScope BodyScope(*this, S.getSourceRange());
     EmitStmt(S.getLoopVarStmt());
     EmitStmt(S.getBody());
-    Builder.CreateBr(Preattach.getBlock());    
   }
   
+  Builder.CreateBr(Preattach.getBlock());    
   // Finish detached body and emit the reattach...
-  {
-    EmitBlock(Preattach.getBlock());
-    DetachCleanupScope.ForceCleanup();
-    Builder.CreateReattach(Continue.getBlock(), SyncRegionStart);
-  }
+  EmitBlock(Preattach.getBlock());
+  DetachCleanupScope.ForceCleanup();
+  Builder.CreateReattach(Continue.getBlock(), SyncRegionStart);
 
   {
     // Restore CFG state after detached region.

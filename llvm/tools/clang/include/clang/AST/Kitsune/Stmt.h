@@ -83,8 +83,6 @@ public:
     return Kind;
   }
   
-  static bool classof(const KitsuneStmt *){ return true; }
-  
   virtual child_range children(){
     return child_range(child_iterator(), child_iterator());
   }
