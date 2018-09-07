@@ -155,19 +155,9 @@ void CodeGenFunction::EmitStmt(const Stmt *S) {
     EmitCapturedStmt(*CS, CS->getCapturedRegionKind());
     }
     break;
-  // +===== Kitsune
-  case Stmt::KitsuneStmtClass:{
-    const KitsuneStmt* KS = cast<KitsuneStmt>(S);
-    switch(KS->kind()){
-      case KitsuneStmt::Forall:
-        EmitForallStmt(cast<ForallStmt>(*S));
-        break;
-      default:
-        assert(false && "unrecognized KitsuneStmt kind");
-    }
+  case Stmt::KitsuneStmtClass:
+    EmitForallStmt(cast<ForallStmt>(*S));
     break;
-  }
-
   case Stmt::CilkSpawnStmtClass:
     EmitCilkSpawnStmt(cast<CilkSpawnStmt>(*S)); break;
   case Stmt::CilkForStmtClass:
@@ -576,7 +566,7 @@ void CodeGenFunction::EmitLabelStmt(const LabelStmt &S) {
   EmitStmt(S.getSubStmt());
 }
 
-void CodeGenFunction::EmitAttributedStmt(const AttributedStmt &S) {
+void CodeGenFunction::EmitAttrbutedStmt(const AttributedStmt &S) {
   const Stmt *SubStmt = S.getSubStmt();
   switch (SubStmt->getStmtClass()) {
   case Stmt::DoStmtClass:
@@ -593,6 +583,9 @@ void CodeGenFunction::EmitAttributedStmt(const AttributedStmt &S) {
     break;
   case Stmt::CilkForStmtClass:
     EmitCilkForStmt(cast<CilkForStmt>(*SubStmt), S.getAttrs());
+    break;
+  case Stmt::KitsuneStmtClass:
+    EmitForallStmt(cast<ForallStmt>(*SubStmt), S.getAttrs());
     break;
   default:
     EmitStmt(SubStmt);

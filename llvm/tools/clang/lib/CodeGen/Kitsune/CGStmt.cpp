@@ -379,10 +379,13 @@ void CodeGenFunction::EmitForallRangeStmt(const ForallStmt &FS,
   // !!!          and remove cerr output...        !!! 
   // !!!                            --PM           !!! 
   // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  
   auto A = ForAllAttrs.begin();
   bool StrategySet = false;
   while(A != ForAllAttrs.end()) {
+
     const attr::Kind AKind = (*A)->getKind();
+
     if (AKind == attr::TapirStrategy) {
       const auto *SA = cast<const TapirStrategyAttr>(*A);
       switch(SA->getTapirStrategyType()) {
@@ -408,7 +411,6 @@ void CodeGenFunction::EmitForallRangeStmt(const ForallStmt &FS,
     A++;
   }
   if (! StrategySet) {
-    std::cerr << "setting tapir forall range strategy to 'sequential'\n";    
     LoopStack.setSpawnStrategy(LoopAttributes::Sequential);
   }
   

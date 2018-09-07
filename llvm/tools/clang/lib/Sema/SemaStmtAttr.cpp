@@ -86,7 +86,7 @@ static Attr *handleTapirTargetAttr(Sema &S, Stmt *St, const AttributeList &A,
   // !!! FIXME -- for some reason isa<KitsuneStmtClass> reports an incomplete !!!
   // !!!          type here...  This is a hack to work around this (maybe).   !!!
   // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
-  if (!isa<ForStmt>(St) || (St->getStmtClass() != Stmt::KitsuneStmtClass)) {
+  if (!isa<ForStmt>(St) && (St->getStmtClass() != Stmt::KitsuneStmtClass)) {
     S.Diag(A.getLoc(), diag::err_tapir_attr_invalid_stmt);
     return nullptr;
   }
@@ -124,7 +124,7 @@ static Attr* handleTapirStrategyAttr(Sema &S, Stmt *St, const AttributeList &A,
   // !!! FIXME -- for some reason isa<KitsuneStmtClass> reports an incomplete !!!
   // !!!          type here...  This is a hack to work around this (maybe).   !!!
   // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  if (!isa<ForStmt>(St) || (St->getStmtClass() != Stmt::KitsuneStmtClass)) {
+  if (!isa<ForStmt>(St) && (St->getStmtClass() != Stmt::KitsuneStmtClass)) {
     S.Diag(A.getLoc(), diag::err_tapir_attr_invalid_stmt);
     return nullptr;
   }
