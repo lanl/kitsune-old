@@ -405,7 +405,10 @@ bool llvm::isConstantMemoryFreeOperation(Instruction* I, bool allowsyncregion) {
     auto id = call->getCalledFunction()->getIntrinsicID();
     return (id == Intrinsic::lifetime_start ||
             id == Intrinsic::lifetime_end ||
-        allowsyncregion && (id == Intrinsic::syncregion_start));
+	    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!	    
+	    //!!! FIXME -- added parens around && test... Is this correct?  -PM !!!
+	    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	    (allowsyncregion && (id == Intrinsic::syncregion_start)));
   }
   return isa<BinaryOperator>(I) ||
       isa<CmpInst>(I) ||
@@ -429,7 +432,10 @@ bool llvm::isConstantOperation(Instruction* I, bool allowsyncregion) {
     auto id = call->getCalledFunction()->getIntrinsicID();
     return (id == Intrinsic::lifetime_start ||
             id == Intrinsic::lifetime_end ||
-        allowsyncregion && (id == Intrinsic::syncregion_start));
+	    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!	    
+	    //!!! FIXME -- added parens around && test... Is this correct?  -PM !!!
+	    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!	    
+	    (allowsyncregion && (id == Intrinsic::syncregion_start)));
   }
   return
       isa<AtomicCmpXchgInst>(I) ||
