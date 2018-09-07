@@ -11,6 +11,11 @@
 //
 //===----------------------------------------------------------------------===//
 
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// !!! FIXME -- Need to remove this after debugging... !!!
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#include <iostream>
+
 #include "CodeGenFunction.h"
 #include "CGDebugInfo.h"
 #include "CodeGenModule.h"
@@ -566,7 +571,7 @@ void CodeGenFunction::EmitLabelStmt(const LabelStmt &S) {
   EmitStmt(S.getSubStmt());
 }
 
-void CodeGenFunction::EmitAttrbutedStmt(const AttributedStmt &S) {
+void CodeGenFunction::EmitAttributedStmt(const AttributedStmt &S) {
   const Stmt *SubStmt = S.getSubStmt();
   switch (SubStmt->getStmtClass()) {
   case Stmt::DoStmtClass:
@@ -585,6 +590,7 @@ void CodeGenFunction::EmitAttrbutedStmt(const AttributedStmt &S) {
     EmitCilkForStmt(cast<CilkForStmt>(*SubStmt), S.getAttrs());
     break;
   case Stmt::KitsuneStmtClass:
+    std::cerr << "emitting an attributed statement...\n";
     EmitForallStmt(cast<ForallStmt>(*SubStmt), S.getAttrs());
     break;
   default:
