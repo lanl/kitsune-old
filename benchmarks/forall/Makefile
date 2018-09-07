@@ -1,11 +1,11 @@
-tapirclang=../../../build/llvm/bin/clang
-clang=clang
-cflags=-O2 -g
-tapirflags=-mllvm -fast-openmp -ftapir=cilk -fopenmp -fPIC ${cflags}
+tapirclang=../../../build/llvm/bin/clang++
+clang=clang++
+cflags=-O2 -g -std=c++14 
+tapirflags=-mllvm -fast-openmp -ftapir=cilk -fPIC ${cflags}
 ompflags=-fopenmp ${cflags}
 
-types=gomp omp serial tapir  
-sources=fib nqueens merge daxpy par_for
+types=serial tapir  
+sources=daxpy
 targets=$(foreach f,${sources},${f}_tapir $(foreach t, ${types}, ${f}_${t}))
 
 all: ${targets}
@@ -13,25 +13,25 @@ all: ${targets}
 timeing.txt: ${targets}
 	$(foreach t, ${targets}, time ./${t})	
 
-%.s: %.c
+%.s: %.cpp
 	${tapirclang} -S -O2 -fopenmp -ftapir=openmp $<
 
-%.ll: %.c
+%.ll: %.cpp
 	${tapirclang} -S -O2 -fopenmp -emit-llvm $<
 	
-%_lowered.ll: %.c
-	${tapirclang} -S -O2 -ftapir=openmp -fopenmp -emit-llvm $<
+%_lowered.ll: %.cpp
+	${tapirclang} ${tapirflags} -S -emit-llvm $<
 
-%_gomp: %.c
-	gcc ${ompflags} -o $@ $<
+%_gomp: %.cpp
+	g++ ${ompflags} -o $@ $<
 
-%_omp: %.c
+%_omp: %.cpp
 	${clang} ${ompflags} -o $@ $<
 
-%_serial: %.c
+%_serial: %.cpp
 	${tapirclang} ${cflags} -o $@ $<
 
-%_tapir: %.c
+%_tapir: %.cpp
 	${tapirclang} ${tapirflags} -o $@ $<
 
 clean: 
