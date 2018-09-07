@@ -25,9 +25,10 @@ int main(int argc, char** argv){
   }
   cout << endl << endl;;
 
-  int j = 0; 
-  for(int &i : b) {
-    i += a[];
+  int j = 0;
+  [[tapir::strategy("dac")]]
+  forall(int &i : b) {
+    i += a[j];
     j++;
   }
 

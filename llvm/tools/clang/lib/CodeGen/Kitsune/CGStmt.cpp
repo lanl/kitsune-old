@@ -149,11 +149,47 @@ CodeGenFunction::EmitForallStmt(const ForallStmt &FS,
   llvm::BasicBlock *CondBlock = Continue.getBlock();
   EmitBlock(CondBlock);
 
-  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  // !!! FIXME -- Check to see if we need to get strategy !!!
-  // !!!          from attributes...                      !!! 
-  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  LoopStack.setSpawnStrategy(LoopAttributes::DAC);
+  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  // !!! FIXME -- Need to handle all cases here &  !!!
+  // !!!          should move this to a helper...  !!!
+  // !!!                                           !!!
+  // !!!          and remove cerr output...        !!! 
+  // !!!                            --PM           !!! 
+  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
+
+  auto A = ForAllAttrs.begin();
+  bool StrategySet = false;
+  while(A != ForAllAttrs.end()) {
+
+    const attr::Kind AKind = (*A)->getKind();
+
+    if (AKind == attr::TapirStrategy) {
+      const auto *SA = cast<const TapirStrategyAttr>(*A);
+      switch(SA->getTapirStrategyType()) {
+      case TapirStrategyAttr::TapirSequentialStrategy:
+	LoopStack.setSpawnStrategy(LoopAttributes::Sequential);
+	StrategySet = true;
+	std::cerr << "setting forall range tapir strategy to 'sequential'\n";
+	break;
+      case TapirStrategyAttr::TapirDivAndConquerStrategy:
+	std::cerr << "setting forall range tapir strategy to 'divide-and-conquer'\n";
+	StrategySet = true;
+	LoopStack.setSpawnStrategy(LoopAttributes::DAC);
+	break;
+
+      default:
+	std::cerr << "unsupported strategy: using default tapir forall range strategy 'sequential'\n";
+	StrategySet = true;
+	LoopStack.setSpawnStrategy(LoopAttributes::Sequential);
+	break;
+      }
+    }
+    A++;
+  }
+  
+  if (! StrategySet) {
+    LoopStack.setSpawnStrategy(LoopAttributes::Sequential);
+  }
   
   const SourceRange &R = S.getSourceRange();
   LoopStack.push(CondBlock, CGM.getContext(), ForAllAttrs,
@@ -410,6 +446,7 @@ void CodeGenFunction::EmitForallRangeStmt(const ForallStmt &FS,
     }
     A++;
   }
+  
   if (! StrategySet) {
     LoopStack.setSpawnStrategy(LoopAttributes::Sequential);
   }
