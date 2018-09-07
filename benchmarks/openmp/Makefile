@@ -1,7 +1,7 @@
 tapirclang=../../../build/llvm/bin/clang
 clang=clang
 cflags=-O2 -g
-tapirflags=-mllvm -fast-openmp -ftapir=qthreads -fopenmp ${cflags}
+tapirflags=-mllvm -fast-openmp -ftapir=cilk -fopenmp -fPIC ${cflags}
 ompflags=-fopenmp ${cflags}
 
 types=gomp omp serial tapir  
