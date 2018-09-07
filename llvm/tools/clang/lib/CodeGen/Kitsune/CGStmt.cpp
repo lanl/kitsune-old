@@ -47,12 +47,6 @@
   *  SUCH DAMAGE.
   *
   ***************************************************************************/
-
-// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-// !!! FIXME -- this shoud be removed after debugging fun is over... !!!
-// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-#include <iostream>
-
 #include "CodeGenFunction.h"
 
 using namespace clang;
@@ -152,8 +146,6 @@ CodeGenFunction::EmitForallStmt(const ForallStmt &FS,
   // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   // !!! FIXME -- Need to handle all cases here &  !!!
   // !!!          should move this to a helper...  !!!
-  // !!!                                           !!!
-  // !!!          and remove cerr output...        !!! 
   // !!!                            --PM           !!! 
   // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
 
@@ -169,16 +161,13 @@ CodeGenFunction::EmitForallStmt(const ForallStmt &FS,
       case TapirStrategyAttr::TapirSequentialStrategy:
 	LoopStack.setSpawnStrategy(LoopAttributes::Sequential);
 	StrategySet = true;
-	std::cerr << "setting forall range tapir strategy to 'sequential'\n";
 	break;
       case TapirStrategyAttr::TapirDivAndConquerStrategy:
-	std::cerr << "setting forall range tapir strategy to 'divide-and-conquer'\n";
 	StrategySet = true;
 	LoopStack.setSpawnStrategy(LoopAttributes::DAC);
 	break;
 
       default:
-	std::cerr << "unsupported strategy: using default tapir forall range strategy 'sequential'\n";
 	StrategySet = true;
 	LoopStack.setSpawnStrategy(LoopAttributes::Sequential);
 	break;
@@ -266,8 +255,8 @@ CodeGenFunction::EmitForallStmt(const ForallStmt &FS,
       Builder.CreateSync(SyncContinueBlock, SyncRegionStart);
       EmitBlock(SyncContinueBlock);
       PopSyncRegion();
-      madeSync = true;
       EmitBranchThroughCleanup(LoopExit);
+      madeSync = true;
     }
 
     EmitBlock(DetachBlock);
@@ -411,8 +400,6 @@ void CodeGenFunction::EmitForallRangeStmt(const ForallStmt &FS,
   // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   // !!! FIXME -- Need to handle all cases here &  !!!
   // !!!          should move this to a helper...  !!!
-  // !!!                                           !!!
-  // !!!          and remove cerr output...        !!! 
   // !!!                            --PM           !!! 
   // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
@@ -428,17 +415,14 @@ void CodeGenFunction::EmitForallRangeStmt(const ForallStmt &FS,
       case TapirStrategyAttr::TapirSequentialStrategy:
 	LoopStack.setSpawnStrategy(LoopAttributes::Sequential);
 	StrategySet = true;
-	std::cerr << "setting forall range tapir strategy to 'sequential'\n";
 	break;
 	
       case TapirStrategyAttr::TapirDivAndConquerStrategy:
-	std::cerr << "setting forall range tapir strategy to 'divide-and-conquer'\n";
 	StrategySet = true;	
 	LoopStack.setSpawnStrategy(LoopAttributes::DAC);
 	break;
 
       default:
-	std::cerr << "unsupported strategy: using default tapir forall range strategy 'sequential'\n";
 	StrategySet = true;	
 	LoopStack.setSpawnStrategy(LoopAttributes::Sequential);
 	break;
@@ -494,11 +478,12 @@ void CodeGenFunction::EmitForallRangeStmt(const ForallStmt &FS,
   EHSelectorSlot = nullptr;
 
   EmitBlock(ForAllBodyEntry);
+  RunCleanupsScope DetachCleanupScope(*this);
+  EHStack.pushCleanup<RethrowCleanup>(EHCleanup);
+  
   EmitBlock(ForAllBody);
   incrementProfileCounter(&S);
   
-  RunCleanupsScope DetachCleanupScope(*this);
-
   JumpDest Preattach = getJumpDestInCurrentScope("forall.range.reattach");
   BreakContinueStack.push_back(BreakContinue(Preattach, Preattach));    
 
@@ -515,19 +500,17 @@ void CodeGenFunction::EmitForallRangeStmt(const ForallStmt &FS,
   DetachCleanupScope.ForceCleanup();
   Builder.CreateReattach(Continue.getBlock(), SyncRegionStart);
 
-  {
-    // Restore CFG state after detached region.
-    // Restore the alloca insertion point.
-    llvm::Instruction *Ptr = AllocaInsertPt;
-    AllocaInsertPt = SavedAllocaInsertPt;
-    Ptr->eraseFromParent();
+  // Restore CFG state after detached region.
+  // Restore the alloca insertion point.
+  llvm::Instruction *Ptr = AllocaInsertPt;
+  AllocaInsertPt = SavedAllocaInsertPt;
+  Ptr->eraseFromParent();
     
-    //Restore the exception handling state.
-    //EmitIfUsed(*this, EHResumeBlock);
-    EHResumeBlock  = SavedEHResumeBlock;
-    ExceptionSlot  = SavedExceptionSlot;
-    EHSelectorSlot = SavedEHSelectorSlot;
-  }
+  //Restore the exception handling state.
+  //EmitIfUsed(*this, EHResumeBlock);
+  EHResumeBlock  = SavedEHResumeBlock;
+  ExceptionSlot  = SavedExceptionSlot;
+  EHSelectorSlot = SavedEHSelectorSlot;
   
   EmitBlock(Continue.getBlock());
   EmitStmt(S.getInc());  
