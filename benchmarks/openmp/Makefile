@@ -1,6 +1,6 @@
-tapirclang=../../../build/llvm/bin/clang
+tapirclang=$(KITSUNE_HOME)/bin/clang
 clang=clang
-cflags=-O2 -g
+cflags=-O2 -g -L$(KITSUNE_HOME)/../lib/
 tapirflags=-mllvm -fast-openmp -ftapir=cilk -fopenmp -fPIC ${cflags}
 ompflags=-fopenmp ${cflags}
 
@@ -18,7 +18,7 @@ timeing.txt: ${targets}
 
 %.ll: %.c
 	${tapirclang} -S -O2 -fopenmp -emit-llvm $<
-	
+
 %_lowered.ll: %.c
 	${tapirclang} -S -O2 -ftapir=openmp -fopenmp -emit-llvm $<
 

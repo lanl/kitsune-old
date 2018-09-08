@@ -105,15 +105,57 @@ static void EmitIfUsed(CodeGenFunction &CGF, llvm::BasicBlock *BB) {
 }
 
 
+static
+LoopAttributes::LSStrategy GetSpawnStrategyAttribute(ArrayRef<const Attr *> Attrs) 
+{
+  auto A = Attrs.begin();
+
+  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
+  // !!! FIXME -- this is our default setting for debugging but it    !!!
+  // !!! is probably not what we want in the longrun... Probably best !!!
+  // !!! to set this to DAC in a "released" version.                  !!!
+  // !!!                                  -PM                         !!!
+  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  LoopAttributes::LSStrategy strategy = LoopAttributes::Sequential;
+  
+  while(A != Attrs.end()) {
+
+    const attr::Kind AKind = (*A)->getKind();
+
+    if (AKind == attr::TapirStrategy) {
+      
+      const auto *SA = cast<const TapirStrategyAttr>(*A);
+      
+      switch(SA->getTapirStrategyType()) {
+      case TapirStrategyAttr::TapirSequentialStrategy:
+	strategy = LoopAttributes::Sequential;
+	break;
+      case TapirStrategyAttr::TapirDivAndConquerStrategy:
+	strategy = LoopAttributes::DAC;
+	break;
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!	
+	// !!! FIXME -- Other attributes (e.g. GPU) need to be !!!
+	// !!! handled here...  -PM                            !!!
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      default:
+	strategy = LoopAttributes::Sequential;
+	break;
+      }
+    }
+    A++;
+  }
+
+  return strategy; 
+}
+
 // Perform code generation for the forall statement -- this is our our
 // augmented 'for' construct that has explicit parallel semantics. In
 // particular, it implies that each iteration of the loop can execute
 // independently of all others.  It follows similar logic to ForStmt
 // but utilizes Tapir's detach+reattach+sync constructs to express
 // the parallel form.
-void
-CodeGenFunction::EmitForallStmt(const ForallStmt &FS,
-				ArrayRef<const Attr *> ForAllAttrs) {
+void CodeGenFunction::EmitForallStmt(const ForallStmt &FS,
+				     ArrayRef<const Attr *> ForAllAttrs) {
 
   if (FS.getForRangeStmt()) {
     EmitForallRangeStmt(FS, ForAllAttrs);
@@ -143,63 +185,24 @@ CodeGenFunction::EmitForallStmt(const ForallStmt &FS,
   llvm::BasicBlock *CondBlock = Continue.getBlock();
   EmitBlock(CondBlock);
 
-  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  // !!! FIXME -- Need to handle all cases here &  !!!
-  // !!!          should move this to a helper...  !!!
-  // !!!                            --PM           !!! 
-  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
-
-  auto A = ForAllAttrs.begin();
-  bool StrategySet = false;
-  while(A != ForAllAttrs.end()) {
-
-    const attr::Kind AKind = (*A)->getKind();
-
-    if (AKind == attr::TapirStrategy) {
-      const auto *SA = cast<const TapirStrategyAttr>(*A);
-      switch(SA->getTapirStrategyType()) {
-      case TapirStrategyAttr::TapirSequentialStrategy:
-	LoopStack.setSpawnStrategy(LoopAttributes::Sequential);
-	StrategySet = true;
-	break;
-      case TapirStrategyAttr::TapirDivAndConquerStrategy:
-	StrategySet = true;
-	LoopStack.setSpawnStrategy(LoopAttributes::DAC);
-	break;
-
-      default:
-	StrategySet = true;
-	LoopStack.setSpawnStrategy(LoopAttributes::Sequential);
-	break;
-      }
-    }
-    A++;
-  }
-  
-  if (! StrategySet) {
-    LoopStack.setSpawnStrategy(LoopAttributes::Sequential);
-  }
+  LoopStack.setSpawnStrategy(GetSpawnStrategyAttribute(ForAllAttrs));
   
   const SourceRange &R = S.getSourceRange();
   LoopStack.push(CondBlock, CGM.getContext(), ForAllAttrs,
                  SourceLocToDebugLoc(R.getBegin()),
                  SourceLocToDebugLoc(R.getEnd()));
 
+  const Expr *Inc = S.getInc();
+  assert(Inc && "forall loop has no increment!");
+  if (S.getInc()) // 
+    Continue = getJumpDestInCurrentScope("forall.inc");  
+
   JumpDest Preattach = getJumpDestInCurrentScope("forall.reattach");
   Continue = getJumpDestInCurrentScope("forall.inc");
 
-  // If the for loop doesn't have an increment we can just use the
-  // condition as the continue block.  Otherwise we'll need to create
-  // a block for it (in the current scope, i.e. in the scope of the
-  // condition), and that we will become our continue block.
-  if (S.getInc())
-    Continue = getJumpDestInCurrentScope("forall.inc");
-
-
-  // Break and continue constructs are "routed" through preattach... 
-  BreakContinueStack.push_back(BreakContinue(Preattach, Preattach));
-  // Store the blocks to use for break and continue.  
-  //BreakContinueStack.push_back(BreakContinue(LoopExit, Continue));
+  // Store the blocks to use for break and continue (routed through
+  // reattach...    
+  BreakContinueStack.push_back(BreakContinue(Preattach, Preattach));  
 
   // Create a cleanup scope for the condition variable cleanups.
   LexicalScope ConditionScope(*this, S.getSourceRange());
@@ -207,10 +210,6 @@ CodeGenFunction::EmitForallStmt(const ForallStmt &FS,
   // Save the alloca insertion point.
   llvm::AssertingVH<llvm::Instruction>  SavedAllocaInsertPt = AllocaInsertPt;
   // Save the exception handling state.
-  // ????????????????????????????????????????????????  
-  // ??? TODO: Do we only do this if in C++ mode? ???
-  // ???                                     -PM  ???
-  // ????????????????????????????????????????????????
   llvm::BasicBlock *SavedEHResumeBlock  = EHResumeBlock;
   llvm::Value      *SavedExceptionSlot  = ExceptionSlot;
   llvm::AllocaInst *SavedEHSelectorSlot = EHSelectorSlot;
@@ -224,11 +223,6 @@ CodeGenFunction::EmitForallStmt(const ForallStmt &FS,
   llvm::BasicBlock  *ForAllBodyEntry = nullptr;
   llvm::BasicBlock  *ForAllBody      = nullptr;  
   {
-    // If the for statement has a condition scope, emit the local variable
-    // declaration.
-    //if (S.getConditionVariable()) {
-    //  EmitAutoVarDecl(*S.getConditionVariable());
-    //}
     llvm::BasicBlock *ExitBlock = LoopExit.getBlock();
 
     // If there are any cleanups between here and the loop-exit scope,
@@ -246,8 +240,7 @@ CodeGenFunction::EmitForallStmt(const ForallStmt &FS,
     // C99 6.8.5p2/p4: The first substatement is executed if the expression
     // compares unequal to 0.  The condition must be a scalar type.
     llvm::Value *BoolCondVal = EvaluateExprAsBool(S.getCond());
-    Builder.CreateCondBr(
-			 BoolCondVal, DetachBlock, ExitBlock,
+    Builder.CreateCondBr(BoolCondVal, DetachBlock, ExitBlock,
 			 createProfileWeightsForLoop(S.getCond(), getProfileCount(S.getBody())));
 
     if (ExitBlock != LoopExit.getBlock()) {
@@ -255,8 +248,8 @@ CodeGenFunction::EmitForallStmt(const ForallStmt &FS,
       Builder.CreateSync(SyncContinueBlock, SyncRegionStart);
       EmitBlock(SyncContinueBlock);
       PopSyncRegion();
+      madeSync = true;      
       EmitBranchThroughCleanup(LoopExit);
-      madeSync = true;
     }
 
     EmitBlock(DetachBlock);
@@ -322,17 +315,15 @@ CodeGenFunction::EmitForallStmt(const ForallStmt &FS,
     Ptr->eraseFromParent();
 
     // Restore the exception handling state.
-    //EmitIfUsed(*this, EHResumeBlock);
+    EmitIfUsed(*this, EHResumeBlock);
     EHResumeBlock  = SavedEHResumeBlock;
     ExceptionSlot  = SavedExceptionSlot;
     EHSelectorSlot = SavedEHSelectorSlot;
   }
 
-  // If there is an increment, emit it next.
-  //if (S.getInc()) {
+  // Emit the increment next. 
   EmitBlock(Continue.getBlock());
-  EmitStmt(S.getInc());
-  //}
+  EmitStmt(Inc);
 
   BreakContinueStack.pop_back();
   ConditionScope.ForceCleanup();
@@ -351,6 +342,8 @@ CodeGenFunction::EmitForallStmt(const ForallStmt &FS,
     EmitBlock(SyncContinueBlock);
     PopSyncRegion();
   }
+
+  CurFn->dump();  
 }
 
 
@@ -397,43 +390,7 @@ void CodeGenFunction::EmitForallRangeStmt(const ForallStmt &FS,
   if (ForAllScope.requiresCleanups())
     ExitBlock = createBasicBlock("forall.range.cond.cleanup");
 
-  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  // !!! FIXME -- Need to handle all cases here &  !!!
-  // !!!          should move this to a helper...  !!!
-  // !!!                            --PM           !!! 
-  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  
-  auto A = ForAllAttrs.begin();
-  bool StrategySet = false;
-  while(A != ForAllAttrs.end()) {
-
-    const attr::Kind AKind = (*A)->getKind();
-
-    if (AKind == attr::TapirStrategy) {
-      const auto *SA = cast<const TapirStrategyAttr>(*A);
-      switch(SA->getTapirStrategyType()) {
-      case TapirStrategyAttr::TapirSequentialStrategy:
-	LoopStack.setSpawnStrategy(LoopAttributes::Sequential);
-	StrategySet = true;
-	break;
-	
-      case TapirStrategyAttr::TapirDivAndConquerStrategy:
-	StrategySet = true;	
-	LoopStack.setSpawnStrategy(LoopAttributes::DAC);
-	break;
-
-      default:
-	StrategySet = true;	
-	LoopStack.setSpawnStrategy(LoopAttributes::Sequential);
-	break;
-      }
-    }
-    A++;
-  }
-  
-  if (! StrategySet) {
-    LoopStack.setSpawnStrategy(LoopAttributes::Sequential);
-  }
+  LoopStack.setSpawnStrategy(GetSpawnStrategyAttribute(ForAllAttrs));  
   
   llvm::AssertingVH<llvm::Instruction>  SavedAllocaInsertPt = AllocaInsertPt;  
   llvm::BasicBlock *SavedEHResumeBlock  = EHResumeBlock;
@@ -496,21 +453,24 @@ void CodeGenFunction::EmitForallRangeStmt(const ForallStmt &FS,
   
   Builder.CreateBr(Preattach.getBlock());    
   // Finish detached body and emit the reattach...
-  EmitBlock(Preattach.getBlock());
-  DetachCleanupScope.ForceCleanup();
-  Builder.CreateReattach(Continue.getBlock(), SyncRegionStart);
-
+  {
+    EmitBlock(Preattach.getBlock());
+    DetachCleanupScope.ForceCleanup();
+    Builder.CreateReattach(Continue.getBlock(), SyncRegionStart);
+  }
   // Restore CFG state after detached region.
-  // Restore the alloca insertion point.
-  llvm::Instruction *Ptr = AllocaInsertPt;
-  AllocaInsertPt = SavedAllocaInsertPt;
-  Ptr->eraseFromParent();
+  {
+    // Restore the alloca insertion point.
+    llvm::Instruction *Ptr = AllocaInsertPt;
+    AllocaInsertPt = SavedAllocaInsertPt;
+    Ptr->eraseFromParent();
     
-  //Restore the exception handling state.
-  //EmitIfUsed(*this, EHResumeBlock);
-  EHResumeBlock  = SavedEHResumeBlock;
-  ExceptionSlot  = SavedExceptionSlot;
-  EHSelectorSlot = SavedEHSelectorSlot;
+    //Restore the exception handling state.
+    //EmitIfUsed(*this, EHResumeBlock);
+    EHResumeBlock  = SavedEHResumeBlock;
+    ExceptionSlot  = SavedExceptionSlot;
+    EHSelectorSlot = SavedEHSelectorSlot;
+  }
   
   EmitBlock(Continue.getBlock());
   EmitStmt(S.getInc());  
@@ -529,6 +489,8 @@ void CodeGenFunction::EmitForallRangeStmt(const ForallStmt &FS,
     EmitBlock(SyncContinueBlock);
     PopSyncRegion();
   }
+
+  CurFn->dump();
 }
 
 
