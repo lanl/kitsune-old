@@ -13,6 +13,7 @@ int main(){
   vector<int> my_vect(SIZE);
 
   int value=0;
+  [[tapir::strategy("dac")]]  
   forall(auto& i: my_vect){
     i = value;
     ++value;

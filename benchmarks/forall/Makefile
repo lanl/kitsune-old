@@ -1,4 +1,4 @@
-tapirclang=$(KITSUNE_HOME)/bin/clang++
+tapirclang=$(KITSUNE_HOME)/local/kitsune/bin/clang++
 clang=clang++
 cflags=-O3 -g -std=c++14 
 tapirflags=${cflags} -ftapir=cilk -fPIC

@@ -14,8 +14,6 @@
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 // !!! FIXME -- Need to remove this after debugging... !!!
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-#include <iostream>
-
 #include "CodeGenFunction.h"
 #include "CGDebugInfo.h"
 #include "CodeGenModule.h"
@@ -590,7 +588,6 @@ void CodeGenFunction::EmitAttributedStmt(const AttributedStmt &S) {
     EmitCilkForStmt(cast<CilkForStmt>(*SubStmt), S.getAttrs());
     break;
   case Stmt::KitsuneStmtClass:
-    std::cerr << "emitting an attributed statement...\n";
     EmitForallStmt(cast<ForallStmt>(*SubStmt), S.getAttrs());
     break;
   default:
