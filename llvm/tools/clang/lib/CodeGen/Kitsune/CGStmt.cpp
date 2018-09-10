@@ -447,17 +447,16 @@ void CodeGenFunction::EmitForallRangeStmt(const ForallStmt &FS,
   RunCleanupsScope DetachCleanupScope(*this);
   EHStack.pushCleanup<RethrowCleanup>(EHCleanup);
 
-  /*
   if (LoopVar) {
-  AutoVarEmission LVEmission = EmitAutoVarAlloca(*LoopVar);
-  QualType type = LoopVar->getType();
-  Address Loc = LVEmission.getObjectAddress(*this);
-  LValue LV = MakeAddrLValue(Loc, type);
-  LV.setNonGC(true);
-  EmitStoreThroughLValue(LoopVarInitRV, LV, true);
-  EmitAutoVarCleanups(LVEmission);
-  */
+    AutoVarEmission LVEmission = EmitAutoVarAlloca(*LoopVar);
+    QualType type = LoopVar->getType();
+    Address Loc = LVEmission.getObjectAddress(*this);
+    LValue LV = MakeAddrLValue(Loc, type);
+    LV.setNonGC(true);
+    EmitStoreThroughLValue(LoopVarInitRV, LV, true);
+    EmitAutoVarCleanups(LVEmission);
   }
+
   Builder.CreateBr(ForAllBody);
   EmitBlock(ForAllBody);
   incrementProfileCounter(&S);
@@ -468,9 +467,8 @@ void CodeGenFunction::EmitForallRangeStmt(const ForallStmt &FS,
     RunCleanupsScope BodyScope(*this);
     EmitStmt(S.getLoopVarStmt());
     EmitStmt(S.getBody());
+    Builder.CreateBr(Preattach.getBlock());
   }
-  // Not sure why this has to move out of the scope above... 
-  Builder.CreateBr(Preattach.getBlock());          
   
   {
     EmitBlock(Preattach.getBlock());
@@ -490,7 +488,7 @@ void CodeGenFunction::EmitForallRangeStmt(const ForallStmt &FS,
     EHSelectorSlot = SavedEHSelectorSlot;
   }
   
-  // If there is an increment, emit it next.
+  // Emit the increment next. 
   EmitBlock(Continue.getBlock());
   EmitStmt(S.getInc());  
   BreakContinueStack.pop_back();
