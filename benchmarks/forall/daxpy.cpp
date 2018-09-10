@@ -10,8 +10,8 @@
 using namespace std; 
 
 int main(int argc, char** argv){
-  int n = argc > 1 ? atoi(argv[1]) : 10000000; 
-  int m = argc > 1 ? atoi(argv[1]) : 100;   
+  int n = argc > 1 ? atoi(argv[1]) : 1000000000; 
+  int m = argc > 2 ? atoi(argv[2]) : 10;   
 
   vector<double> a(n), b(n), c(n) ;
   double alpha=0.3; 
