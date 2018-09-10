@@ -48,7 +48,6 @@
   *
   ***************************************************************************/
 #include "CodeGenFunction.h"
-
 using namespace clang;
 using namespace CodeGen;
 
@@ -332,7 +331,7 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &FS,
     PopSyncRegion();
   }
 
-  CurFn->dump();  
+  //CurFn->dump();  
 }
 
 
@@ -447,6 +446,7 @@ void CodeGenFunction::EmitForallRangeStmt(const ForallStmt &FS,
   RunCleanupsScope DetachCleanupScope(*this);
   EHStack.pushCleanup<RethrowCleanup>(EHCleanup);
 
+  /*
   if (LoopVar) {
     AutoVarEmission LVEmission = EmitAutoVarAlloca(*LoopVar);
     QualType type = LoopVar->getType();
@@ -456,7 +456,7 @@ void CodeGenFunction::EmitForallRangeStmt(const ForallStmt &FS,
     EmitStoreThroughLValue(LoopVarInitRV, LV, true);
     EmitAutoVarCleanups(LVEmission);
   }
-
+  */
   Builder.CreateBr(ForAllBody);
   EmitBlock(ForAllBody);
   incrementProfileCounter(&S);
