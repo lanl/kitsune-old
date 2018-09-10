@@ -15,7 +15,7 @@ using namespace llvm;
 
 namespace {
 struct SmallBlock : public FunctionPass {
-  static const int threshold = 10;
+  //static const int threshold = 10; // FIXME -- unused... -PM 
   static char ID; // Pass identification, replacement for typeid
   SmallBlock() : FunctionPass(ID) {
     initializeSmallBlockPass(*PassRegistry::getPassRegistry());

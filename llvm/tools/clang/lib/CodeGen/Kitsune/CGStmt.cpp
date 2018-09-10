@@ -362,7 +362,6 @@ void CodeGenFunction::EmitForallRangeStmt(const ForallStmt &FS,
   EmitStmt(S.getBeginStmt());
   EmitStmt(S.getEndStmt());
 
-  
   // Start the loop with a block that tests the condition.
   // If there's an increment, the continue scope will be overwritten
   // later.
@@ -376,31 +375,14 @@ void CodeGenFunction::EmitForallRangeStmt(const ForallStmt &FS,
 		 SourceLocToDebugLoc(R.getBegin()),
 		 SourceLocToDebugLoc(R.getEnd()));
 
+  JumpDest Preattach = getJumpDestInCurrentScope("forall.range.preattach");  
   Continue = getJumpDestInCurrentScope("forall.range.inc");
-  JumpDest Preattach = getJumpDestInCurrentScope("forall.range.preattach");
-  
-  // If there are any cleanups between here and the loop-exit scope,
-  // create a block to state a loop exit...
-  llvm::BasicBlock *ExitBlock = LoopExit.getBlock();  
-  if (ForAllScope.requiresCleanups())
-    ExitBlock = createBasicBlock("forall.cond.cleanup");
-  
-  llvm::BasicBlock *ForAllBody      = createBasicBlock("forall.range.body");
-  llvm::BasicBlock *DetachBlock     = createBasicBlock("forall.range.detach");
-  llvm::BasicBlock *ForAllBodyEntry = createBasicBlock("forall.range.body.entry");
-  
-  // The body is executed if the expression, contextually converted
-  // to bool, is true.
-  llvm::Value *BoolCondVal = EvaluateExprAsBool(S.getCond());
-  Builder.CreateCondBr(
-		       BoolCondVal, DetachBlock, ExitBlock,
-		       createProfileWeightsForLoop(S.getCond(), getProfileCount(S.getBody())));  
 
   BreakContinueStack.push_back(BreakContinue(Preattach, Preattach));
-  
+
   // Create a cleanup scope for the condition variable cleanups.
   LexicalScope ConditionScope(*this, S.getSourceRange());
-  
+
   // Save the alloca insertion point.
   llvm::AssertingVH<llvm::Instruction>  SavedAllocaInsertPt = AllocaInsertPt;
   
@@ -409,49 +391,87 @@ void CodeGenFunction::EmitForallRangeStmt(const ForallStmt &FS,
   llvm::Value      *SavedExceptionSlot  = ExceptionSlot;
   llvm::AllocaInst *SavedEHSelectorSlot = EHSelectorSlot;  
   llvm::BasicBlock *SyncContinueBlock = createBasicBlock("forall.range.end.continue");
-  
   bool madeSync = false;
+
+  const VarDecl *LoopVar = S.getLoopVariable();  
+  RValue LoopVarInitRV;
   
-  if (ExitBlock != LoopExit.getBlock()) {
-    EmitBlock(ExitBlock);
-    Builder.CreateSync(SyncContinueBlock, SyncRegionStart);
-    EmitBlock(SyncContinueBlock);
-    PopSyncRegion();
-    EmitBranchThroughCleanup(LoopExit);
-    madeSync = true;
+  llvm::BasicBlock *ForAllBody      = createBasicBlock("forall.range.body");
+  llvm::BasicBlock *DetachBlock     = createBasicBlock("forall.range.detach");
+  llvm::BasicBlock *ForAllBodyEntry = createBasicBlock("forall.range.body.entry");
+  {
+
+    // If there are any cleanups between here and the loop-exit scope,
+    // create a block to state a loop exit...
+    llvm::BasicBlock *ExitBlock = LoopExit.getBlock();  
+    if (ForAllScope.requiresCleanups())
+      ExitBlock = createBasicBlock("forall.cond.cleanup");
+  
+  
+    // The body is executed if the expression, contextually converted
+    // to bool, is true.
+    llvm::Value *BoolCondVal = EvaluateExprAsBool(S.getCond());
+    Builder.CreateCondBr(
+			 BoolCondVal, DetachBlock, ExitBlock,
+			 createProfileWeightsForLoop(S.getCond(), getProfileCount(S.getBody())));  
+  
+  
+    if (ExitBlock != LoopExit.getBlock()) {
+      EmitBlock(ExitBlock);
+      Builder.CreateSync(SyncContinueBlock, SyncRegionStart);
+      EmitBlock(SyncContinueBlock);
+      PopSyncRegion();
+      EmitBranchThroughCleanup(LoopExit);
+      madeSync = true;
+    }
+
+    EmitBlock(DetachBlock);
+
+    if (LoopVar) 
+      LoopVarInitRV = EmitAnyExprToTemp(LoopVar->getInit());
+    
+    Builder.CreateDetach(ForAllBodyEntry, Continue.getBlock(), SyncRegionStart);
+  
+    // Create a new alloca insert point...
+    llvm::Value *Undef = llvm::UndefValue::get(Int32Ty);
+    AllocaInsertPt = new llvm::BitCastInst(Undef, Int32Ty, "", ForAllBodyEntry);  
+
+    // Set up a nested exception handling state.
+    EHResumeBlock  = nullptr;
+    ExceptionSlot  = nullptr;
+    EHSelectorSlot = nullptr;
+  
+    EmitBlock(ForAllBodyEntry);
   }
-
-  EmitBlock(DetachBlock);
-  Builder.CreateDetach(ForAllBodyEntry, Continue.getBlock(), SyncRegionStart);
-  
-  // Create a new alloca insert point...
-  llvm::Value *Undef = llvm::UndefValue::get(Int32Ty);
-  AllocaInsertPt = new llvm::BitCastInst(Undef, Int32Ty, "", ForAllBodyEntry);  
-
-  // Set up a nested exception handling state.
-  EHResumeBlock  = nullptr;
-  ExceptionSlot  = nullptr;
-  EHSelectorSlot = nullptr;
-  
-  EmitBlock(ForAllBodyEntry);
-
   // Create a cleanup scope for the loop-variable cleanups.
   RunCleanupsScope DetachCleanupScope(*this);
   EHStack.pushCleanup<RethrowCleanup>(EHCleanup);
 
+  /*
+  if (LoopVar) {
+  AutoVarEmission LVEmission = EmitAutoVarAlloca(*LoopVar);
+  QualType type = LoopVar->getType();
+  Address Loc = LVEmission.getObjectAddress(*this);
+  LValue LV = MakeAddrLValue(Loc, type);
+  LV.setNonGC(true);
+  EmitStoreThroughLValue(LoopVarInitRV, LV, true);
+  EmitAutoVarCleanups(LVEmission);
+  */
+  }
   Builder.CreateBr(ForAllBody);
   EmitBlock(ForAllBody);
   incrementProfileCounter(&S);
   
   // Create a separate cleanup scope for the loop variable and body.
   {
-    LexicalScope BodyScope(*this, S.getSourceRange());
+    //LexicalScope BodyScope(*this, S.getSourceRange());
+    RunCleanupsScope BodyScope(*this);
     EmitStmt(S.getLoopVarStmt());
     EmitStmt(S.getBody());
   }
-  Builder.CreateBr(Preattach.getBlock());
+  // Not sure why this has to move out of the scope above... 
+  Builder.CreateBr(Preattach.getBlock());          
   
-
   {
     EmitBlock(Preattach.getBlock());
     DetachCleanupScope.ForceCleanup();
