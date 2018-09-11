@@ -511,35 +511,34 @@ void CodeGenFunction::EmitForallRangeStmt(const ForallStmt &FS,
 
 // this method handles the code generation corresponding to Kokkos parallel for
 // or parallel reduce
-void CodeGenFunction::EmitKokkosConstruct(const CallExpr* E){
-  // anything to include here?
-  ArrayRef<const Attr *> ForAttrs;
+void CodeGenFunction::EmitKokkosConstruct(const CallExpr* E) {
+  //					  ArrayRef<const Attr *> ForAttrs) {
 
-  // extract the lambda expression which will be used as a body of the
-  // parallel for loop
-  const LambdaExpr* LE = GetLambda(E->getArg(1));
-  const CXXMethodDecl* MD = LE->getCallOperator();
+  ArrayRef<const Attr *> ForAttrs; 
+
+  // Start by extracting the lambda expression that will be used as the
+  // body of a forall loop.
+  const LambdaExpr* LE       = GetLambda(E->getArg(1));
+  const CXXMethodDecl* MD    = LE->getCallOperator();
   const ParmVarDecl* LoopVar = MD->getParamDecl(0);
 
   const FunctionDecl* F = E->getDirectCallee();
-  assert(F);
+  assert(F && "kokkos construct doesn't seem to have a funcdecl!");
 
   const VarDecl* ReduceVar;
 
-  if(F->getQualifiedNameAsString() == "Kokkos::parallel_for"){
-    assert(MD->getNumParams() == 1);
-    assert(E->getNumArgs() == 3);
+  if (F->getQualifiedNameAsString() == "Kokkos::parallel_for") {
+    assert(MD->getNumParams() == 1 && "too many parameters in method decl!");
+    assert(E->getNumArgs() == 3 && "too many arguments in call expr!");
     ReduceVar = nullptr;
-  }
-  else if(F->getQualifiedNameAsString() == "Kokkos::parallel_reduce"){
+  } else if(F->getQualifiedNameAsString() == "Kokkos::parallel_reduce") {
     ReduceVar = MD->getParamDecl(1);
     assert(MD->getNumParams() == 2);
-  }
-  else{
+  } else {
     assert(false && "expected parallel for or reduce");
   }
-
-  JumpDest LoopExit = getJumpDestInCurrentScope("pfor.end");
+  
+  JumpDest LoopExit = getJumpDestInCurrentScope("kokkos.forall.end");
 
   PushSyncRegion();
   llvm::Instruction *SyncRegionStart = EmitSyncRegionStart();
@@ -554,7 +553,7 @@ void CodeGenFunction::EmitKokkosConstruct(const CallExpr* E){
   llvm::Value *Zero = llvm::ConstantInt::get(ConvertType(LoopVar->getType()), 0);
   Builder.CreateStore(Zero, Addr);
 
-  if(ReduceVar){
+  if (ReduceVar) {
     EmitVarDecl(*ReduceVar);
   }
 
@@ -569,14 +568,13 @@ void CodeGenFunction::EmitKokkosConstruct(const CallExpr* E){
 
   // we may need to truncate or extend the end range to get it to match the
   // type of the loop variable
-  if(NBits > LoopVarBits){
+  if (NBits > LoopVarBits) {
     N = Builder.CreateTrunc(N, LoopVarTy);
-  }
-  else if(NBits < LoopVarBits){
+  } else if(NBits < LoopVarBits) {
     N = Builder.CreateZExt(N, LoopVarTy);
   }
 
-  JumpDest Continue = getJumpDestInCurrentScope("pfor.cond");
+  JumpDest Continue = getJumpDestInCurrentScope("kokkos.forall.cond");
   llvm::BasicBlock *CondBlock = Continue.getBlock();
   EmitBlock(CondBlock);
 
@@ -587,8 +585,8 @@ void CodeGenFunction::EmitKokkosConstruct(const CallExpr* E){
                  SourceLocToDebugLoc(R.getBegin()),
                  SourceLocToDebugLoc(R.getEnd()));
 
-  JumpDest Preattach = getJumpDestInCurrentScope("pfor.preattach");
-  Continue = getJumpDestInCurrentScope("pfor.inc");
+  JumpDest Preattach = getJumpDestInCurrentScope("kokkos.forall.preattach");
+  Continue = getJumpDestInCurrentScope("kokkos.forall.inc");
 
   // Store the blocks to use for break and continue.
   BreakContinueStack.push_back(BreakContinue(Preattach, Preattach));
@@ -603,7 +601,7 @@ void CodeGenFunction::EmitKokkosConstruct(const CallExpr* E){
   llvm::Value *OldExceptionSlot = ExceptionSlot;
   llvm::AllocaInst *OldEHSelectorSlot = EHSelectorSlot;
 
-  llvm::BasicBlock *SyncContinueBlock = createBasicBlock("pfor.end.continue");
+  llvm::BasicBlock *SyncContinueBlock = createBasicBlock("kokkos.end.continue");
   bool madeSync = false;
   llvm::BasicBlock *DetachBlock;
   llvm::BasicBlock *ForBodyEntry;
@@ -614,14 +612,14 @@ void CodeGenFunction::EmitKokkosConstruct(const CallExpr* E){
     // If there are any cleanups between here and the loop-exit scope,
     // create a block to stage a loop exit along.
     if (ForScope.requiresCleanups())
-      ExitBlock = createBasicBlock("pfor.cond.cleanup");
+      ExitBlock = createBasicBlock("kokkos.cond.cleanup");
 
     // As long as the condition is true, iterate the loop.
-    DetachBlock = createBasicBlock("pfor.detach");
+    DetachBlock = createBasicBlock("kokkos.forall.detach");
     // Emit extra entry block for detached body, to ensure that this detached
     // entry block has just one predecessor.
-    ForBodyEntry = createBasicBlock("pfor.body.entry");
-    ForBody = createBasicBlock("pfor.body");
+    ForBodyEntry = createBasicBlock("kokkos.forall.body.entry");
+    ForBody = createBasicBlock("kokkos.forall.pfor.body");
 
     llvm::Value *LoopVal = Builder.CreateLoad(Addr);
 
