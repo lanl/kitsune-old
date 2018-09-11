@@ -1,0 +1,5 @@
+digraph "CFG for '_ZN6Kokkos6OpenMP14is_initializedEv' function" {
+	label="CFG for '_ZN6Kokkos6OpenMP14is_initializedEv' function";
+
+	Node0x5e4ba60 [shape=record,label="{entry:\l  %0 = load %\"class.Kokkos::Impl::OpenMPExec\"*,\l... %\"class.Kokkos::Impl::OpenMPExec\"** @_ZN6Kokkos4Impl17t_openmp_instanceE,\l... align 8\l  %cmp = icmp ne %\"class.Kokkos::Impl::OpenMPExec\"* %0, null\l  ret i1 %cmp\l}"];
+}

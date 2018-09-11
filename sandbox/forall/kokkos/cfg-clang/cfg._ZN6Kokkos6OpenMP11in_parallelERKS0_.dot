@@ -1,0 +1,14 @@
+digraph "CFG for '_ZN6Kokkos6OpenMP11in_parallelERKS0_' function" {
+	label="CFG for '_ZN6Kokkos6OpenMP11in_parallelERKS0_' function";
+
+	Node0x5e6f250 [shape=record,label="{entry:\l  %.addr = alloca %\"class.Kokkos::OpenMP\"*, align 8\l  store %\"class.Kokkos::OpenMP\"* %0, %\"class.Kokkos::OpenMP\"** %.addr, align 8\l  %1 = load %\"class.Kokkos::Impl::OpenMPExec\"*,\l... %\"class.Kokkos::Impl::OpenMPExec\"** @_ZN6Kokkos4Impl17t_openmp_instanceE,\l... align 8\l  %tobool = icmp ne %\"class.Kokkos::Impl::OpenMPExec\"* %1, null\l  br i1 %tobool, label %lor.rhs, label %lor.end\l|{<s0>T|<s1>F}}"];
+	Node0x5e6f250:s0 -> Node0x5e6f520;
+	Node0x5e6f250:s1 -> Node0x5e6f5f0;
+	Node0x5e6f520 [shape=record,label="{lor.rhs:                                          \l  %2 = load %\"class.Kokkos::Impl::OpenMPExec\"*,\l... %\"class.Kokkos::Impl::OpenMPExec\"** @_ZN6Kokkos4Impl17t_openmp_instanceE,\l... align 8\l  %m_level = getelementptr inbounds %\"class.Kokkos::Impl::OpenMPExec\",\l... %\"class.Kokkos::Impl::OpenMPExec\"* %2, i32 0, i32 1\l  %3 = load i32, i32* %m_level, align 4\l  %call = invoke i32 @omp_get_level()\l          to label %invoke.cont unwind label %terminate.lpad\l}"];
+	Node0x5e6f520 -> Node0x5e6f850;
+	Node0x5e6f520 -> Node0x5e6f900;
+	Node0x5e6f850 [shape=record,label="{invoke.cont:                                      \l  %cmp = icmp slt i32 %3, %call\l  br label %lor.end\l}"];
+	Node0x5e6f850 -> Node0x5e6f5f0;
+	Node0x5e6f5f0 [shape=record,label="{lor.end:                                          \l  %4 = phi i1 [ true, %entry ], [ %cmp, %invoke.cont ]\l  ret i1 %4\l}"];
+	Node0x5e6f900 [shape=record,label="{terminate.lpad:                                   \l  %5 = landingpad \{ i8*, i32 \}\l          catch i8* null\l  %6 = extractvalue \{ i8*, i32 \} %5, 0\l  call void @__clang_call_terminate(i8* %6) #11\l  unreachable\l}"];
+}

@@ -9,7 +9,10 @@ ld_flags=-L/$(KITSUNE_HOME)/local/lib
 cilk_flags=-ftapir=cilk 
 omp_flags=-fopenmp
 
-
+kokkos_home=/projects/kitsune/local/kokkos
+kokkos_flags= -fopenmp -fkokkos -I${kokkos_home}/include
+kokkos_ld_flags= -L${kokkos_home}/lib 
+kokkos_libs=-lkokkos -ldl 
 %: %.cpp 
 	${clang} ${clang_flags} -o $@ ${opt_flags} $< 
 
@@ -21,6 +24,9 @@ omp_flags=-fopenmp
 
 %_omp: %.cpp
 	${clang} ${clang_flags} ${omp_flags} ${tapir_flags} -o $@ ${cilk_flags} ${opt_flags} ${ld_flags} $<
+
+%_cilk_kokkos: %.cpp
+	${clang} ${clang_flags} ${kokkos_flags} ${tapir_flags} ${cilk_flags} ${opt_flags} -o $@ $< ${kokkos_ld_flags} ${ld_flags} ${kokkos_libs} 
 
 %.ll: %.cpp
 	${clang} ${clang_flags} -S -emit-llvm ${opt_flags} -o $@ $<

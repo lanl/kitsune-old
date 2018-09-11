@@ -10,6 +10,7 @@
 // This contains code to emit Expr nodes as LLVM code.
 //
 //===----------------------------------------------------------------------===//
+#include <iostream>
 
 #include "CGCXXABI.h"
 #include "CGCall.h"
@@ -2294,7 +2295,7 @@ LValue CodeGenFunction::EmitDeclRefLValue(const DeclRefExpr *E) {
     // Check for captured variables.
     if (E->refersToEnclosingVariableOrCapture()) {
       // +===== Kitsune
-      if(InKokkosConstruct){
+      if (InKokkosConstruct) {
         auto I = LocalDeclMap.find(VD);
         assert(I != LocalDeclMap.end());
         return MakeAddrLValue(I->second, T);  
@@ -4083,9 +4084,10 @@ RValue CodeGenFunction::EmitCallExpr(const CallExpr *E,
   // +===== Kitsune
   if(getLangOpts().Kokkos/* && isMainStmt(E)*/){
     const FunctionDecl* f = E->getDirectCallee();
-    if(f){
+    if (f) {
       std::string qn = f->getQualifiedNameAsString();
-      if(qn == "Kokkos::parallel_for" || qn == "Kokkos::parallel_reduce"){
+      if (qn == "Kokkos::parallel_for" || qn == "Kokkos::parallel_reduce") {
+	std::cerr << "I'm in an emit kokkos construct phase.\n";
         EmitKokkosConstruct(E);
         return RValue::get(nullptr);
       }

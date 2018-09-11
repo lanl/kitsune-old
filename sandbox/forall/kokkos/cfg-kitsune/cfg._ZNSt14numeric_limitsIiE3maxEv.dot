@@ -1,0 +1,5 @@
+digraph "CFG for '_ZNSt14numeric_limitsIiE3maxEv' function" {
+	label="CFG for '_ZNSt14numeric_limitsIiE3maxEv' function";
+
+	Node0x57ebe00 [shape=record,label="{entry:\l  ret i32 2147483647\l}"];
+}

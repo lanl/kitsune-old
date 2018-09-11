@@ -1,0 +1,5 @@
+digraph "CFG for '_ZN6Kokkos4Impl22SharedAllocationRecordINS_9HostSpaceENS0_16ViewValueFunctorINS_6OpenMPEdLb1EEEED2Ev' function" {
+	label="CFG for '_ZN6Kokkos4Impl22SharedAllocationRecordINS_9HostSpaceENS0_16ViewValueFunctorINS_6OpenMPEdLb1EEEED2Ev' function";
+
+	Node0x5e6dec0 [shape=record,label="{entry:\l  %this.addr = alloca %\"class.Kokkos::Impl::SharedAllocationRecord.6\"*, align 8\l  store %\"class.Kokkos::Impl::SharedAllocationRecord.6\"* %this,\l... %\"class.Kokkos::Impl::SharedAllocationRecord.6\"** %this.addr, align 8\l  %this1 = load %\"class.Kokkos::Impl::SharedAllocationRecord.6\"*,\l... %\"class.Kokkos::Impl::SharedAllocationRecord.6\"** %this.addr, align 8\l  %0 = bitcast %\"class.Kokkos::Impl::SharedAllocationRecord.6\"* %this1 to\l... %\"class.Kokkos::Impl::SharedAllocationRecord.7\"*\l  call void\l... @_ZN6Kokkos4Impl22SharedAllocationRecordINS_9HostSpaceEvED2Ev(%\"class.Kokkos::\l...Impl::SharedAllocationRecord.7\"* %0) #6\l  ret void\l}"];
+}

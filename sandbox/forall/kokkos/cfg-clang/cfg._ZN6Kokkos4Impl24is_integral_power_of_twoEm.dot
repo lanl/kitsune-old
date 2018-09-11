@@ -1,0 +1,10 @@
+digraph "CFG for '_ZN6Kokkos4Impl24is_integral_power_of_twoEm' function" {
+	label="CFG for '_ZN6Kokkos4Impl24is_integral_power_of_twoEm' function";
+
+	Node0x5e79820 [shape=record,label="{entry:\l  %N.addr = alloca i64, align 8\l  store i64 %N, i64* %N.addr, align 8\l  %0 = load i64, i64* %N.addr, align 8\l  %cmp = icmp ult i64 0, %0\l  br i1 %cmp, label %land.rhs, label %land.end\l|{<s0>T|<s1>F}}"];
+	Node0x5e79820:s0 -> Node0x5e7b7d0;
+	Node0x5e79820:s1 -> Node0x5e7b880;
+	Node0x5e7b7d0 [shape=record,label="{land.rhs:                                         \l  %1 = load i64, i64* %N.addr, align 8\l  %2 = load i64, i64* %N.addr, align 8\l  %sub = sub i64 %2, 1\l  %and = and i64 %1, %sub\l  %cmp1 = icmp eq i64 0, %and\l  br label %land.end\l}"];
+	Node0x5e7b7d0 -> Node0x5e7b880;
+	Node0x5e7b880 [shape=record,label="{land.end:                                         \l  %3 = phi i1 [ false, %entry ], [ %cmp1, %land.rhs ]\l  ret i1 %3\l}"];
+}

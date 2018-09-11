@@ -1,0 +1,44 @@
+digraph "CFG for '_ZN6Kokkos11RangePolicyIJNS_6OpenMPEEE19set_auto_chunk_sizeEv' function" {
+	label="CFG for '_ZN6Kokkos11RangePolicyIJNS_6OpenMPEEE19set_auto_chunk_sizeEv' function";
+
+	Node0x57d2f20 [shape=record,label="{entry:\l  %this.addr = alloca %\"class.Kokkos::RangePolicy\"*, align 8\l  %concurrency = alloca i64, align 8\l  %new_chunk_size = alloca i64, align 8\l  store %\"class.Kokkos::RangePolicy\"* %this, %\"class.Kokkos::RangePolicy\"**\l... %this.addr, align 8\l  %this1 = load %\"class.Kokkos::RangePolicy\"*, %\"class.Kokkos::RangePolicy\"**\l... %this.addr, align 8\l  %call = call i32 @_ZN6Kokkos6OpenMP11concurrencyEv()\l  %conv = sext i32 %call to i64\l  store i64 %conv, i64* %concurrency, align 8\l  %0 = load i64, i64* %concurrency, align 8\l  %cmp = icmp eq i64 %0, 0\l  br i1 %cmp, label %if.then, label %if.end\l|{<s0>T|<s1>F}}"];
+	Node0x57d2f20:s0 -> Node0x57d4530;
+	Node0x57d2f20:s1 -> Node0x57d4600;
+	Node0x57d4530 [shape=record,label="{if.then:                                          \l  store i64 1, i64* %concurrency, align 8\l  br label %if.end\l}"];
+	Node0x57d4530 -> Node0x57d4600;
+	Node0x57d4600 [shape=record,label="{if.end:                                           \l  %m_granularity = getelementptr inbounds %\"class.Kokkos::RangePolicy\",\l... %\"class.Kokkos::RangePolicy\"* %this1, i32 0, i32 3\l  %1 = load i64, i64* %m_granularity, align 8\l  %cmp2 = icmp ugt i64 %1, 0\l  br i1 %cmp2, label %if.then3, label %if.end8\l|{<s0>T|<s1>F}}"];
+	Node0x57d4600:s0 -> Node0x57d3e70;
+	Node0x57d4600:s1 -> Node0x57d4ab0;
+	Node0x57d3e70 [shape=record,label="{if.then3:                                         \l  %m_granularity4 = getelementptr inbounds %\"class.Kokkos::RangePolicy\",\l... %\"class.Kokkos::RangePolicy\"* %this1, i32 0, i32 3\l  %2 = load i64, i64* %m_granularity4, align 8\l  %call5 = call zeroext i1 @_ZN6Kokkos4Impl24is_integral_power_of_twoEm(i64 %2)\l  br i1 %call5, label %if.end7, label %if.then6\l|{<s0>T|<s1>F}}"];
+	Node0x57d3e70:s0 -> Node0x57d4f90;
+	Node0x57d3e70:s1 -> Node0x57d5060;
+	Node0x57d5060 [shape=record,label="{if.then6:                                         \l  call void @_ZN6Kokkos5abortEPKc(i8* getelementptr inbounds ([54 x i8], [54 x\l... i8]* @.str.6, i32 0, i32 0))\l  br label %if.end7\l}"];
+	Node0x57d5060 -> Node0x57d4f90;
+	Node0x57d4f90 [shape=record,label="{if.end7:                                          \l  br label %if.end8\l}"];
+	Node0x57d4f90 -> Node0x57d4ab0;
+	Node0x57d4ab0 [shape=record,label="{if.end8:                                          \l  store i64 1, i64* %new_chunk_size, align 8\l  br label %while.cond\l}"];
+	Node0x57d4ab0 -> Node0x57d5540;
+	Node0x57d5540 [shape=record,label="{while.cond:                                       \l  %3 = load i64, i64* %new_chunk_size, align 8\l  %mul = mul i64 %3, 100\l  %4 = load i64, i64* %concurrency, align 8\l  %mul9 = mul i64 %mul, %4\l  %m_end = getelementptr inbounds %\"class.Kokkos::RangePolicy\",\l... %\"class.Kokkos::RangePolicy\"* %this1, i32 0, i32 2\l  %5 = load i64, i64* %m_end, align 8\l  %m_begin = getelementptr inbounds %\"class.Kokkos::RangePolicy\",\l... %\"class.Kokkos::RangePolicy\"* %this1, i32 0, i32 1\l  %6 = load i64, i64* %m_begin, align 8\l  %sub = sub i64 %5, %6\l  %cmp10 = icmp ult i64 %mul9, %sub\l  br i1 %cmp10, label %while.body, label %while.end\l|{<s0>T|<s1>F}}"];
+	Node0x57d5540:s0 -> Node0x57d49a0;
+	Node0x57d5540:s1 -> Node0x57d4a50;
+	Node0x57d49a0 [shape=record,label="{while.body:                                       \l  %7 = load i64, i64* %new_chunk_size, align 8\l  %mul11 = mul i64 %7, 2\l  store i64 %mul11, i64* %new_chunk_size, align 8\l  br label %while.cond\l}"];
+	Node0x57d49a0 -> Node0x57d5540;
+	Node0x57d4a50 [shape=record,label="{while.end:                                        \l  %8 = load i64, i64* %new_chunk_size, align 8\l  %cmp12 = icmp ult i64 %8, 128\l  br i1 %cmp12, label %if.then13, label %if.end25\l|{<s0>T|<s1>F}}"];
+	Node0x57d4a50:s0 -> Node0x57d5710;
+	Node0x57d4a50:s1 -> Node0x57d6250;
+	Node0x57d5710 [shape=record,label="{if.then13:                                        \l  store i64 1, i64* %new_chunk_size, align 8\l  br label %while.cond14\l}"];
+	Node0x57d5710 -> Node0x57d6440;
+	Node0x57d6440 [shape=record,label="{while.cond14:                                     \l  %9 = load i64, i64* %new_chunk_size, align 8\l  %mul15 = mul i64 %9, 40\l  %10 = load i64, i64* %concurrency, align 8\l  %mul16 = mul i64 %mul15, %10\l  %m_end17 = getelementptr inbounds %\"class.Kokkos::RangePolicy\",\l... %\"class.Kokkos::RangePolicy\"* %this1, i32 0, i32 2\l  %11 = load i64, i64* %m_end17, align 8\l  %m_begin18 = getelementptr inbounds %\"class.Kokkos::RangePolicy\",\l... %\"class.Kokkos::RangePolicy\"* %this1, i32 0, i32 1\l  %12 = load i64, i64* %m_begin18, align 8\l  %sub19 = sub i64 %11, %12\l  %cmp20 = icmp ult i64 %mul16, %sub19\l  br i1 %cmp20, label %land.rhs, label %land.end\l|{<s0>T|<s1>F}}"];
+	Node0x57d6440:s0 -> Node0x57d6a10;
+	Node0x57d6440:s1 -> Node0x57d6af0;
+	Node0x57d6a10 [shape=record,label="{land.rhs:                                         \l  %13 = load i64, i64* %new_chunk_size, align 8\l  %cmp21 = icmp ult i64 %13, 128\l  br label %land.end\l}"];
+	Node0x57d6a10 -> Node0x57d6af0;
+	Node0x57d6af0 [shape=record,label="{land.end:                                         \l  %14 = phi i1 [ false, %while.cond14 ], [ %cmp21, %land.rhs ]\l  br i1 %14, label %while.body22, label %while.end24\l|{<s0>T|<s1>F}}"];
+	Node0x57d6af0:s0 -> Node0x57d6df0;
+	Node0x57d6af0:s1 -> Node0x57d6e70;
+	Node0x57d6df0 [shape=record,label="{while.body22:                                     \l  %15 = load i64, i64* %new_chunk_size, align 8\l  %mul23 = mul i64 %15, 2\l  store i64 %mul23, i64* %new_chunk_size, align 8\l  br label %while.cond14\l}"];
+	Node0x57d6df0 -> Node0x57d6440;
+	Node0x57d6e70 [shape=record,label="{while.end24:                                      \l  br label %if.end25\l}"];
+	Node0x57d6e70 -> Node0x57d6250;
+	Node0x57d6250 [shape=record,label="{if.end25:                                         \l  %16 = load i64, i64* %new_chunk_size, align 8\l  %m_granularity26 = getelementptr inbounds %\"class.Kokkos::RangePolicy\",\l... %\"class.Kokkos::RangePolicy\"* %this1, i32 0, i32 3\l  store i64 %16, i64* %m_granularity26, align 8\l  %m_granularity27 = getelementptr inbounds %\"class.Kokkos::RangePolicy\",\l... %\"class.Kokkos::RangePolicy\"* %this1, i32 0, i32 3\l  %17 = load i64, i64* %m_granularity27, align 8\l  %sub28 = sub i64 %17, 1\l  %m_granularity_mask = getelementptr inbounds %\"class.Kokkos::RangePolicy\",\l... %\"class.Kokkos::RangePolicy\"* %this1, i32 0, i32 4\l  store i64 %sub28, i64* %m_granularity_mask, align 8\l  ret void\l}"];
+}

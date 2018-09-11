@@ -1,0 +1,12 @@
+digraph "CFG for '_ZN6Kokkos4Impl21ParallelConstructNameIZ4mainE3$_0vLb0EE3getB5cxx11Ev' function" {
+	label="CFG for '_ZN6Kokkos4Impl21ParallelConstructNameIZ4mainE3$_0vLb0EE3getB5cxx11Ev' function";
+
+	Node0x5e95710 [shape=record,label="{entry:\l  %this.addr = alloca %\"struct.Kokkos::Impl::ParallelConstructName\"*, align 8\l  store %\"struct.Kokkos::Impl::ParallelConstructName\"* %this,\l... %\"struct.Kokkos::Impl::ParallelConstructName\"** %this.addr, align 8\l  %this1 = load %\"struct.Kokkos::Impl::ParallelConstructName\"*,\l... %\"struct.Kokkos::Impl::ParallelConstructName\"** %this.addr, align 8\l  %label_ref = getelementptr inbounds\l... %\"struct.Kokkos::Impl::ParallelConstructName\",\l... %\"struct.Kokkos::Impl::ParallelConstructName\"* %this1, i32 0, i32 0\l  %ref = load %\"class.std::__cxx11::basic_string\"*,\l... %\"class.std::__cxx11::basic_string\"** %label_ref, align 8\l  %call = call zeroext i1\l... @_ZNKSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE5emptyEv(%\"class.std::_\l..._cxx11::basic_string\"* %ref) #6\l  br i1 %call, label %cond.true, label %cond.false\l|{<s0>T|<s1>F}}"];
+	Node0x5e95710:s0 -> Node0x5e96240;
+	Node0x5e95710:s1 -> Node0x5e96430;
+	Node0x5e96240 [shape=record,label="{cond.true:                                        \l  %default_name = getelementptr inbounds\l... %\"struct.Kokkos::Impl::ParallelConstructName\",\l... %\"struct.Kokkos::Impl::ParallelConstructName\"* %this1, i32 0, i32 1\l  br label %cond.end\l}"];
+	Node0x5e96240 -> Node0x5e96670;
+	Node0x5e96430 [shape=record,label="{cond.false:                                       \l  %label_ref2 = getelementptr inbounds\l... %\"struct.Kokkos::Impl::ParallelConstructName\",\l... %\"struct.Kokkos::Impl::ParallelConstructName\"* %this1, i32 0, i32 0\l  %ref3 = load %\"class.std::__cxx11::basic_string\"*,\l... %\"class.std::__cxx11::basic_string\"** %label_ref2, align 8\l  br label %cond.end\l}"];
+	Node0x5e96430 -> Node0x5e96670;
+	Node0x5e96670 [shape=record,label="{cond.end:                                         \l  %cond-lvalue = phi %\"class.std::__cxx11::basic_string\"* [ %default_name,\l... %cond.true ], [ %ref3, %cond.false ]\l  ret %\"class.std::__cxx11::basic_string\"* %cond-lvalue\l}"];
+}
