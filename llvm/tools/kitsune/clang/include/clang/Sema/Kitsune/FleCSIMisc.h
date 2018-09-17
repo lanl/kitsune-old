@@ -1,6 +1,6 @@
 /**
   ***************************************************************************
-  * Copyright (c) 2017, Los Alamos National Security, LLC.
+  * Copyright (c) 2018, Los Alamos National Security, LLC.
   * All rights reserved.
   *
   *  Copyright 2010. Los Alamos National Security, LLC. This software was
@@ -55,18 +55,18 @@
 
 
 // Write YAML file?
-#define KITSUNE_YAML
+#define noKITSUNE_YAML
 
-// Insert debugging output?
-#define KITSUNE_DEBUG
+// Print debugging output?
+#define noKITSUNE_DEBUG
 
 // Perform assertions?
-#define KITSUNE_ASSERT
+#define noKITSUNE_ASSERT
 
 
-// getFileLine: declaration
+// getFileAndLine: declaration
 namespace flecsi {
-   std::pair<std::string,std::uint32_t> getFileLine(
+   std::pair<std::string,std::uint32_t> getFileAndLine(
       const clang::Sema  &,
       const clang::Token &
    );
@@ -75,15 +75,15 @@ namespace flecsi {
 
 
 // -----------------------------------------------------------------------------
-// Debugging/printing/assertion constructs
+// Debug/print/assert constructs
 // -----------------------------------------------------------------------------
 
-// iostream
+// iostream, if necessary
 #ifdef KITSUNE_DEBUG
    #include <iostream>
 #endif
 
-// assertions
+// kitsune_assert (macro)
 #ifdef KITSUNE_ASSERT
    #define kitsune_assert(arg) assert(arg)
 #else
@@ -91,23 +91,23 @@ namespace flecsi {
 #endif
 
 // kitsune_debug (function)
-// We'll put this in a plain unnamed namespace so that it's easy
-// to use from anywhere, e.g. flecsi or llvm::yaml.
+// We'll place this into a plain unnamed namespace so that
+// it's easy to use from anywhere, e.g. flecsi or llvm::yaml.
 namespace {
-inline void kitsune_debug(const std::string &str, const bool newline = true)
-{
-   #ifdef KITSUNE_DEBUG
-      std::cout << "kitsune: " << str;
-      if (newline)
-         std::cout << std::endl;
-   #else
-      (void)str;
-      (void)newline;
-   #endif
-}
+   inline void kitsune_debug(const std::string &str, const bool newline = true)
+   {
+      #ifdef KITSUNE_DEBUG
+         std::cout << "kitsune: " << str;
+         if (newline)
+            std::cout << std::endl;
+      #else
+         (void)str;
+         (void)newline;
+      #endif
+   }
 }
 
-// kitsune_print(macro)
+// kitsune_print (macro)
 #ifdef KITSUNE_DEBUG
    #define kitsune_print(x) \
       std::cout << "kitsune: " #x " == " << (x) << std::endl

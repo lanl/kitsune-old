@@ -1,6 +1,6 @@
 /**
   ***************************************************************************
-  * Copyright (c) 2017, Los Alamos National Security, LLC.
+  * Copyright (c) 2018, Los Alamos National Security, LLC.
   * All rights reserved.
   *
   *  Copyright 2010. Los Alamos National Security, LLC. This software was
@@ -52,9 +52,8 @@
 #define FleCSIPreprocessor
 
 #include "clang/Lex/Preprocessor.h"
-
+#include "clang/Frontend/FrontendAction.h"
 #include "clang/Sema/Kitsune/FleCSIPreprocessorYAML.h"
-
 
 // tostr: helper function
 // Get a token's spelling.
@@ -180,7 +179,7 @@ public:
    Preprocessor(clang::Sema &);
   ~Preprocessor();
 
-   // PPCallbacks overrides
+   // PPCallbacks (base class) overrides
    void MacroDefined(
       const clang::Token &,
       const clang::MacroDirective *const
@@ -194,12 +193,14 @@ public:
    ) override;
 
    // accessors
-   const MacroInvocation *invocation(const clang::SourceLocation &) const;
+   const MacroInvocation *get_invocation(
+      const clang::SourceLocation &
+   ) const;
    PreprocessorYAML &yaml() { return YAML; }
 
    // analyze, finalize
    void analyze(clang::Decl &);
-   void finalize();
+   void finalize(clang::ASTFrontendAction &);
 };
 
 }

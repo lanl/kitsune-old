@@ -9346,7 +9346,7 @@ def note_shadow_field : Note<"declared here">;
 let CategoryName = "FleCSI Issue" in {
 
 def err_flecsi_not_a_data_client : Error<
-  "type is not derived from data client">;
+  "type is not derived from flecsi::data::data_client_t">;
 
 } // end "FleCSI Issue" category
 

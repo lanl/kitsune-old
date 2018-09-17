@@ -1,6 +1,6 @@
 /**
   ***************************************************************************
-  * Copyright (c) 2017, Los Alamos National Security, LLC.
+  * Copyright (c) 2018, Los Alamos National Security, LLC.
   * All rights reserved.
   *
   *  Copyright 2010. Los Alamos National Security, LLC. This software was
@@ -51,4 +51,4 @@
 #include "clang/Sema/Kitsune/FleCSIPreprocessorYAML.h"
 
 // Nothing here now.
-// Consider eventually placing the longer .h file non-inline functions here.
+// See the header file.

@@ -1,6 +1,6 @@
 /**
   ***************************************************************************
-  * Copyright (c) 2017, Los Alamos National Security, LLC.
+  * Copyright (c) 2018, Los Alamos National Security, LLC.
   * All rights reserved.
   *
   *  Copyright 2010. Los Alamos National Security, LLC. This software was
@@ -53,22 +53,23 @@
 
 
 // -----------------------------------------------------------------------------
-// getFileLine
+// getFileAndLine
 // Get a token's associated file name and line number
 // -----------------------------------------------------------------------------
 
 namespace flecsi {
 
-std::pair<std::string,std::uint32_t> getFileLine(
+std::pair<std::string,std::uint32_t> getFileAndLine(
    const clang::Sema  &sema,
    const clang::Token &token
 ) {
-   kitsune_debug("getFileLine()");
+   kitsune_debug("getFileAndLine()");
 
    clang::SourceManager &mgr = sema .getSourceManager();
    clang::SourceLocation loc = token.getLocation();
 
-   auto p = mgr.getDecomposedLoc(loc);
+   const std::pair<clang::FileID,unsigned>
+      p = mgr.getDecomposedLoc(loc);
 
    return std::pair<std::string,std::uint32_t>(
       mgr.getFilename(loc).str(),

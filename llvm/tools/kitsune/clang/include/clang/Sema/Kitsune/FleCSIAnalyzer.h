@@ -1,6 +1,6 @@
 /**
   ***************************************************************************
-  * Copyright (c) 2017, Los Alamos National Security, LLC.
+  * Copyright (c) 2018, Los Alamos National Security, LLC.
   * All rights reserved.
   *
   *  Copyright 2010. Los Alamos National Security, LLC. This software was
@@ -63,6 +63,7 @@
 namespace flecsi {
 
 class analyzer {
+   // data
    clang::Sema &sema;
 
    // Elements of the FleCSI analysis. For now, we just examine preprocessor-
@@ -87,7 +88,7 @@ public:
    void analyze(clang::Decl &) const;
 
    // Finalize the overall analysis
-   void finalize() const;
+   void finalize(clang::ASTFrontendAction &) const;
 };
 
 }

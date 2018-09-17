@@ -1,6 +1,6 @@
 /**
   ***************************************************************************
-  * Copyright (c) 2017, Los Alamos National Security, LLC.
+  * Copyright (c) 2018, Los Alamos National Security, LLC.
   * All rights reserved.
   *
   *  Copyright 2010. Los Alamos National Security, LLC. This software was
@@ -64,6 +64,8 @@ analyzer::analyzer(clang::Sema &s)
    preprocessor(new Preprocessor(sema))
 {
    kitsune_debug("analyzer::analyzer()");
+
+   // Elements of the FleCSI analysis; for now, just preprocessor...
    // re: preprocessor
    sema.getPreprocessor().addPPCallbacks(
       std::unique_ptr<Preprocessor>(preprocessor));
@@ -80,10 +82,10 @@ analyzer::~analyzer()
 // instance
 analyzer &analyzer::instance(clang::Sema *const sema)
 {
-   static bool firstcall = true;
-   if (firstcall) {
+   static bool first = true;
+   if (first) {
       kitsune_assert(sema != nullptr);
-      firstcall = false;
+      first = false;
    }
    static analyzer obj(*sema);
    return obj;
@@ -95,18 +97,20 @@ analyzer &analyzer::instance(clang::Sema *const sema)
 void analyzer::analyze(clang::Decl &decl) const
 {
    kitsune_debug("analyzer::analyze()");
+
+   // Elements of the FleCSI analysis; for now, just preprocessor...
    // re: preprocessor
    preprocessor->analyze(decl);
 }
 
 // finalize
-void analyzer::finalize() const
+void analyzer::finalize(clang::ASTFrontendAction &fa) const
 {
    kitsune_debug("analyzer::finalize()");
-#ifdef KITSUNE_YAML
+
+   // Elements of the FleCSI analysis; for now, just preprocessor...
    // re: preprocessor
-   preprocessor->finalize();
-#endif
+   preprocessor->finalize(fa);
 }
 
 }

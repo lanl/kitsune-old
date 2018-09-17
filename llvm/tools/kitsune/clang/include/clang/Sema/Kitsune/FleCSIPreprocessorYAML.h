@@ -1,6 +1,6 @@
 /**
   ***************************************************************************
-  * Copyright (c) 2017, Los Alamos National Security, LLC.
+  * Copyright (c) 2018, Los Alamos National Security, LLC.
   * All rights reserved.
   *
   *  Copyright 2010. Los Alamos National Security, LLC. This software was
@@ -59,9 +59,11 @@
 // Helper macros
 // -----------------------------------------------------------------------------
 
+// re: class
 #define kitsune_makeclass(classname,macroname) \
    namespace flecsi { \
-      struct classname : public macrobase { \
+      class classname : public macrobase { \
+      public: \
          classname() \
           : macrobase(#macroname) { } \
          classname(const clang::Sema &sema, const clang::Token &token) \
@@ -74,11 +76,13 @@
 
 
 
+// re: YAML mapping
 #define kitsune_maptraits(classname) \
    namespace llvm { \
    namespace yaml { \
       template<> \
-      struct MappingTraits<flecsi::classname> { \
+      class MappingTraits<flecsi::classname> { \
+      public: \
          static void mapping(IO &io, flecsi::classname &c) \
          { \
             c.map(io);
@@ -122,7 +126,7 @@ public:
    )
     : macro(name)
    {
-      auto pair = getFileLine(sema,token);
+      auto pair = getFileAndLine(sema,token);
       file = pair.first;
       line = pair.second;
    }
@@ -152,21 +156,53 @@ public:
 
 // -----------------------------------------------------------------------------
 // From FleCSI's execution.h
-// Task Registration
+// Top-Level Driver Interface
 // -----------------------------------------------------------------------------
 
-// flecsi_register_task_simple ( task, processor, launch )
-kitsune_makeclass(FleCSIRegisterTaskSimple, flecsi_register_task_simple)
-   std::string task;
-   std::string processor;
-   std::string launch;
+// flecsi_register_program ( program )
+kitsune_makeclass(FleCSIRegisterProgram, flecsi_register_program)
+   std::string program;
 kitsune_makeclass_done
-kitsune_maptraits(FleCSIRegisterTaskSimple)
-   kitsune_map(task);
-   kitsune_map(processor);
-   kitsune_map(launch);
+kitsune_maptraits(FleCSIRegisterProgram)
+   kitsune_map(program);
 kitsune_maptraits_done
 
+// flecsi_register_top_level_driver ( driver )
+kitsune_makeclass(FleCSIRegisterTopLevelDriver, flecsi_register_top_level_driver)
+   std::string driver;
+kitsune_makeclass_done
+kitsune_maptraits(FleCSIRegisterTopLevelDriver)
+   kitsune_map(driver);
+kitsune_maptraits_done
+
+
+
+/*
+// -----------------------------------------------------------------------------
+// From FleCSI's execution.h
+// Reduction Interface
+// -----------------------------------------------------------------------------
+
+// flecsi_register_reduction_operation ( name, operation_type )
+kitsune_makeclass(
+   FleCSIRegisterReductionOperation,
+   flecsi_register_reduction_operation
+)
+   std::string name;
+   std::string operation_type;
+kitsune_makeclass_done
+kitsune_maptraits(FleCSIRegisterReductionOperation)
+   kitsune_map(name);
+   kitsune_map(operation_type);
+kitsune_maptraits_done
+*/
+
+
+
+// -----------------------------------------------------------------------------
+// From FleCSI's execution.h
+// Task Registration
+// -----------------------------------------------------------------------------
 
 // flecsi_register_task ( task, nspace, processor, launch )
 kitsune_makeclass(FleCSIRegisterTask, flecsi_register_task)
@@ -183,15 +219,6 @@ kitsune_maptraits(FleCSIRegisterTask)
 kitsune_maptraits_done
 
 
-// flecsi_register_mpi_task_simple ( task )
-kitsune_makeclass(FleCSIRegisterMPITaskSimple, flecsi_register_mpi_task_simple)
-   std::string task;
-kitsune_makeclass_done
-kitsune_maptraits(FleCSIRegisterMPITaskSimple)
-   kitsune_map(task);
-kitsune_maptraits_done
-
-
 // flecsi_register_mpi_task ( task, nspace )
 kitsune_makeclass(FleCSIRegisterMPITask, flecsi_register_mpi_task)
    std::string task;
@@ -203,22 +230,45 @@ kitsune_maptraits(FleCSIRegisterMPITask)
 kitsune_maptraits_done
 
 
+// flecsi_register_task_simple ( task, processor, launch )
+kitsune_makeclass(FleCSIRegisterTaskSimple, flecsi_register_task_simple)
+   std::string task;
+   std::string processor;
+   std::string launch;
+kitsune_makeclass_done
+kitsune_maptraits(FleCSIRegisterTaskSimple)
+   kitsune_map(task);
+   kitsune_map(processor);
+   kitsune_map(launch);
+kitsune_maptraits_done
+
+
+// flecsi_register_mpi_task_simple ( task )
+kitsune_makeclass(FleCSIRegisterMPITaskSimple, flecsi_register_mpi_task_simple)
+   std::string task;
+kitsune_makeclass_done
+kitsune_maptraits(FleCSIRegisterMPITaskSimple)
+   kitsune_map(task);
+kitsune_maptraits_done
+
+
 
 // -----------------------------------------------------------------------------
 // From FleCSI's execution.h
-// Task Execution
+// Task Execution Interface
 // -----------------------------------------------------------------------------
 
-// flecsi_execute_task_simple ( task, launch, ... )
-kitsune_makeclass(FleCSIExecuteTaskSimple, flecsi_execute_task_simple)
-   std::string task;
-   std::string launch;
-   std::vector<FleCSIVarArgTypeValue> varargs;
+// flecsi_color ( )
+kitsune_makeclass(FleCSIColor, flecsi_color)
 kitsune_makeclass_done
-kitsune_maptraits(FleCSIExecuteTaskSimple)
-   kitsune_map(task);
-   kitsune_map(launch);
-   kitsune_map(varargs);
+kitsune_maptraits(FleCSIColor)
+kitsune_maptraits_done
+
+
+// flecsi_colors ( )
+kitsune_makeclass(FleCSIColors, flecsi_colors)
+kitsune_makeclass_done
+kitsune_maptraits(FleCSIColors)
 kitsune_maptraits_done
 
 
@@ -237,17 +287,6 @@ kitsune_maptraits(FleCSIExecuteTask)
 kitsune_maptraits_done
 
 
-// flecsi_execute_mpi_task_simple ( task, ... )
-kitsune_makeclass(FleCSIExecuteMPITaskSimple, flecsi_execute_mpi_task_simple)
-   std::string task;
-   std::vector<FleCSIVarArgTypeValue> varargs;
-kitsune_makeclass_done
-kitsune_maptraits(FleCSIExecuteMPITaskSimple)
-   kitsune_map(task);
-   kitsune_map(varargs);
-kitsune_maptraits_done
-
-
 // flecsi_execute_mpi_task ( task, nspace, ... )
 kitsune_makeclass(FleCSIExecuteMPITask, flecsi_execute_mpi_task)
    std::string task;
@@ -257,6 +296,30 @@ kitsune_makeclass_done
 kitsune_maptraits(FleCSIExecuteMPITask)
    kitsune_map(task);
    kitsune_map(nspace);
+   kitsune_map(varargs);
+kitsune_maptraits_done
+
+
+// flecsi_execute_task_simple ( task, launch, ... )
+kitsune_makeclass(FleCSIExecuteTaskSimple, flecsi_execute_task_simple)
+   std::string task;
+   std::string launch;
+   std::vector<FleCSIVarArgTypeValue> varargs;
+kitsune_makeclass_done
+kitsune_maptraits(FleCSIExecuteTaskSimple)
+   kitsune_map(task);
+   kitsune_map(launch);
+   kitsune_map(varargs);
+kitsune_maptraits_done
+
+
+// flecsi_execute_mpi_task_simple ( task, ... )
+kitsune_makeclass(FleCSIExecuteMPITaskSimple, flecsi_execute_mpi_task_simple)
+   std::string task;
+   std::vector<FleCSIVarArgTypeValue> varargs;
+kitsune_makeclass_done
+kitsune_maptraits(FleCSIExecuteMPITaskSimple)
+   kitsune_map(task);
    kitsune_map(varargs);
 kitsune_maptraits_done
 
@@ -329,6 +392,19 @@ kitsune_maptraits_done
 // Function Interface
 // -----------------------------------------------------------------------------
 
+// flecsi_define_function_type ( func, return_type, ... )
+kitsune_makeclass(FleCSIDefineFunctionType, flecsi_define_function_type)
+   std::string func;
+   std::string return_type;
+   std::vector<FleCSIVarArgType> varargs;
+kitsune_makeclass_done
+kitsune_maptraits(FleCSIDefineFunctionType)
+   kitsune_map(func);
+   kitsune_map(return_type);
+   kitsune_map(varargs);
+kitsune_maptraits_done
+
+
 // flecsi_register_function ( func, nspace )
 kitsune_makeclass(FleCSIRegisterFunction, flecsi_register_function)
    std::string func;
@@ -337,17 +413,6 @@ kitsune_makeclass_done
 kitsune_maptraits(FleCSIRegisterFunction)
    kitsune_map(func);
    kitsune_map(nspace);
-kitsune_maptraits_done
-
-
-// flecsi_execute_function ( handle, ... )
-kitsune_makeclass(FleCSIExecuteFunction, flecsi_execute_function)
-   std::string handle;
-   std::vector<FleCSIVarArgTypeValue> varargs;
-kitsune_makeclass_done
-kitsune_maptraits(FleCSIExecuteFunction)
-   kitsune_map(handle);
-   kitsune_map(varargs);
 kitsune_maptraits_done
 
 
@@ -362,15 +427,13 @@ kitsune_maptraits(FleCSIFunctionHandle)
 kitsune_maptraits_done
 
 
-// flecsi_define_function_type ( func, return_type, ... )
-kitsune_makeclass(FleCSIDefineFunctionType, flecsi_define_function_type)
-   std::string func;
-   std::string return_type;
-   std::vector<FleCSIVarArgType> varargs;
+// flecsi_execute_function ( handle, ... )
+kitsune_makeclass(FleCSIExecuteFunction, flecsi_execute_function)
+   std::string handle;
+   std::vector<FleCSIVarArgTypeValue> varargs;
 kitsune_makeclass_done
-kitsune_maptraits(FleCSIDefineFunctionType)
-   kitsune_map(func);
-   kitsune_map(return_type);
+kitsune_maptraits(FleCSIExecuteFunction)
+   kitsune_map(handle);
    kitsune_map(varargs);
 kitsune_maptraits_done
 
@@ -628,11 +691,20 @@ public:
 
    #define kitsune_vector(name) std::vector<name> name
 
+   kitsune_vector(FleCSIRegisterProgram);
+   kitsune_vector(FleCSIRegisterTopLevelDriver);
+
+   /*
+   kitsune_vector(FleCSIRegisterReductionOperation);
+   */
+
    kitsune_vector(FleCSIRegisterTaskSimple);
    kitsune_vector(FleCSIRegisterTask);
    kitsune_vector(FleCSIRegisterMPITaskSimple);
    kitsune_vector(FleCSIRegisterMPITask);
 
+   kitsune_vector(FleCSIColor);
+   kitsune_vector(FleCSIColors);
    kitsune_vector(FleCSIExecuteTaskSimple);
    kitsune_vector(FleCSIExecuteTask);
    kitsune_vector(FleCSIExecuteMPITaskSimple);
@@ -676,11 +748,20 @@ public:
 
    static void mapping(IO &io, flecsi::PreprocessorYAML &c)
    {
+      kitsune_map(FleCSIRegisterProgram);
+      kitsune_map(FleCSIRegisterTopLevelDriver);
+
+      /*
+      kitsune_map(FleCSIRegisterReductionOperation);
+      */
+
       kitsune_map(FleCSIRegisterTaskSimple);
       kitsune_map(FleCSIRegisterTask);
       kitsune_map(FleCSIRegisterMPITaskSimple);
       kitsune_map(FleCSIRegisterMPITask);
 
+      kitsune_map(FleCSIColor);
+      kitsune_map(FleCSIColors);
       kitsune_map(FleCSIExecuteTaskSimple);
       kitsune_map(FleCSIExecuteTask);
       kitsune_map(FleCSIExecuteMPITaskSimple);

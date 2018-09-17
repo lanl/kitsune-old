@@ -1,6 +1,6 @@
 /**
   ***************************************************************************
-  * Copyright (c) 2017, Los Alamos National Security, LLC.
+  * Copyright (c) 2018, Los Alamos National Security, LLC.
   * All rights reserved.
   *
   *  Copyright 2010. Los Alamos National Security, LLC. This software was
@@ -49,86 +49,95 @@
   ***************************************************************************/
 
 #include "clang/AST/ExprCXX.h"
-
 #include "clang/Sema/Kitsune/FleCSIUtility.h"
 
 
 
 // -----------------------------------------------------------------------------
-// Helper functions: general
+// Helper functions
+// Definitions
 // -----------------------------------------------------------------------------
 
 namespace flecsi {
 
 // getMethod
 const clang::CXXMethodDecl *getMethod(
+   // CallExpr...
    const clang::CallExpr *const ce
 ) {
    kitsune_debug("getMethod()");
    if (!ce) return nullptr;
 
+   // ...Decl
    const clang::Decl *const
-      cd = ce->getCalleeDecl();
-   if (!cd) return nullptr;
+      d = ce->getCalleeDecl();
+   if (!d) return nullptr;
 
+   // ...CXXMethodDecl
    const clang::CXXMethodDecl *const
-      md = clang::dyn_cast<clang::CXXMethodDecl>(cd);
-   if (!md) return nullptr;
+      cmd = clang::dyn_cast<clang::CXXMethodDecl>(d);
+   if (!cmd) return nullptr;
 
-   return md;
+   return cmd;
 }
 
 
 
 // getTemplateArgs
 const clang::TemplateArgumentList *getTemplateArgs(
+   // CallExpr...
    const clang::CallExpr *const ce
 ) {
    kitsune_debug("getTemplateArgs()");
    if (!ce) return nullptr;
 
+   // ...CXXMethodDecl
    const clang::CXXMethodDecl *const
-      md = getMethod(ce);
-   if (!md) return nullptr;
+      cmd = getMethod(ce);
+   if (!cmd) return nullptr;
 
+   // ...TemplateArgumentList
    const clang::TemplateArgumentList *const
-      ta = md->getTemplateSpecializationArgs();
-   if (!ta) return nullptr;
+      tal = cmd->getTemplateSpecializationArgs();
+   if (!tal) return nullptr;
 
-   return ta;
+   return tal;
 }
 
 
 
 // getTypeArg
 clang::QualType getTypeArg(
-   const clang::TemplateArgumentList *const ta,
+   const clang::TemplateArgumentList *const tal,
    const std::size_t param
 ) {
    kitsune_debug("getTypeArg()");
-   const clang::TemplateArgument &arg = ta->get(param);
+   kitsune_assert(tal != nullptr);
+   const clang::TemplateArgument &arg = tal->get(param);
    kitsune_assert(arg.getKind() == clang::TemplateArgument::Type);
    return arg.getAsType();
 }
 
 // getIntArg
 std::int64_t getIntArg(
-   const clang::TemplateArgumentList *const ta,
+   const clang::TemplateArgumentList *const tal,
    const std::size_t param
 ) {
    kitsune_debug("getIntArg()");
-   const clang::TemplateArgument &arg = ta->get(param);
+   kitsune_assert(tal != nullptr);
+   const clang::TemplateArgument &arg = tal->get(param);
    kitsune_assert(arg.getKind() == clang::TemplateArgument::Integral);
    return arg.getAsIntegral().getSExtValue();
 }
 
 // getUIntArg
 std::uint64_t getUIntArg(
-   const clang::TemplateArgumentList *const ta,
+   const clang::TemplateArgumentList *const tal,
    const std::size_t param
 ) {
    kitsune_debug("getUIntArg()");
-   const clang::TemplateArgument &arg = ta->get(param);
+   kitsune_assert(tal != nullptr);
+   const clang::TemplateArgument &arg = tal->get(param);
    kitsune_assert(arg.getKind() == clang::TemplateArgument::Integral);
    return arg.getAsIntegral().getZExtValue();
 }
@@ -137,19 +146,24 @@ std::uint64_t getUIntArg(
 
 // getClassDecl
 const clang::CXXRecordDecl *getClassDecl(
+   // QualType...
    const clang::QualType &qt
 ) {
    kitsune_debug("getClassDecl()");
 
+   // ...Type
    const clang::Type *const tp = qt.getTypePtr();
    if (!tp) return nullptr;
 
+   // ...RecordType
    const clang::RecordType *const rt = clang::dyn_cast<clang::RecordType>(tp);
    if (!rt) return nullptr;
 
+   // ...RecordDecl
    const clang::RecordDecl *rd = rt->getDecl();
    if (!rd) return nullptr;
 
+   // ...CXXRecordDecl
    const clang::CXXRecordDecl *cd = clang::dyn_cast<clang::CXXRecordDecl>(rd);
    if (!cd) return nullptr;
 
@@ -162,6 +176,7 @@ const clang::CXXRecordDecl *getClassDecl(
 std::string getName(const clang::NamedDecl *const nd)
 {
    kitsune_debug("getName()");
+   kitsune_assert(nd != nullptr);
    clang::DeclarationName dn = nd->getDeclName();
    return dn && dn.isIdentifier() ? dn.getAsString() : "";
 }
@@ -170,6 +185,7 @@ std::string getName(const clang::NamedDecl *const nd)
 std::string getQualifiedName(const clang::NamedDecl *const nd)
 {
    kitsune_debug("getQualifiedName()");
+   kitsune_assert(nd != nullptr);
    return nd->getQualifiedNameAsString();
 }
 
@@ -192,6 +208,8 @@ bool isDerivedFrom(
    const std::string &qualifiedBaseName
 ) {
    kitsune_debug("isDerivedFrom()");
+   if (!cd)
+      return false;
 
    if (getQualifiedName(cd) == qualifiedBaseName)
       return true;
@@ -199,7 +217,7 @@ bool isDerivedFrom(
    for (auto base : cd->bases()) {
       const clang::CXXRecordDecl *const rd =
          base.getType().getTypePtr()->getAsCXXRecordDecl();
-      if (rd && isDerivedFrom(rd, qualifiedBaseName))
+      if (isDerivedFrom(rd, qualifiedBaseName))
          return true;
    }
 
@@ -210,6 +228,7 @@ bool isDerivedFrom(
 
 // getClassCall
 const clang::CallExpr *getClassCall(
+   // Expr...
    const clang::Expr *const expr,
    const std::string &theclass,
    const std::string &thefunction,
@@ -217,24 +236,33 @@ const clang::CallExpr *getClassCall(
    const int maxArgs_
 ) {
    kitsune_debug("getClassCall()");
-
-   const int maxArgs = maxArgs_ < 0 ? minArgs : maxArgs_;
    if (!expr) return nullptr;
-   const clang::Expr *const e = normExpr(expr);
 
+   // ...Expr
+   const clang::Expr *const e = normExpr(expr);
+   if (!e) return nullptr;
+
+   // ...CallExpr
    const clang::CallExpr *const call = clang::dyn_cast<clang::CallExpr>(e);
    if (!call) return nullptr;
 
+   // ...CXXMethodDecl
+   // gives the method
    const clang::CXXMethodDecl *const md = getMethod(call);
    if (!md) return nullptr;
 
-   // class in which the method is defined
+   // ...CXXRecordDecl
+   // gives the class containing the method
    const clang::CXXRecordDecl *const rd = md->getParent();
+   if (!rd) return nullptr;
 
+   // re: arguments
+   const int maxArgs = maxArgs_ < 0 ? minArgs : maxArgs_;
    const int numArgs = call->getNumArgs();
    if (!(minArgs <= numArgs && numArgs <= maxArgs))
       return nullptr;
 
+   // re: names
    kitsune_debug(std::string("string 1: ") + theclass);
    kitsune_debug(std::string("string 2: ") + getQualifiedName(rd));
    kitsune_debug(std::string("string 3: ") + thefunction);

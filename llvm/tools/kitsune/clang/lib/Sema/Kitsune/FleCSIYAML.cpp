@@ -1,6 +1,6 @@
 /**
   ***************************************************************************
-  * Copyright (c) 2017, Los Alamos National Security, LLC.
+  * Copyright (c) 2018, Los Alamos National Security, LLC.
   * All rights reserved.
   *
   *  Copyright 2010. Los Alamos National Security, LLC. This software was
@@ -58,18 +58,19 @@
 
 namespace flecsi {
 
-// Here, we receive a CallExpr corresponding to some code like this:
+// Here, we receive a CallExpr for code that looks like this:
 //    namespace::class::foo<bar>(params,__VA_ARGS__);
-// and we wish to extract {type,value} from the function's variadic argument
-// list. Below, "start" is the number of parameters (called "params," above)
-// that precede __VA_ARGS__.
+// and we wish to extract {type,value} pairs from the function's variadic
+// argument list. Below, "start" is the number of parameters (called "params"
+// above) that precede __VA_ARGS__.
 
 void getVarArgs(
    const clang::CallExpr *const call,
-   std::vector<flecsi::FleCSIVarArgTypeValue> &varargs,
+   std::vector<FleCSIVarArgTypeValue> &varargs,
    const unsigned start
 ) {
-   kitsune_debug("getVarArgs");
+   kitsune_debug("getVarArgs()");
+   varargs.clear();
 
    clang::LangOptions LangOpts;
    LangOpts.CPlusPlus = true;
@@ -79,21 +80,32 @@ void getVarArgs(
    for (unsigned arg = start;  arg < narg;  ++arg) {
       const clang::Expr *const expr = call->getArg(arg);
 
+      /*
       if (expr) {
          const std::string type = expr->getType().getAsString();
          std::string s;
          llvm::raw_string_ostream rso(s);
          expr->printPretty(rso, 0, Policy);
          const std::string value = rso.str();
-         varargs.push_back(flecsi::FleCSIVarArgTypeValue(type,value));
+         varargs.push_back(FleCSIVarArgTypeValue(type,value));
       } else {
          const std::string type  = "unknown type";
          const std::string value = "unknown value";
-         varargs.push_back(flecsi::FleCSIVarArgTypeValue(type,value));
+         varargs.push_back(FleCSIVarArgTypeValue(type,value));
       }
-   }
-}
+      */
 
+      std::string type  = "unknown type";
+      std::string value = "unknown value";
+      if (expr) {
+         std::string s;
+         llvm::raw_string_ostream rso(s);
+         expr->printPretty(rso, 0, Policy);
+         type  = expr->getType().getAsString();
+         value = rso.str();
+      }
+      varargs.push_back(FleCSIVarArgTypeValue(type,value));
+   }
 }
 
 
@@ -106,27 +118,27 @@ void getVarArgs(
 // We should genericize this a bit, or at least change things so that it isn't
 // styled as being specifically for the construct that's produced by FleCSI's
 // execution.h/flecsi_define_function_type macro. If it's really just for the
-// latter, then it wouldn't really belong in this "generic YAML-related stuff"
-// file, but would instead probably belong in the Preprocessor AST Visitor file,
-// as that's where the FleCSI macro in question
+// latter, then it doesn't really belong in this file for generic YAML-related
+// code, but instead probably belongs in the Preprocessor AST Visitor file, as
+// that's where the FleCSI macro in question is handled.
 
-namespace flecsi {
-
-// This (in contrast to getVarArgs()) is a specialized function for getting
-// the __VA_ARGS__ parameters from a FleCSI construct that looks like this:
+// This (in contrast to getVarArgs() above) is a specialized function for
+// getting the __VA_ARGS__ parameters from a FleCSI construct like this:
 //    using func = flecsi::execution::function_handle__<
 //       return_type,
 //       std::tuple<__VA_ARGS__>
 //    >
-// Here, the varargs are template parameters, not function parameters, and
-// therefore just have {type}, not {type,value}.
+// Here, the varargs are template parameters - not function parameters as they
+// were in getVarArgs() - and therefore just have {type}, not {type,value}.
 
 void getVarArgsFleCSIFunctionHandle(
    const clang::TypeAliasDecl *const alias,
-   std::vector<flecsi::FleCSIVarArgType> &varargs
+   std::vector<FleCSIVarArgType> &varargs
 ) {
-   kitsune_debug("getVarArgsFleCSIFunctionHandle");
+   kitsune_debug("getVarArgsFleCSIFunctionHandle()");
+   varargs.clear();
 
+   // Example:
    // Consider that our type alias looks like this:
    //    using foo = bar<int,std::tuple<float,double>>
 
@@ -135,10 +147,11 @@ void getVarArgsFleCSIFunctionHandle(
    const clang::ClassTemplateSpecializationDecl *const rhs =
       clang::dyn_cast<clang::ClassTemplateSpecializationDecl>(
          alias->getUnderlyingType().getTypePtr()->getAsCXXRecordDecl());
+   kitsune_assert(rhs != nullptr);
 
    // Right-hand side's template arguments:
-   //    int
-   //    std::tuple<float,double>
+   //    0. int
+   //    1. std::tuple<float,double>
    const clang::TemplateArgumentList &outer = rhs->getTemplateArgs();
 
    // The std::tuple, as a QualType
@@ -148,11 +161,13 @@ void getVarArgsFleCSIFunctionHandle(
    const clang::ClassTemplateSpecializationDecl *const tuple =
       clang::dyn_cast<clang::ClassTemplateSpecializationDecl>(
          tup.getTypePtr()->getAsCXXRecordDecl());
+   kitsune_assert(tuple != nullptr);
 
    // The std::tuple's template argument list.
    // Note: tuple is a variadic template class, for which getTemplateArgs()
-   // actually gives a "template argument list" with just one argument! The
-   // one argument represents the argument pack.
+   // actually gives a "template argument list" with just one argument! :-/
+   // The one argument represents the argument pack. Clang doesn't seem to
+   // try too hard to make things intuitive or easy.
    const clang::TemplateArgumentList &inner = tuple->getTemplateArgs();
    kitsune_assert(inner.size() == 1); // one pack
    kitsune_assert(inner.asArray().size() == 1); // still one pack
@@ -167,7 +182,7 @@ void getVarArgsFleCSIFunctionHandle(
       const clang::TemplateArgument &arg = *iter;
       // for our example TypeAlias, type == "float" or "double"...
       const std::string type = arg.getAsType().getAsString();
-      varargs.push_back(flecsi::FleCSIVarArgType(type));
+      varargs.push_back(FleCSIVarArgType(type));
    }
 }
 

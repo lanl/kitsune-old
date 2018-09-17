@@ -1010,7 +1010,7 @@ void ASTFrontendAction::ExecuteAction() {
 
   // +===== Kitsune
   if (CI.getLangOpts().FleCSI)
-    flecsi::analyzer::instance().finalize();
+    flecsi::analyzer::instance().finalize(*this);
   // +=============
 }
 

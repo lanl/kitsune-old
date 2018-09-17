@@ -1,6 +1,6 @@
 /**
   ***************************************************************************
-  * Copyright (c) 2017, Los Alamos National Security, LLC.
+  * Copyright (c) 2018, Los Alamos National Security, LLC.
   * All rights reserved.
   *
   *  Copyright 2010. Los Alamos National Security, LLC. This software was
@@ -49,7 +49,6 @@
   ***************************************************************************/
 
 #include "clang/Sema/SemaDiagnostic.h"
-
 #include "clang/Sema/Kitsune/FleCSIUtility.h"
 #include "clang/Sema/Kitsune/FleCSIPreprocessor.h"
 #include "clang/Sema/Kitsune/FleCSIPreprocessorASTVisitor.h"
@@ -67,14 +66,18 @@ bool match(
    const clang::Expr *const expr,
    const std::string &name,
    const std::string &macroname,
-   const std::string &theclass,
-   const std::string &thefunction,
-   int min = -1, int max = -1
+   const std::string &theclass = "",
+   const std::string &thefunction = "",
+   int min = -1,
+   int max = -1
 ) {
    call = nullptr;
 
    if (name != macroname)
       return false;
+
+   if (theclass == "" && thefunction == "")
+      return true;
 
    if (min == -1 && max == -1) {
       min = std::numeric_limits<int>::min();
@@ -101,26 +104,60 @@ VisitVarDecl(const clang::VarDecl *const var)
    kitsune_debug("PreprocessorASTVisitor::VisitVarDecl()");
    kitsune_print(var->getNameAsString());
 
-   // associated macro invocation (if any), token name
-   const MacroInvocation *const iptr = prep.invocation(var->getLocStart());
+   // associated macro invocation (if any); token name
+   const MacroInvocation *const iptr = prep.get_invocation(var->getLocStart());
    if (!iptr) return true;
    const MacroInvocation &macro = *iptr;
    const std::string name = tostr(sema,macro.token);
 
    // for use below
-   const clang::CallExpr *call;
-   std::size_t pos = 0;
    const clang::Expr *const expr = var->getInit();
+   std::size_t pos = 0;
+   const clang::CallExpr *call; // tbd
 
-   // flecsi_register_task_simple(task, processor, launch)
-   if (match(call, expr, name, "flecsi_register_task_simple",
-      "flecsi::execution::task_interface__", "register_task", 3)) {
-      flecsi::FleCSIRegisterTaskSimple c(sema,macro.token);
-      c.task      = macro.str(sema,pos++);
-      c.processor = macro.str(sema,pos++);
-      c.launch    = macro.str(sema,pos++);
-      prep.yaml().FleCSIRegisterTaskSimple.push_back(c);
+
+   // ------------------------
+   // Top-level driver
+   // interface
+   // ------------------------
+
+   // flecsi_register_program(program)
+   if (match(call, expr, name, "flecsi_register_program")) {
+      flecsi::FleCSIRegisterProgram c(sema,macro.token);
+      c.program = macro.str(sema,pos++);
+      prep.yaml().FleCSIRegisterProgram.push_back(c);
    }
+
+   // flecsi_register_top_level_driver(driver)
+   if (match(call, expr, name, "flecsi_register_top_level_driver")) {
+      flecsi::FleCSIRegisterTopLevelDriver c(sema,macro.token);
+      c.driver = macro.str(sema,pos++);
+      prep.yaml().FleCSIRegisterTopLevelDriver.push_back(c);
+   }
+
+
+   /*
+   // ------------------------
+   // Reduction
+   // interface
+   // ------------------------
+
+   // flecsi_register_reduction_operation(name, operation_type)
+   if (match(call, expr, name, "flecsi_register_reduction_operation",
+      "flecsi::execution::task_interface__",
+      "register_reduction_operation", 0)) {
+      flecsi::FleCSIRegisterReductionOperation c(sema,macro.token);
+      c.name           = macro.str(sema,pos++);
+      c.operation_type = macro.str(sema,pos++);
+      prep.yaml().FleCSIRegisterReductionOperation.push_back(c);
+   }
+   */
+
+
+   // ------------------------
+   // Task registration
+   // interface
+   // ------------------------
 
    // flecsi_register_task(task, nspace, processor, launch)
    if (match(call, expr, name, "flecsi_register_task",
@@ -133,6 +170,25 @@ VisitVarDecl(const clang::VarDecl *const var)
       prep.yaml().FleCSIRegisterTask.push_back(c);
    }
 
+   // flecsi_register_mpi_task(task, nspace)
+   if (match(call, expr, name, "flecsi_register_mpi_task",
+      "flecsi::execution::task_interface__", "register_task", 3)) {
+      flecsi::FleCSIRegisterMPITask c(sema,macro.token);
+      c.task   = macro.str(sema,pos++);
+      c.nspace = macro.str(sema,pos++);
+      prep.yaml().FleCSIRegisterMPITask.push_back(c);
+   }
+
+   // flecsi_register_task_simple(task, processor, launch)
+   if (match(call, expr, name, "flecsi_register_task_simple",
+      "flecsi::execution::task_interface__", "register_task", 3)) {
+      flecsi::FleCSIRegisterTaskSimple c(sema,macro.token);
+      c.task      = macro.str(sema,pos++);
+      c.processor = macro.str(sema,pos++);
+      c.launch    = macro.str(sema,pos++);
+      prep.yaml().FleCSIRegisterTaskSimple.push_back(c);
+   }
+
    // flecsi_register_mpi_task_simple(task)
    if (match(call, expr, name, "flecsi_register_mpi_task_simple",
       "flecsi::execution::task_interface__", "register_task", 3)) {
@@ -142,14 +198,33 @@ VisitVarDecl(const clang::VarDecl *const var)
    }
 
 
-   // flecsi_register_mpi_task(task, nspace)
-   if (match(call, expr, name, "flecsi_register_mpi_task",
-      "flecsi::execution::task_interface__", "register_task", 3)) {
-      flecsi::FleCSIRegisterMPITask c(sema,macro.token);
-      c.task   = macro.str(sema,pos++);
+   // ------------------------
+   // Function
+   // interface
+   // ------------------------
+
+   // flecsi_define_function_type(func, return_type, ...)
+   // See VisitTypeAliasDecl()
+
+   // flecsi_register_function(func, nspace)
+   if (match(call, expr, name, "flecsi_register_function",
+      "flecsi::execution::function_interface__", "register_function", 0)) {
+      flecsi::FleCSIRegisterFunction c(sema,macro.token);
+      c.func   = macro.str(sema,pos++);
       c.nspace = macro.str(sema,pos++);
-      prep.yaml().FleCSIRegisterMPITask.push_back(c);
+      prep.yaml().FleCSIRegisterFunction.push_back(c);
    }
+
+   // flecsi_function_handle(func, nspace)
+   // See VisitCallExpr()
+
+   // flecsi_execute_function(handle, ...)
+   // See VisitCallExpr()
+
+
+   // ------------------------
+   // Other
+   // ------------------------
 
    // flecsi_register_data_client(client_type, nspace, name)
    if (match(call, expr, name, "flecsi_register_data_client",
@@ -213,15 +288,6 @@ VisitVarDecl(const clang::VarDecl *const var)
       prep.yaml().FleCSIRegisterColor.push_back(c);
    }
 
-   // flecsi_register_function(func, nspace)
-   if (match(call, expr, name, "flecsi_register_function",
-      "flecsi::execution::function_interface__", "register_function", 0)) {
-      flecsi::FleCSIRegisterFunction c(sema,macro.token);
-      c.func   = macro.str(sema,pos++);
-      c.nspace = macro.str(sema,pos++);
-      prep.yaml().FleCSIRegisterFunction.push_back(c);
-   }
-
    return true;
 }
 
@@ -240,73 +306,21 @@ VisitCallExpr(const clang::CallExpr *const expr)
 {
    kitsune_debug("PreprocessorASTVisitor::VisitCallExpr()");
 
-   // associated macro invocation (if any), token name
-   const MacroInvocation *const iptr = prep.invocation(expr->getLocStart());
+   // associated macro invocation (if any); token name
+   const MacroInvocation *const iptr = prep.get_invocation(expr->getLocStart());
    if (!iptr) return true;
    const MacroInvocation &macro = *iptr;
    const std::string name = tostr(sema,macro.token);
 
    // for use below
-   const clang::CallExpr *call;
    std::size_t pos = 0;
+   const clang::CallExpr *call; // tbd
 
-   /*
-   // Removed, for now. I don't think the following really do anything for us.
-   // The variable cd, fd, and dn are only used here, in this block, for early
-   // exits. However, if "name" checks out later, as being associated with one
-   // of our FleCSI macros, then the code there should work, as it's based on
-   // what we know each macro to do.
 
-   const clang::Decl *const cd = expr->getCalleeDecl();
-   if (!cd) return true;
-
-   const clang::FunctionDecl *const
-      fd = clang::dyn_cast<clang::FunctionDecl>(cd);
-   if (!fd) return true;
-
-   const clang::DeclarationName dn = fd->getDeclName();
-   if (!dn || !dn.isIdentifier()) return true;
-   */
-
-   // flecsi_execute_task_simple(task, launch, ...)
-   if (match(call, expr, name, "flecsi_execute_task_simple",
-      "flecsi::execution::task_interface__", "execute_task")) {
-      flecsi::FleCSIExecuteTaskSimple c(sema,macro.token);
-      c.task   = macro.str(sema,pos++);
-      c.launch = macro.str(sema,pos++);
-      getVarArgs(expr, c.varargs);
-      prep.yaml().FleCSIExecuteTaskSimple.push_back(c);
-   }
-
-   // flecsi_execute_task(task, nspace, launch, ...)
-   if (match(call, expr, name, "flecsi_execute_task",
-      "flecsi::execution::task_interface__", "execute_task")) {
-      flecsi::FleCSIExecuteTask c(sema,macro.token);
-      c.task   = macro.str(sema,pos++);
-      c.nspace = macro.str(sema,pos++);
-      c.launch = macro.str(sema,pos++);
-      getVarArgs(expr, c.varargs);
-      prep.yaml().FleCSIExecuteTask.push_back(c);
-   }
-
-   // flecsi_execute_mpi_task_simple(task, ...)
-   if (match(call, expr, name, "flecsi_execute_mpi_task_simple",
-      "flecsi::execution::task_interface__", "execute_task")) {
-      flecsi::FleCSIExecuteMPITaskSimple c(sema,macro.token);
-      c.task = macro.str(sema,pos++);
-      getVarArgs(expr, c.varargs);
-      prep.yaml().FleCSIExecuteMPITaskSimple.push_back(c);
-   }
-
-   // flecsi_execute_mpi_task(task, nspace, ...)
-   if (match(call, expr, name, "flecsi_execute_mpi_task",
-      "flecsi::execution::task_interface__", "execute_task")) {
-      flecsi::FleCSIExecuteMPITask c(sema,macro.token);
-      c.task   = macro.str(sema,pos++);
-      c.nspace = macro.str(sema,pos++);
-      getVarArgs(expr, c.varargs);
-      prep.yaml().FleCSIExecuteMPITask.push_back(c);
-   }
+   // ------------------------
+   // Object
+   // interface
+   // ------------------------
 
    // flecsi_register_global_object(index, nspace, type)
    if (match(call, expr, name, "flecsi_register_global_object",
@@ -316,17 +330,6 @@ VisitCallExpr(const clang::CallExpr *const expr)
       c.nspace = macro.str(sema,pos++);
       c.type   = macro.str(sema,pos++);
       prep.yaml().FleCSIRegisterGlobalObject.push_back(c);
-   }
-
-   // flecsi_set_global_object(index, nspace, type, obj)
-   if (match(call, expr, name, "flecsi_set_global_object",
-      "flecsi::execution::context__", "set_global_object")) {
-      flecsi::FleCSISetGlobalObject c(sema,macro.token);
-      c.index  = macro.str(sema,pos++);
-      c.nspace = macro.str(sema,pos++);
-      c.type   = macro.str(sema,pos++);
-      c.obj    = macro.str(sema,pos++);
-      prep.yaml().FleCSISetGlobalObject.push_back(c);
    }
 
    // flecsi_initialize_global_object(index, nspace, type, ...)
@@ -350,14 +353,98 @@ VisitCallExpr(const clang::CallExpr *const expr)
       prep.yaml().FleCSIGetGlobalObject.push_back(c);
    }
 
-   // flecsi_execute_function(handle, ...)
-   if (match(call, expr, name, "flecsi_execute_function",
-      "flecsi::execution::function_interface__", "execute_function")) {
-      flecsi::FleCSIExecuteFunction c(sema,macro.token);
-      c.handle = macro.str(sema,pos++);
-      getVarArgs(expr, c.varargs, 1);
-      prep.yaml().FleCSIExecuteFunction.push_back(c);
+   // flecsi_set_global_object(index, nspace, type, obj)
+   if (match(call, expr, name, "flecsi_set_global_object",
+      "flecsi::execution::context__", "set_global_object")) {
+      flecsi::FleCSISetGlobalObject c(sema,macro.token);
+      c.index  = macro.str(sema,pos++);
+      c.nspace = macro.str(sema,pos++);
+      c.type   = macro.str(sema,pos++);
+      c.obj    = macro.str(sema,pos++);
+      prep.yaml().FleCSISetGlobalObject.push_back(c);
    }
+
+
+   // ------------------------
+   // Task execution
+   // interface
+   // ------------------------
+
+   // Note: for flecsi_color[s], I specifically needed the last two match()
+   // arguments, as opposed to having calls like this:
+   //    match(call, expr, name, "flecsi_color")
+   //    match(call, expr, name, "flecsi_colors")
+   // That's because both of those macros, while simple, actually generate
+   // two CallExprs in the AST: one to instance(), and the other to color()
+   // or colors(). Without the additional check for the exact name of the
+   // function being called in the "call expression" (CallExpr), each macro
+   // invocation inadvertently generated two identical entries in the YAML.
+
+   // flecsi_color
+   if (match(call, expr, name, "flecsi_color",
+      "flecsi::execution::context__", "color")) {
+      flecsi::FleCSIColor c(sema,macro.token);
+      prep.yaml().FleCSIColor.push_back(c);
+   }
+
+   // flecsi_colors
+   if (match(call, expr, name, "flecsi_colors",
+      "flecsi::execution::context__", "colors")) {
+      flecsi::FleCSIColors c(sema,macro.token);
+      prep.yaml().FleCSIColors.push_back(c);
+   }
+
+   // flecsi_execute_task(task, nspace, launch, ...)
+   if (match(call, expr, name, "flecsi_execute_task",
+      "flecsi::execution::task_interface__", "execute_task")) {
+      flecsi::FleCSIExecuteTask c(sema,macro.token);
+      c.task   = macro.str(sema,pos++);
+      c.nspace = macro.str(sema,pos++);
+      c.launch = macro.str(sema,pos++);
+      getVarArgs(expr, c.varargs);
+      prep.yaml().FleCSIExecuteTask.push_back(c);
+   }
+
+   // flecsi_execute_mpi_task(task, nspace, ...)
+   if (match(call, expr, name, "flecsi_execute_mpi_task",
+      "flecsi::execution::task_interface__", "execute_task")) {
+      flecsi::FleCSIExecuteMPITask c(sema,macro.token);
+      c.task   = macro.str(sema,pos++);
+      c.nspace = macro.str(sema,pos++);
+      getVarArgs(expr, c.varargs);
+      prep.yaml().FleCSIExecuteMPITask.push_back(c);
+   }
+
+   // flecsi_execute_task_simple(task, launch, ...)
+   if (match(call, expr, name, "flecsi_execute_task_simple",
+      "flecsi::execution::task_interface__", "execute_task")) {
+      flecsi::FleCSIExecuteTaskSimple c(sema,macro.token);
+      c.task   = macro.str(sema,pos++);
+      c.launch = macro.str(sema,pos++);
+      getVarArgs(expr, c.varargs);
+      prep.yaml().FleCSIExecuteTaskSimple.push_back(c);
+   }
+
+   // flecsi_execute_mpi_task_simple(task, ...)
+   if (match(call, expr, name, "flecsi_execute_mpi_task_simple",
+      "flecsi::execution::task_interface__", "execute_task")) {
+      flecsi::FleCSIExecuteMPITaskSimple c(sema,macro.token);
+      c.task = macro.str(sema,pos++);
+      getVarArgs(expr, c.varargs);
+      prep.yaml().FleCSIExecuteMPITaskSimple.push_back(c);
+   }
+
+
+   // ------------------------
+   // Function
+   // interface
+   // ------------------------
+
+   // flecsi_define_function_type(func, return_type, ...)
+   // See VisitTypeAliasDecl()
+
+   // flecsi_register_function(func, nspace)
+   // See VisitVarDecl()
 
    // flecsi_function_handle(func, nspace)
    if (match(call, expr, name, "flecsi_function_handle",
@@ -367,6 +454,20 @@ VisitCallExpr(const clang::CallExpr *const expr)
       c.nspace = macro.str(sema,pos++);
       prep.yaml().FleCSIFunctionHandle.push_back(c);
    }
+
+   // flecsi_execute_function(handle, ...)
+   if (match(call, expr, name, "flecsi_execute_function",
+      "flecsi::execution::function_interface__", "execute_function")) {
+      flecsi::FleCSIExecuteFunction c(sema,macro.token);
+      c.handle = macro.str(sema,pos++);
+      getVarArgs(expr, c.varargs, 1);
+      prep.yaml().FleCSIExecuteFunction.push_back(c);
+   }
+
+
+   // ------------------------
+   // Other
+   // ------------------------
 
    // flecsi_get_handle
    if (match(call, expr, name, "flecsi_get_handle",
@@ -482,21 +583,38 @@ VisitTypeAliasDecl(const clang::TypeAliasDecl *const tad)
    kitsune_debug("PreprocessorASTVisitor::VisitTypeAliasDecl()");
    kitsune_print(tad->getNameAsString());
 
-   // associated macro invocation (if any), token name
-   const MacroInvocation *const iptr = prep.invocation(tad->getLocStart());
+   // associated macro invocation (if any); token name
+   const MacroInvocation *const iptr = prep.get_invocation(tad->getLocStart());
    if (!iptr) return true;
    const MacroInvocation &macro = *iptr;
    const std::string name = tostr(sema,macro.token);
 
-   // flecsi_define_function_type
+   // for use below
+   std::size_t pos = 0;
+
+
+   // ------------------------
+   // Function
+   // interface
+   // ------------------------
+
+   // flecsi_define_function_type(func, return_type, ...)
    if (name == "flecsi_define_function_type") {
       flecsi::FleCSIDefineFunctionType c(sema,macro.token);
-      std::size_t pos = 0;
       c.func        = macro.str(sema,pos++);
       c.return_type = macro.str(sema,pos++);
       getVarArgsFleCSIFunctionHandle(tad, c.varargs);
       prep.yaml().FleCSIDefineFunctionType.push_back(c);
    }
+
+   // flecsi_register_function(func, nspace)
+   // See VisitVarDecl()
+
+   // flecsi_function_handle(func, nspace)
+   // See VisitCallExpr()
+
+   // flecsi_execute_function(handle, ...)
+   // See VisitCallExpr()
 
    return true;
 }

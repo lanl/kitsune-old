@@ -1,6 +1,6 @@
 /**
   ***************************************************************************
-  * Copyright (c) 2017, Los Alamos National Security, LLC.
+  * Copyright (c) 2018, Los Alamos National Security, LLC.
   * All rights reserved.
   *
   *  Copyright 2010. Los Alamos National Security, LLC. This software was
@@ -52,7 +52,6 @@
 #define FleCSIYAML
 
 #include "llvm/Support/YAMLTraits.h"
-
 #include "clang/Sema/Kitsune/FleCSIMisc.h"
 
 
@@ -82,6 +81,7 @@ public:
       const std::size_t index
    ) {
       kitsune_debug("element()");
+      kitsune_assert(index < size());
       return vec[index];
    }
 
@@ -99,19 +99,31 @@ public:
 namespace flecsi {
 
 // FleCSIVarArgType
-struct FleCSIVarArgType {
+class FleCSIVarArgType {
+public:
+   // data
    std::string type;
-   FleCSIVarArgType() : type("") { }
+
+   // constructors
+   FleCSIVarArgType() : type("")
+   { }
+
    FleCSIVarArgType(const std::string &_type)
     : type(_type)
    { }
 };
 
 // FleCSIVarArgTypeValue
-struct FleCSIVarArgTypeValue {
+class FleCSIVarArgTypeValue {
+public:
+   // data
    std::string type;
    std::string value;
-   FleCSIVarArgTypeValue() : type(""), value("") { }
+
+   // constructors
+   FleCSIVarArgTypeValue() : type(""), value("")
+   { }
+
    FleCSIVarArgTypeValue(const std::string &_type, const std::string &_value)
     : type (_type),
       value(_value)
@@ -127,7 +139,8 @@ namespace yaml {
 
 // MappingTraits<FleCSIVarArgType>
 template<>
-struct MappingTraits<flecsi::FleCSIVarArgType> {
+class MappingTraits<flecsi::FleCSIVarArgType> {
+public:
    static void mapping(IO &io, flecsi::FleCSIVarArgType &c)
    {
       io.mapRequired("type", c.type);
@@ -136,7 +149,8 @@ struct MappingTraits<flecsi::FleCSIVarArgType> {
 
 // MappingTraits<FleCSIVarArgTypeValue>
 template<>
-struct MappingTraits<flecsi::FleCSIVarArgTypeValue> {
+class MappingTraits<flecsi::FleCSIVarArgTypeValue> {
+public:
    static void mapping(IO &io, flecsi::FleCSIVarArgTypeValue &c)
    {
       io.mapRequired("type",  c.type);
@@ -150,7 +164,8 @@ struct MappingTraits<flecsi::FleCSIVarArgTypeValue> {
 
 
 // -----------------------------------------------------------------------------
-// Helper functions dealing with the above YAML constructs
+// Helper functions that deal with the above YAML constructs
+// Declarations
 // -----------------------------------------------------------------------------
 
 namespace flecsi {

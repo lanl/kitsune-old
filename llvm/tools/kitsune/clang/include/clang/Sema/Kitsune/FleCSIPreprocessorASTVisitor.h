@@ -1,6 +1,6 @@
 /**
   ***************************************************************************
-  * Copyright (c) 2017, Los Alamos National Security, LLC.
+  * Copyright (c) 2018, Los Alamos National Security, LLC.
   * All rights reserved.
   *
   *  Copyright 2010. Los Alamos National Security, LLC. This software was
@@ -52,10 +52,9 @@
 #define FleCSIPreprocessorASTVisitor
 
 #include "clang/AST/RecursiveASTVisitor.h"
-
 #include "clang/Sema/Kitsune/FleCSIMisc.h"
 
-
+// Preprocessor: forward declaration
 namespace flecsi {
    class Preprocessor;
 }
@@ -71,6 +70,7 @@ namespace flecsi {
 class PreprocessorASTVisitor
  : public clang::RecursiveASTVisitor<PreprocessorASTVisitor>
 {
+   // data
    clang::Sema  &sema;
    Preprocessor &prep;
 

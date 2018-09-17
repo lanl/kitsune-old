@@ -1,6 +1,6 @@
 /**
   ***************************************************************************
-  * Copyright (c) 2017, Los Alamos National Security, LLC.
+  * Copyright (c) 2018, Los Alamos National Security, LLC.
   * All rights reserved.
   *
   *  Copyright 2010. Los Alamos National Security, LLC. This software was
@@ -57,6 +57,7 @@
 
 // -----------------------------------------------------------------------------
 // Helper functions
+// Declarations
 // -----------------------------------------------------------------------------
 
 namespace flecsi {
@@ -83,7 +84,7 @@ bool isDerivedFrom(const clang::CXXRecordDecl *const, const std::string &);
 
 const clang::CallExpr *getClassCall(
    const clang::Expr *const, const std::string &, const std::string &,
-   const int minArgs, const int maxArgs_
+   const int, const int
 );
 
 }

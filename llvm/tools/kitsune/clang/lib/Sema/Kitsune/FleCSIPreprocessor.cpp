@@ -1,6 +1,6 @@
 /**
   ***************************************************************************
-  * Copyright (c) 2017, Los Alamos National Security, LLC.
+  * Copyright (c) 2018, Los Alamos National Security, LLC.
   * All rights reserved.
   *
   *  Copyright 2010. Los Alamos National Security, LLC. This software was
@@ -49,7 +49,6 @@
   ***************************************************************************/
 
 #include "clang/Lex/MacroArgs.h"
-
 #include "clang/Sema/Kitsune/FleCSIPreprocessorASTVisitor.h"
 #include "clang/Sema/Kitsune/FleCSIPreprocessor.h"
 
@@ -97,11 +96,20 @@ inline typename MAP::iterator greatest_less_than_or_equal_to(
 namespace flecsi {
 
 const std::set<std::string> Preprocessor::macros {
+   "flecsi_register_program",
+   "flecsi_register_top_level_driver",
+
+   /*
+   "flecsi_register_reduction_operation",
+   */
+
    "flecsi_register_task_simple",
    "flecsi_register_task",
    "flecsi_register_mpi_task_simple",
    "flecsi_register_mpi_task",
 
+   "flecsi_color",
+   "flecsi_colors",
    "flecsi_execute_task_simple",
    "flecsi_execute_task",
    "flecsi_execute_mpi_task_simple",
@@ -237,25 +245,38 @@ void Preprocessor::MacroExpands(
 
 
 // ------------------------
-// invocation
+// get_invocation
 // ------------------------
 
-const MacroInvocation *Preprocessor::invocation(
+const MacroInvocation *Preprocessor::get_invocation(
    const clang::SourceLocation &loc
 ) const {
-   kitsune_debug("Preprocessor::invocation()");
+   kitsune_debug("Preprocessor::get_invocation()");
 
    // For the construct (declaration, expression, etc.) we're examining, get
    // its File ID and offset. We'll then see if it's associated with a macro.
+   //
+   // Note: the getFileLoc() call (in contrast to just sending loc directly
+   // to getDecomposedExpansionLoc()) was necessary in order to extract the
+   // correct location in the event that one of our macros is invoked within
+   // another macro. For example, consider this code:
+   //     #define print(x) ...
+   //     ...
+   //     print(flecsi_macro(stuff))
+   // Using getFileLoc(), the location of constructs in "stuff" (as sent via
+   // the parameter "loc" to the present function) is associated with the 'f'
+   // in "flecsi_macro" - just as we want it to be. Without getFileLoc(), we
+   // were actually getting the location for the 'p' in print!
    const std::pair<clang::FileID,unsigned>
-      pos = sema.getSourceManager().getDecomposedExpansionLoc(loc);
+      pos = sema.getSourceManager().getDecomposedExpansionLoc(
+         sema.getSourceManager().getFileLoc(loc));
    const clang::FileID fileid = pos.first;
    const unsigned offset = pos.second;
 
    // Look for File ID in our map of macro information
    auto itr = sourceMap.find(fileid);
    if (itr == sourceMap.end()) { // find failed
-      kitsune_debug("invocation(): failure 1");
+      kitsune_debug("get_invocation(): failure 1");
       return nullptr;
    }
 
@@ -267,19 +288,19 @@ const MacroInvocation *Preprocessor::invocation(
    // be responsible for the present construct, if *any* macro is.
    auto mitr = greatest_less_than_or_equal_to(sub,offset);
    if (mitr == sub.end()) { // find failed; offset must be before any macro
-      kitsune_debug("invocation(): failure 2");
+      kitsune_debug("get_invocation(): failure 2");
       return nullptr;
    }
 
    // MacroInvocation for the desired (FileID,offset)
-   const MacroInvocation  &macro = mitr->second;
+   const MacroInvocation &macro = mitr->second;
    const std::size_t begin = mitr->first;
    const std::size_t end   = macro.end;
 
    if (begin <= offset && offset <= end)
       return &mitr->second;
 
-   kitsune_debug("invocation(): failure 3");
+   kitsune_debug("get_invocation(): failure 3");
    return nullptr;
 }
 
@@ -298,7 +319,7 @@ void Preprocessor::analyze(clang::Decl &decl)
 
 
 
-void Preprocessor::finalize()
+void Preprocessor::finalize(clang::ASTFrontendAction &fa)
 {
 #ifdef KITSUNE_YAML
    // write yaml to string
@@ -306,13 +327,18 @@ void Preprocessor::finalize()
    llvm::raw_string_ostream raw(str);
    llvm::yaml::Output yout(raw);
    yout << yaml();
-   raw.flush(); // <-- necessary :-/
+   raw.flush(); // <-- necessary
 
    // open file
-   // FIXME
-   // Eventually, figure out where this goes (w/o the full path,
-   // which we obviously don't really want).
-   std::ofstream ofs("/home/staley/llvm/f/.flecsi-analyzer");
+   // With the following construction, we'll place the YAML file into the same
+   // directory as the translation unit that's being compiled, and with a name
+   // that depends on the translation unit's name. We eventually want a scheme
+   // that works well with cmake, or with whatever build system we use. Cmake
+   // might copy a file to a tmp/ directory to do a compilation, then later
+   // delete the tmp/. We must therefore be careful about where we create our
+   // YAML output - which has to stick around, for later analysis.
+   const std::string translation_unit_name = fa.getCurrentFile().str();
+   std::ofstream ofs(translation_unit_name + ".flecsi-analyzer");
 
    // write string to file
    ofs << raw.str();
