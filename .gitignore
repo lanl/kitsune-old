@@ -15,4 +15,8 @@ autoconf/autom4te.cache
 .svn
 build
 xcode
+compile_commands.json
+
+# for cquery/ccls C++ language server caches
+.ccls-cache
 .cquery_cached_index
