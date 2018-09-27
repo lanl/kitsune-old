@@ -860,6 +860,7 @@ namespace {
                           bool AllowInjectedClassName = false);
 
     const LoopHintAttr *TransformLoopHintAttr(const LoopHintAttr *LH);
+    const PvHintAttr *TransformPvHintAttr(const PvHintAttr *LH);
 
     ExprResult TransformPredefinedExpr(PredefinedExpr *E);
     ExprResult TransformDeclRefExpr(DeclRefExpr *E);
@@ -1230,6 +1231,36 @@ TemplateInstantiator::TransformLoopHintAttr(const LoopHintAttr *LH) {
   return LoopHintAttr::CreateImplicit(
       getSema().Context, LH->getSemanticSpelling(), LH->getOption(),
       LH->getState(), TransformedExpr, LH->getRange());
+}
+
+const PvHintAttr *
+TemplateInstantiator::TransformPvHintAttr(const PvHintAttr *LH) {
+  Expr *TransformedExpr = getDerived().TransformExpr(LH->getBufferSize()).get();
+
+
+  if (TransformedExpr == LH->getBufferSize())
+    return LH;
+
+  //Generate error if there is a problem with the value.
+  if (getSema().CheckLoopHintExpr(TransformedExpr, LH->getLocation()))
+    return LH;
+
+  Expr *TransformedExpr2 = getDerived().TransformExpr(LH->getListSize()).get();
+
+
+  if (TransformedExpr2 == LH->getListSize())
+    return LH;
+
+  //Generate error if there is a problem with the value.
+  if (getSema().CheckLoopHintExpr(TransformedExpr2, LH->getLocation()))
+    return LH;
+
+  // Create new LoopHintValueAttr with integral expression in place of the
+  // non-type template parameter.
+  return PvHintAttr::CreateImplicit(
+      getSema().Context, LH->getSemanticSpelling(), LH->getOption(),
+      LH->getState(), LH->getGatherVal(), LH->getIndexVal(), TransformedExpr/*LH->getBufferSize()*/,
+      TransformedExpr2, LH->getRange());
 }
 
 ExprResult TemplateInstantiator::transformNonTypeTemplateParmRef(

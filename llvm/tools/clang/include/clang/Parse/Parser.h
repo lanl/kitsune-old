@@ -22,6 +22,7 @@
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Sema/DeclSpec.h"
 #include "clang/Sema/LoopHint.h"
+#include "clang/Sema/PvHint.h"
 #include "clang/Sema/Sema.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Compiler.h"
@@ -183,6 +184,7 @@ class Parser : public CodeCompletionHandler {
   std::unique_ptr<PragmaHandler> CilkHintHandler;
   std::unique_ptr<PragmaHandler> OptimizeHandler;
   std::unique_ptr<PragmaHandler> LoopHintHandler;
+  std::unique_ptr<PragmaHandler> PvHintHandler;
   std::unique_ptr<PragmaHandler> UnrollHintHandler;
   std::unique_ptr<PragmaHandler> NoUnrollHintHandler;
   std::unique_ptr<PragmaHandler> FPHandler;
@@ -578,6 +580,10 @@ private:
   /// \brief Handle the annotation token produced for
   /// #pragma clang loop and #pragma unroll.
   bool HandlePragmaLoopHint(LoopHint &Hint);
+
+  /// \brief Handle annotation token produced for 
+  /// #pragma pipevec ...
+  bool HandlePragmaPvHint(PvHint &Hint);
 
   bool ParsePragmaAttributeSubjectMatchRuleSet(
       attr::ParsedSubjectMatchRuleSet &SubjectMatchRules,
@@ -1771,6 +1777,10 @@ private:
   StmtResult ParseAsmStatement(bool &msAsm);
   StmtResult ParseMicrosoftAsmStatement(SourceLocation AsmLoc);
   StmtResult ParsePragmaLoopHint(StmtVector &Stmts,
+                                 AllowedConstructsKind Allowed,
+                                 SourceLocation *TrailingElseLoc,
+                                 ParsedAttributesWithRange &Attrs);
+  StmtResult ParsePragmaPvHint(StmtVector &Stmts,
                                  AllowedConstructsKind Allowed,
                                  SourceLocation *TrailingElseLoc,
                                  ParsedAttributesWithRange &Attrs);
