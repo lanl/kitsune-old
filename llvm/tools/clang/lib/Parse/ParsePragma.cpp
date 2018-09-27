@@ -915,9 +915,13 @@ static std::string PragmaPvHintString(Token PragmaName, Token Option) {
 
 bool Parser::HandlePragmaPvHint(PvHint &Hint) {
 <<<<<<< HEAD
+<<<<<<< HEAD
 
 =======
 >>>>>>> inital pipeline vectorization support added, such that sufficient information can be passed to a sequential gather-scatter transformation (transformation in separate repo).
+=======
+
+>>>>>>> Added some things that were missing for pipevec
   assert(Tok.is(tok::annot_pragma_pv_hint));
   PragmaPvHintInfo *Info =
       static_cast<PragmaPvHintInfo *>(Tok.getAnnotationValue());
@@ -1020,6 +1024,10 @@ bool Parser::HandlePragmaPvHint(PvHint &Hint) {
     ConsumeToken(); // Consume the constant expression eof terminator.
 
     }
+<<<<<<< HEAD
+=======
+// }
+>>>>>>> Added some things that were missing for pipevec
 
   Hint.Range = SourceRange(Info->PragmaName.getLocation(),
                            Info->Toks.back().getLocation());
@@ -3005,9 +3013,6 @@ void PragmaPvHintHandler::HandlePragma(Preprocessor &PP,
   // Incoming token is "unroll" for "#pragma unroll", or "nounroll" for
   // "#pragma nounroll".
   //should be incoming pv
- 
-    llvm::errs() << "optionpvgather " << Tok.getName() << '\n';
-    llvm::errs() << "optionpvgather " << Tok.getIdentifierInfo()->getName() << '\n';
  
   Token PragmaName = Tok;
   SmallVector<Token, 1> TokenList;
