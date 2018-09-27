@@ -264,6 +264,53 @@ static Attr *handleLoopHintAttr(Sema &S, Stmt *St, const AttributeList &A,
                                       ValueExpr, A.getRange());
 }
 
+static Attr *handlePvHintAttr(Sema &S, Stmt *St, const AttributeList &A,
+                                SourceRange) {
+  IdentifierLoc *PragmaNameLoc = A.getArgAsIdent(0);
+  IdentifierLoc *OptionLoc = A.getArgAsIdent(1);
+  IdentifierLoc *StateLoc = A.getArgAsIdent(2);
+  IdentifierLoc *GatherValue = A.getArgAsIdent(3);
+  IdentifierLoc *IndexValue = A.getArgAsIdent(4);
+  Expr *BufferValue = A.getArgAsExpr(5);
+  Expr *ListValue = A.getArgAsExpr(6);
+
+
+
+  bool PragmaPv = PragmaNameLoc->Ident->getName() == "pipevec";
+  if (St->getStmtClass() != Stmt::DoStmtClass &&
+      St->getStmtClass() != Stmt::ForStmtClass &&
+      St->getStmtClass() != Stmt::CXXForRangeStmtClass &&
+      St->getStmtClass() != Stmt::WhileStmtClass &&
+      St->getStmtClass() != Stmt::CilkForStmtClass) {
+    const char *Pragma =
+        llvm::StringSwitch<const char *>(PragmaNameLoc->Ident->getName())
+            .Case("pipevec", "#pragma pipevec")
+            .Default("#pragma clang loop");
+    S.Diag(St->getLocStart(), diag::err_pragma_loop_precedes_nonloop) << Pragma;
+    return nullptr;
+  }
+
+  PvHintAttr::Spelling Spelling;
+  PvHintAttr::OptionType Option;
+  PvHintAttr::PvHintState State;
+  // PvHintAttr::GatherVar Test;
+  // if (PragmaPv) {
+    Spelling = PvHintAttr::Pragma_pipevec;
+    // #pragma pv
+    Option = PvHintAttr::Gather;
+    // State = PvHintAttr::Enable;
+    State = PvHintAttr::Argument;
+   
+  // }
+
+    // TODO: fix this for the index val arg!
+    return PvHintAttr::CreateImplicit(S.Context, Spelling, Option, State,
+                                       GatherValue->Ident, IndexValue->Ident, BufferValue, ListValue, A.getRange());
+}
+
+
+
+
 static void
 CheckForIncompatibleAttributes(Sema &S,
                                const SmallVectorImpl<const Attr *> &Attrs) {
@@ -407,6 +454,8 @@ static Attr *ProcessStmtAttribute(Sema &S, Stmt *St, const AttributeList &A,
     return handleFallThroughAttr(S, St, A, Range);
   case AttributeList::AT_LoopHint:
     return handleLoopHintAttr(S, St, A, Range);
+  case AttributeList::AT_PvHint:
+    return handlePvHintAttr(S, St, A, Range);
   case AttributeList::AT_OpenCLUnrollHint:
     return handleOpenCLUnrollHint(S, St, A, Range);
   case AttributeList::AT_Suppress:
