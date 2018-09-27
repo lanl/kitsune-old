@@ -274,8 +274,6 @@ static Attr *handlePvHintAttr(Sema &S, Stmt *St, const AttributeList &A,
   Expr *BufferValue = A.getArgAsExpr(5);
   Expr *ListValue = A.getArgAsExpr(6);
 
-
-
   bool PragmaPv = PragmaNameLoc->Ident->getName() == "pipevec";
   if (St->getStmtClass() != Stmt::DoStmtClass &&
       St->getStmtClass() != Stmt::ForStmtClass &&
@@ -444,6 +442,7 @@ static Attr *handleOpenCLUnrollHint(Sema &S, Stmt *St, const AttributeList &A,
 
 static Attr *ProcessStmtAttribute(Sema &S, Stmt *St, const AttributeList &A,
                                   SourceRange Range) {
+
   switch (A.getKind()) {
   case AttributeList::UnknownAttribute:
     S.Diag(A.getLoc(), A.isDeclspecAttribute() ?
@@ -479,6 +478,7 @@ static Attr *ProcessStmtAttribute(Sema &S, Stmt *St, const AttributeList &A,
 
 StmtResult Sema::ProcessStmtAttributes(Stmt *S, AttributeList *AttrList,
                                        SourceRange Range) {
+
   SmallVector<const Attr*, 8> Attrs;
   for (const AttributeList* l = AttrList; l; l = l->getNext()) {
     if (Attr *a = ProcessStmtAttribute(*this, S, *l, Range))

@@ -914,6 +914,7 @@ static std::string PragmaPvHintString(Token PragmaName, Token Option) {
 }
 
 bool Parser::HandlePragmaPvHint(PvHint &Hint) {
+
   assert(Tok.is(tok::annot_pragma_pv_hint));
   PragmaPvHintInfo *Info =
       static_cast<PragmaPvHintInfo *>(Tok.getAnnotationValue());
@@ -983,7 +984,7 @@ bool Parser::HandlePragmaPvHint(PvHint &Hint) {
 
 
   // Validate the argument.
-  if (StateOption) {
+  // if (StateOption) {
   // llvm::errs() << "state option pvhint " << PragmaNameInfo->getName() << '\n';
 
   //   ConsumeAnnotationToken();
@@ -1007,7 +1008,7 @@ bool Parser::HandlePragmaPvHint(PvHint &Hint) {
   //     Diag(Tok.getLocation(), diag::warn_pragma_extra_tokens_at_eol)
   //         << PragmaPvHintString(Info->PragmaName, Info->Option);
   //   Hint.StateLoc = IdentifierLoc::create(Actions.Context, StateLoc, StateInfo);
-  } else {
+  // } else {
 
     // Enter constant expression including eof terminator into token stream.
     PP.EnterTokenStream(Toks, /*DisableMacroExpansion=*/false);
@@ -1050,7 +1051,7 @@ bool Parser::HandlePragmaPvHint(PvHint &Hint) {
     ConsumeToken(); // Consume the constant expression eof terminator.
 
     }
-}
+// }
 
   Hint.Range = SourceRange(Info->PragmaName.getLocation(),
                            Info->Toks.back().getLocation());
@@ -2957,9 +2958,6 @@ void PragmaPvHintHandler::HandlePragma(Preprocessor &PP,
   // Incoming token is "unroll" for "#pragma unroll", or "nounroll" for
   // "#pragma nounroll".
   //should be incoming pv
- 
-    llvm::errs() << "optionpvgather " << Tok.getName() << '\n';
-    llvm::errs() << "optionpvgather " << Tok.getIdentifierInfo()->getName() << '\n';
  
   Token PragmaName = Tok;
   SmallVector<Token, 1> TokenList;

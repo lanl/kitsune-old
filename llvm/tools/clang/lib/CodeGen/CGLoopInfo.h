@@ -64,9 +64,11 @@ struct LoopAttributes {
   unsigned TapirGrainsize;
 
   std::string GatherVar;
-  std::string IndexVar;
 
+  std::string IndexVar;
+  
   unsigned BufferSize;
+
   unsigned ListSize;
 
   /// \brief Value for llvm.loop.distribute.enable metadata.
