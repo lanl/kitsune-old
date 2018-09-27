@@ -1,0 +1,14 @@
+#include <iostream>
+
+using namespace std;
+
+int main(int argc, char** argv){
+  int* a = new int[1024];
+  int b[1024];
+
+  forall(size_t i = 0; i < 1024; i++){
+    a[i] = i;
+  }
+
+  return 0;
+}

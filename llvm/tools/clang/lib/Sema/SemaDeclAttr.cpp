@@ -4262,7 +4262,7 @@ bool Sema::CheckCallingConvAttr(const AttributeList &attr, CallingConv &CC,
     return false;
   }
 
-  unsigned ReqArgs = attr.getKind() == AttributeList::AT_Pcs ? 1 : 0;
+  unsigned ReqArgs = attr.getKind() == AttributeList::AT_Pcs ? 0 : 0;
   if (!checkAttributeNumArgs(*this, attr, ReqArgs)) {
     attr.setInvalid();
     return true;
@@ -6524,6 +6524,13 @@ static void ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D,
   case AttributeList::AT_XRayLogArgs:
     handleXRayLogArgsAttr(S, D, Attr);
     break;
+
+  // +===== Kitsune attributes 
+  // 
+  case AttributeList::AT_FleCSITask:
+    handleSimpleAttribute<FleCSITaskAttr>(S, D, Attr);
+    break;
+  // ====== 
   }
 }
 

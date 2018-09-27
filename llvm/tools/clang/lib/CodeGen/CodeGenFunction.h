@@ -40,6 +40,10 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Transforms/Utils/SanitizerStats.h"
 
+// +===== Kitsune
+#include "clang/AST/Kitsune/Stmt.h"
+// ==============
+
 namespace llvm {
 class BasicBlock;
 class LLVMContext;
@@ -2747,6 +2751,22 @@ public:
   void EmitSEHLeaveStmt(const SEHLeaveStmt &S);
   void EnterSEHTryStmt(const SEHTryStmt &S);
   void ExitSEHTryStmt(const SEHTryStmt &S);
+
+
+  void EmitForallStmt(const ForallStmt &S,
+                      ArrayRef<const Attr *> ForAttrs = None);
+
+  void EmitForallRangeStmt(const ForallStmt &S,
+                           ArrayRef<const Attr *> ForAttrs = None);
+
+
+  bool isMainStmt(const Stmt* S){
+    return getContext().getSourceManager().isInMainFile(S->getLocStart());
+  }
+  
+  void EmitKokkosConstruct(const CallExpr* E);
+
+  bool InKokkosConstruct = false;
 
   void startOutlinedSEHHelper(CodeGenFunction &ParentCGF, bool IsFilter,
                               const Stmt *OutlinedStmt);

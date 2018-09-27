@@ -82,18 +82,15 @@ public:
   ///   - BufferQueue is not finalising.
   ///
   /// Returns:
-  ///   - ErrorCode::NotEnoughMemory on exceeding MaxSize.
-  ///   - ErrorCode::Ok when we find a Buffer.
-  ///   - ErrorCode::QueueFinalizing or ErrorCode::AlreadyFinalized on
-  ///     a finalizing/finalized BufferQueue.
+  ///   - std::errc::not_enough_memory on exceeding MaxSize.
+  ///   - no error when we find a Buffer.
+  ///   - std::errc::state_not_recoverable on finalising BufferQueue.
   ErrorCode getBuffer(Buffer &Buf);
 
   /// Updates |Buf| to point to nullptr, with size 0.
   ///
   /// Returns:
-  ///   - ErrorCode::Ok when we successfully release the buffer.
-  ///   - ErrorCode::UnrecognizedBuffer for when this BufferQueue does not own
-  ///     the buffer being released.
+  ///   - ...
   ErrorCode releaseBuffer(Buffer &Buf);
 
   bool finalizing() const {
@@ -110,12 +107,12 @@ public:
   ///   - All releaseBuffer operations will not fail.
   ///
   /// After a call to finalize succeeds, all subsequent calls to finalize will
-  /// fail with ErrorCode::QueueFinalizing.
+  /// fail with std::errc::state_not_recoverable.
   ErrorCode finalize();
 
   /// Applies the provided function F to each Buffer in the queue, only if the
   /// Buffer is marked 'used' (i.e. has been the result of getBuffer(...) and a
-  /// releaseBuffer(...) operation).
+  /// releaseBuffer(...) operation.
   template <class F> void apply(F Fn) {
     __sanitizer::BlockingMutexLock G(&Mutex);
     for (const auto &T : Buffers) {

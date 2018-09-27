@@ -1,0 +1,26 @@
+#include <stdio.h>
+
+[[flecsi::task]]
+float foo(float a, float b) {
+  return a+b;
+}
+
+[[flecsi::task]]
+float bar(float a, float b) {
+  [[tapir::target("omp")]]   
+  for(int i = 0; i < 1024; ++i) {
+    a += i * 2;
+  }
+
+  [[tapir::target("ptx")]]   
+  for(int i = 0; i < 1024; ++i) {
+    a += i * 2;
+  }  
+
+  return a-b;
+}
+
+int main(int argc, char *argv[]) {
+  printf("result: %f,%f", foo(31.0f, 11.0f), bar(11.0f, 31.0f));
+  return 0;
+}

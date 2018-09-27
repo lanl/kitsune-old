@@ -1,5 +1,4 @@
 include(CMakePushCheckState)
-include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
 include(CheckLibraryExists)
 include(CheckSymbolExists)
@@ -11,32 +10,6 @@ function(check_linker_flag flag out_var)
   check_cxx_compiler_flag("" ${out_var})
   cmake_pop_check_state()
 endfunction()
-
-check_library_exists(c fopen "" COMPILER_RT_HAS_LIBC)
-if (NOT SANITIZER_USE_COMPILER_RT)
-  if (ANDROID)
-    check_library_exists(gcc __gcc_personality_v0 "" COMPILER_RT_HAS_GCC_LIB)
-  else()
-    check_library_exists(gcc_s __gcc_personality_v0 "" COMPILER_RT_HAS_GCC_S_LIB)
-  endif()
-endif()
-
-check_c_compiler_flag(-nodefaultlibs COMPILER_RT_HAS_NODEFAULTLIBS_FLAG)
-if (COMPILER_RT_HAS_NODEFAULTLIBS_FLAG)
-  set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -nodefaultlibs")
-  if (COMPILER_RT_HAS_LIBC)
-    list(APPEND CMAKE_REQUIRED_LIBRARIES c)
-  endif ()
-  if (SANITIZER_USE_COMPILER_RT)
-    list(APPEND CMAKE_REQUIRED_FLAGS -rtlib=compiler-rt)
-    find_compiler_rt_library(builtins COMPILER_RT_BUILTINS_LIBRARY)
-    list(APPEND CMAKE_REQUIRED_LIBRARIES "${COMPILER_RT_BUILTINS_LIBRARY}")
-  elseif (COMPILER_RT_HAS_GCC_S_LIB)
-    list(APPEND CMAKE_REQUIRED_LIBRARIES gcc_s)
-  elseif (COMPILER_RT_HAS_GCC_LIB)
-    list(APPEND CMAKE_REQUIRED_LIBRARIES gcc)
-  endif ()
-endif ()
 
 # CodeGen options.
 check_cxx_compiler_flag(-fPIC                COMPILER_RT_HAS_FPIC_FLAG)
@@ -100,15 +73,13 @@ check_cxx_compiler_flag(/wd4800 COMPILER_RT_HAS_WD4800_FLAG)
 check_symbol_exists(__func__ "" COMPILER_RT_HAS_FUNC_SYMBOL)
 
 # Libraries.
+check_library_exists(c fopen "" COMPILER_RT_HAS_LIBC)
 check_library_exists(dl dlopen "" COMPILER_RT_HAS_LIBDL)
 check_library_exists(rt shm_open "" COMPILER_RT_HAS_LIBRT)
 check_library_exists(m pow "" COMPILER_RT_HAS_LIBM)
 check_library_exists(pthread pthread_create "" COMPILER_RT_HAS_LIBPTHREAD)
-if (ANDROID AND COMPILER_RT_HAS_LIBDL)
-  # Android's libstdc++ has a dependency on libdl.
-  list(APPEND CMAKE_REQUIRED_LIBRARIES dl)
-endif()
 check_library_exists(stdc++ __cxa_throw "" COMPILER_RT_HAS_LIBSTDCXX)
+check_library_exists(snappy snappy_compress "" COMPILER_RT_HAS_SNAPPY)
 
 # Linker flags.
 if(ANDROID)
@@ -174,7 +145,7 @@ endmacro()
 
 set(ARM64 aarch64)
 set(ARM32 arm armhf)
-set(X86 i386)
+set(X86 i386 i686)
 set(X86_64 x86_64)
 set(MIPS32 mips mipsel)
 set(MIPS64 mips64 mips64el)
@@ -194,7 +165,6 @@ set(ALL_SANITIZER_COMMON_SUPPORTED_ARCH ${X86} ${X86_64} ${PPC64}
 set(ALL_ASAN_SUPPORTED_ARCH ${X86} ${X86_64} ${ARM32} ${ARM64}
     ${MIPS32} ${MIPS64} ${PPC64} ${S390X})
 set(ALL_DFSAN_SUPPORTED_ARCH ${X86_64} ${MIPS64} ${ARM64})
-set(ALL_FUZZER_SUPPORTED_ARCH x86_64)
 
 if(APPLE)
   set(ALL_LSAN_SUPPORTED_ARCH ${X86} ${X86_64} ${MIPS64} ${ARM64})
@@ -212,6 +182,10 @@ set(ALL_CFI_SUPPORTED_ARCH ${X86} ${X86_64} ${MIPS64})
 set(ALL_ESAN_SUPPORTED_ARCH ${X86_64} ${MIPS64})
 set(ALL_SCUDO_SUPPORTED_ARCH ${X86} ${X86_64} ${ARM32} ${ARM64} ${MIPS32} ${MIPS64})
 set(ALL_XRAY_SUPPORTED_ARCH ${X86_64} ${ARM32} ${ARM64} ${MIPS32} ${MIPS64} powerpc64le)
+set(ALL_CSI_SUPPORTED_ARCH ${X86_64})
+set(ALL_CILKRTS_SUPPORTED_ARCH ${X86_64})
+set(ALL_CILKSAN_SUPPORTED_ARCH ${X86_64})
+set(ALL_CILKSCALE_SUPPORTED_ARCH ${X86_64})
 
 # +===== Kitsune
 set(ALL_KITSUNE_SUPPORTED_ARCH ${X86} ${X86_64} ${PPC64}
@@ -420,10 +394,15 @@ if(APPLE)
   list_intersect(XRAY_SUPPORTED_ARCH
     ALL_XRAY_SUPPORTED_ARCH
     SANITIZER_COMMON_SUPPORTED_ARCH)
-  list_intersect(FUZZER_SUPPORTED_ARCH
-    ALL_FUZZER_SUPPORTED_ARCH
-    ALL_SANITIZER_COMMON_SUPPORTED_ARCH)
-
+  list_intersect(CSI_SUPPORTED_ARCH
+    ALL_CSI_SUPPORTED_ARCH
+    SANITIZER_COMMON_SUPPORTED_ARCH)
+  list_intersect(CILKSAN_SUPPORTED_ARCH
+    ALL_CILKSAN_SUPPORTED_ARCH
+    SANITIZER_COMMON_SUPPORTED_ARCH)
+  list_intersect(CILKSCALE_SUPPORTED_ARCH
+    ALL_CILKSCALE_SUPPORTED_ARCH
+    SANITIZER_COMMON_SUPPORTED_ARCH)
 else()
   # Architectures supported by compiler-rt libraries.
   filter_available_targets(SANITIZER_COMMON_SUPPORTED_ARCH
@@ -435,7 +414,6 @@ else()
   filter_available_targets(UBSAN_COMMON_SUPPORTED_ARCH
     ${SANITIZER_COMMON_SUPPORTED_ARCH})
   filter_available_targets(ASAN_SUPPORTED_ARCH ${ALL_ASAN_SUPPORTED_ARCH})
-  filter_available_targets(FUZZER_SUPPORTED_ARCH ${ALL_FUZZER_SUPPORTED_ARCH})
   filter_available_targets(DFSAN_SUPPORTED_ARCH ${ALL_DFSAN_SUPPORTED_ARCH})
   filter_available_targets(LSAN_SUPPORTED_ARCH ${ALL_LSAN_SUPPORTED_ARCH})
   filter_available_targets(MSAN_SUPPORTED_ARCH ${ALL_MSAN_SUPPORTED_ARCH})
@@ -448,6 +426,9 @@ else()
   filter_available_targets(ESAN_SUPPORTED_ARCH ${ALL_ESAN_SUPPORTED_ARCH})
   filter_available_targets(SCUDO_SUPPORTED_ARCH ${ALL_SCUDO_SUPPORTED_ARCH})
   filter_available_targets(XRAY_SUPPORTED_ARCH ${ALL_XRAY_SUPPORTED_ARCH})
+  filter_available_targets(CSI_SUPPORTED_ARCH ${ALL_CSI_SUPPORTED_ARCH})
+  filter_available_targets(CILKSAN_SUPPORTED_ARCH ${ALL_CILKSAN_SUPPORTED_ARCH})
+  filter_available_targets(CILKSCALE_SUPPORTED_ARCH ${ALL_CILKSCALE_SUPPORTED_ARCH})
 endif()
 
 # +===== Kitsune
@@ -479,13 +460,13 @@ else()
   set(OS_NAME "${CMAKE_SYSTEM_NAME}")
 endif()
 
-set(ALL_SANITIZERS asan;dfsan;msan;tsan;safestack;cfi;esan;scudo;ubsan_minimal)
-set(COMPILER_RT_SANITIZERS_TO_BUILD all CACHE STRING
+set(ALL_SANITIZERS asan;dfsan;msan;tsan;safestack;cfi;esan;scudo)
+set(COMPILER_RT_SANITIZERS_TO_BUILD ${ALL_SANITIZERS} CACHE STRING
     "sanitizers to build if supported on the target (all;${ALL_SANITIZERS})")
 list_replace(COMPILER_RT_SANITIZERS_TO_BUILD all "${ALL_SANITIZERS}")
 
 if (SANITIZER_COMMON_SUPPORTED_ARCH AND NOT LLVM_USE_SANITIZER AND
-    (OS_NAME MATCHES "Android|Darwin|Linux|FreeBSD|NetBSD|Fuchsia" OR
+    (OS_NAME MATCHES "Android|Darwin|Linux|FreeBSD" OR
     (OS_NAME MATCHES "Windows" AND (NOT MINGW AND NOT CYGWIN))))
   set(COMPILER_RT_HAS_SANITIZER_COMMON TRUE)
 else()
@@ -504,7 +485,7 @@ else()
   set(COMPILER_RT_HAS_ASAN FALSE)
 endif()
 
-if (OS_NAME MATCHES "Linux|FreeBSD|Windows|NetBSD")
+if (OS_NAME MATCHES "Linux|FreeBSD|Windows")
   set(COMPILER_RT_ASAN_HAS_STATIC_RUNTIME TRUE)
 else()
   set(COMPILER_RT_ASAN_HAS_STATIC_RUNTIME FALSE)
@@ -548,21 +529,14 @@ else()
 endif()
 
 if (COMPILER_RT_HAS_SANITIZER_COMMON AND UBSAN_SUPPORTED_ARCH AND
-    OS_NAME MATCHES "Darwin|Linux|FreeBSD|NetBSD|Windows|Android|Fuchsia")
+    OS_NAME MATCHES "Darwin|Linux|FreeBSD|Windows|Android")
   set(COMPILER_RT_HAS_UBSAN TRUE)
 else()
   set(COMPILER_RT_HAS_UBSAN FALSE)
 endif()
 
-if (COMPILER_RT_HAS_SANITIZER_COMMON AND UBSAN_SUPPORTED_ARCH AND
-    OS_NAME MATCHES "Linux|FreeBSD|NetBSD|Android")
-  set(COMPILER_RT_HAS_UBSAN_MINIMAL TRUE)
-else()
-  set(COMPILER_RT_HAS_UBSAN_MINIMAL FALSE)
-endif()
-
 if (COMPILER_RT_HAS_SANITIZER_COMMON AND SAFESTACK_SUPPORTED_ARCH AND
-    OS_NAME MATCHES "Darwin|Linux|FreeBSD|NetBSD")
+    OS_NAME MATCHES "Darwin|Linux|FreeBSD")
   set(COMPILER_RT_HAS_SAFESTACK TRUE)
 else()
   set(COMPILER_RT_HAS_SAFESTACK FALSE)
@@ -596,11 +570,25 @@ else()
   set(COMPILER_RT_HAS_XRAY FALSE)
 endif()
 
-if (COMPILER_RT_HAS_SANITIZER_COMMON AND FUZZER_SUPPORTED_ARCH AND
-      OS_NAME MATCHES "Darwin|Linux|NetBSD")
-  set(COMPILER_RT_HAS_FUZZER TRUE)
+if (COMPILER_RT_HAS_SANITIZER_COMMON AND CSI_SUPPORTED_ARCH AND
+    OS_NAME MATCHES "Linux")
+  set(COMPILER_RT_HAS_CSI TRUE)
 else()
-  set(COMPILER_RT_HAS_FUZZER FALSE)
+  set(COMPILER_RT_HAS_CSI FALSE)
+endif()
+
+if (COMPILER_RT_HAS_SANITIZER_COMMON AND CILKSAN_SUPPORTED_ARCH AND
+    OS_NAME MATCHES "Linux")
+  set(COMPILER_RT_HAS_CILKSAN TRUE)
+else()
+  set(COMPILER_RT_HAS_CILKSAN FALSE)
+endif()
+
+if (COMPILER_RT_HAS_SANITIZER_COMMON AND CILKSCALE_SUPPORTED_ARCH AND
+    OS_NAME MATCHES "Linux")
+  set(COMPILER_RT_HAS_CILKSCALE TRUE)
+else()
+  set(COMPILER_RT_HAS_CILKSCALE FALSE)
 endif()
 
 # +===== Kitsune

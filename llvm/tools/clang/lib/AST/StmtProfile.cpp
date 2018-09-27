@@ -379,6 +379,12 @@ StmtProfiler::VisitObjCAutoreleasePoolStmt(const ObjCAutoreleasePoolStmt *S) {
   VisitStmt(S);
 }
 
+// +===== Kitsune
+void StmtProfiler::VisitKitsuneStmt(const KitsuneStmt *S){
+  VisitStmt(S);
+}
+// ==============
+
 namespace {
 class OMPClauseProfiler : public ConstOMPClauseVisitor<OMPClauseProfiler> {
   StmtProfiler *Profiler;

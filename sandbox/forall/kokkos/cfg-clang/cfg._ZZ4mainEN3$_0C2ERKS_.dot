@@ -1,0 +1,5 @@
+digraph "CFG for '_ZZ4mainEN3$_0C2ERKS_' function" {
+	label="CFG for '_ZZ4mainEN3$_0C2ERKS_' function";
+
+	Node0x5e9b380 [shape=record,label="{entry:\l  %this.addr = alloca %class.anon*, align 8\l  %.addr = alloca %class.anon*, align 8\l  store %class.anon* %this, %class.anon** %this.addr, align 8\l  store %class.anon* %0, %class.anon** %.addr, align 8\l  %this1 = load %class.anon*, %class.anon** %this.addr, align 8\l  %1 = getelementptr inbounds %class.anon, %class.anon* %this1, i32 0, i32 0\l  %2 = load %class.anon*, %class.anon** %.addr, align 8\l  %3 = getelementptr inbounds %class.anon, %class.anon* %2, i32 0, i32 0\l  call void @_ZN6Kokkos4ViewIA2_PdJEEC2ERKS3_(%\"class.Kokkos::View\"* %1,\l... %\"class.Kokkos::View\"* dereferenceable(32) %3)\l  ret void\l}"];
+}

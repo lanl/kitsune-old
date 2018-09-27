@@ -129,6 +129,11 @@ void fuchsia::Linker::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back("-lc");
   }
 
+  // +===== Kitsune
+  if (D.CCCIsFleCSI() || D.CCCIsKokkos())
+    CmdArgs.push_back("-lcilkrts");
+  // ==============
+
   C.addCommand(llvm::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
 }
 

@@ -1,0 +1,5 @@
+digraph "CFG for '_ZN6Kokkos4Impl11ViewMappingINS_10ViewTraitsIA2_PdJEEEJvEEC2Ev' function" {
+	label="CFG for '_ZN6Kokkos4Impl11ViewMappingINS_10ViewTraitsIA2_PdJEEEJvEEC2Ev' function";
+
+	Node0x57a6a70 [shape=record,label="{entry:\l  %this.addr = alloca %\"class.Kokkos::Impl::ViewMapping\"*, align 8\l  store %\"class.Kokkos::Impl::ViewMapping\"* %this,\l... %\"class.Kokkos::Impl::ViewMapping\"** %this.addr, align 8\l  %this1 = load %\"class.Kokkos::Impl::ViewMapping\"*,\l... %\"class.Kokkos::Impl::ViewMapping\"** %this.addr, align 8\l  %m_handle = getelementptr inbounds %\"class.Kokkos::Impl::ViewMapping\",\l... %\"class.Kokkos::Impl::ViewMapping\"* %this1, i32 0, i32 0\l  store double* null, double** %m_handle, align 8\l  %m_offset = getelementptr inbounds %\"class.Kokkos::Impl::ViewMapping\",\l... %\"class.Kokkos::Impl::ViewMapping\"* %this1, i32 0, i32 1\l  %0 = bitcast %\"struct.Kokkos::Impl::ViewOffset\"* %m_offset to i8*\l  call void @llvm.memset.p0i8.i64(i8* %0, i8 0, i64 16, i32 8, i1 false)\l  ret void\l}"];
+}

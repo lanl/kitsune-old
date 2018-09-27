@@ -1,0 +1,5 @@
+digraph "CFG for '_GLOBAL__sub_I_forall_kokkos_1.cpp' function" {
+	label="CFG for '_GLOBAL__sub_I_forall_kokkos_1.cpp' function";
+
+	Node0x5e63770 [shape=record,label="{entry:\l  call void @__cxx_global_var_init()\l  ret void\l}"];
+}

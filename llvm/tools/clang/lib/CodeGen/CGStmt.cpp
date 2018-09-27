@@ -11,6 +11,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// !!! FIXME -- Need to remove this after debugging... !!!
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #include "CodeGenFunction.h"
 #include "CGDebugInfo.h"
 #include "CodeGenModule.h"
@@ -27,6 +30,8 @@
 #include "llvm/IR/InlineAsm.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/MDBuilder.h"
+
+#include "clang/AST/StmtCilk.h"
 
 using namespace clang;
 using namespace CodeGen;
@@ -153,10 +158,14 @@ void CodeGenFunction::EmitStmt(const Stmt *S) {
     EmitCapturedStmt(*CS, CS->getCapturedRegionKind());
     }
     break;
+  case Stmt::KitsuneStmtClass:
+    EmitForallStmt(cast<ForallStmt>(*S));
+    break;
   case Stmt::CilkSpawnStmtClass:
     EmitCilkSpawnStmt(cast<CilkSpawnStmt>(*S)); break;
   case Stmt::CilkForStmtClass:
     EmitCilkForStmt(cast<CilkForStmt>(*S)); break;
+
   case Stmt::ObjCAtTryStmtClass:
     EmitObjCAtTryStmt(cast<ObjCAtTryStmt>(*S));
     break;
@@ -577,6 +586,9 @@ void CodeGenFunction::EmitAttributedStmt(const AttributedStmt &S) {
     break;
   case Stmt::CilkForStmtClass:
     EmitCilkForStmt(cast<CilkForStmt>(*SubStmt), S.getAttrs());
+    break;
+  case Stmt::KitsuneStmtClass:
+    EmitForallStmt(cast<ForallStmt>(*SubStmt), S.getAttrs());
     break;
   default:
     EmitStmt(SubStmt);

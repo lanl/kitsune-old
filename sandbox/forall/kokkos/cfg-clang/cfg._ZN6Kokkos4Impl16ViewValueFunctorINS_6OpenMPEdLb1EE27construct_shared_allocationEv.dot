@@ -1,0 +1,44 @@
+digraph "CFG for '_ZN6Kokkos4Impl16ViewValueFunctorINS_6OpenMPEdLb1EE27construct_shared_allocationEv' function" {
+	label="CFG for '_ZN6Kokkos4Impl16ViewValueFunctorINS_6OpenMPEdLb1EE27construct_shared_allocationEv' function";
+
+	Node0x5e5b760 [shape=record,label="{entry:\l  %this.addr = alloca %\"struct.Kokkos::Impl::ViewValueFunctor\"*, align 8\l  %ref.tmp = alloca %\"class.Kokkos::OpenMP\", align 1\l  %kpID = alloca i64, align 8\l  %ref.tmp4 = alloca %\"class.std::__cxx11::basic_string\", align 8\l  %ref.tmp5 = alloca %\"class.std::allocator\", align 1\l  %exn.slot = alloca i8*\l  %ehselector.slot = alloca i32\l  %closure = alloca %\"class.Kokkos::Impl::ParallelFor\", align 8\l  %agg.tmp = alloca %\"class.Kokkos::RangePolicy\", align 8\l  %ref.tmp9 = alloca %\"class.Kokkos::OpenMP\", align 1\l  %i = alloca i64, align 8\l  store %\"struct.Kokkos::Impl::ViewValueFunctor\"* %this,\l... %\"struct.Kokkos::Impl::ViewValueFunctor\"** %this.addr, align 8\l  %this1 = load %\"struct.Kokkos::Impl::ViewValueFunctor\"*,\l... %\"struct.Kokkos::Impl::ViewValueFunctor\"** %this.addr, align 8\l  %space = getelementptr inbounds %\"struct.Kokkos::Impl::ViewValueFunctor\",\l... %\"struct.Kokkos::Impl::ViewValueFunctor\"* %this1, i32 0, i32 0\l  call void @_ZN6Kokkos6OpenMPC2Ev(%\"class.Kokkos::OpenMP\"* %ref.tmp) #6\l  %call = call zeroext i1\l... @_ZN6Kokkos6OpenMP11in_parallelERKS0_(%\"class.Kokkos::OpenMP\"*\l... dereferenceable(1) %ref.tmp) #6\l  %lnot = xor i1 %call, true\l  br i1 %lnot, label %if.then, label %if.else\l|{<s0>T|<s1>F}}"];
+	Node0x5e5b760:s0 -> Node0x5e5c2e0;
+	Node0x5e5b760:s1 -> Node0x5e5c3b0;
+	Node0x5e5c2e0 [shape=record,label="{if.then:                                          \l  store i64 0, i64* %kpID, align 8\l  %call2 = call zeroext i1 @_ZN6Kokkos9Profiling20profileLibraryLoadedEv()\l  br i1 %call2, label %if.then3, label %if.end\l|{<s0>T|<s1>F}}"];
+	Node0x5e5c2e0:s0 -> Node0x5e5c6b0;
+	Node0x5e5c2e0:s1 -> Node0x5e5c700;
+	Node0x5e5c6b0 [shape=record,label="{if.then3:                                         \l  call void @_ZNSaIcEC1Ev(%\"class.std::allocator\"* %ref.tmp5) #6\l  invoke void\l... @_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEC1EPKcRKS3_(%\"class.std:\l...:__cxx11::basic_string\"* %ref.tmp4, i8* getelementptr inbounds ([29 x i8], [29\l... x i8]* @.str.6, i32 0, i32 0), %\"class.std::allocator\"* dereferenceable(1)\l... %ref.tmp5)\l          to label %invoke.cont unwind label %lpad\l}"];
+	Node0x5e5c6b0 -> Node0x5e5ca40;
+	Node0x5e5c6b0 -> Node0x5e5cac0;
+	Node0x5e5ca40 [shape=record,label="{invoke.cont:                                      \l  invoke void\l... @_ZN6Kokkos9Profiling16beginParallelForERKNSt7__cxx1112basic_stringIcSt11char_\l...traitsIcESaIcEEEjPm(%\"class.std::__cxx11::basic_string\"* dereferenceable(32)\l... %ref.tmp4, i32 0, i64* %kpID)\l          to label %invoke.cont7 unwind label %lpad6\l}"];
+	Node0x5e5ca40 -> Node0x5e5c970;
+	Node0x5e5ca40 -> Node0x5e5bc50;
+	Node0x5e5c970 [shape=record,label="{invoke.cont7:                                     \l  call void\l... @_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEED1Ev(%\"class.std::__cxx1\l...1::basic_string\"* %ref.tmp4) #6\l  call void @_ZNSaIcED1Ev(%\"class.std::allocator\"* %ref.tmp5) #6\l  br label %if.end\l}"];
+	Node0x5e5c970 -> Node0x5e5c700;
+	Node0x5e5cac0 [shape=record,label="{lpad:                                             \l  %0 = landingpad \{ i8*, i32 \}\l          cleanup\l  %1 = extractvalue \{ i8*, i32 \} %0, 0\l  store i8* %1, i8** %exn.slot, align 8\l  %2 = extractvalue \{ i8*, i32 \} %0, 1\l  store i32 %2, i32* %ehselector.slot, align 4\l  br label %ehcleanup\l}"];
+	Node0x5e5cac0 -> Node0x5e5d580;
+	Node0x5e5bc50 [shape=record,label="{lpad6:                                            \l  %3 = landingpad \{ i8*, i32 \}\l          cleanup\l  %4 = extractvalue \{ i8*, i32 \} %3, 0\l  store i8* %4, i8** %exn.slot, align 8\l  %5 = extractvalue \{ i8*, i32 \} %3, 1\l  store i32 %5, i32* %ehselector.slot, align 4\l  call void\l... @_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEED1Ev(%\"class.std::__cxx1\l...1::basic_string\"* %ref.tmp4) #6\l  br label %ehcleanup\l}"];
+	Node0x5e5bc50 -> Node0x5e5d580;
+	Node0x5e5d580 [shape=record,label="{ehcleanup:                                        \l  call void @_ZNSaIcED1Ev(%\"class.std::allocator\"* %ref.tmp5) #6\l  br label %eh.resume\l}"];
+	Node0x5e5d580 -> Node0x5e5dae0;
+	Node0x5e5c700 [shape=record,label="{if.end:                                           \l  %n = getelementptr inbounds %\"struct.Kokkos::Impl::ViewValueFunctor\",\l... %\"struct.Kokkos::Impl::ViewValueFunctor\"* %this1, i32 0, i32 2\l  %6 = load i64, i64* %n, align 8\l  call void\l... @_ZN6Kokkos11RangePolicyIJNS_6OpenMPEEEC2Emm(%\"class.Kokkos::RangePolicy\"*\l... %agg.tmp, i64 0, i64 %6)\l  call void\l... @_ZN6Kokkos4Impl11ParallelForINS0_16ViewValueFunctorINS_6OpenMPEdLb1EEENS_11Ra\l...ngePolicyIJS3_EEES3_EC2ERKS4_S6_(%\"class.Kokkos::Impl::ParallelFor\"* %closure,\l... %\"struct.Kokkos::Impl::ViewValueFunctor\"* dereferenceable(24) %this1,\l... %\"class.Kokkos::RangePolicy\"* byval align 8 %agg.tmp)\l  call void\l... @_ZNK6Kokkos4Impl11ParallelForINS0_16ViewValueFunctorINS_6OpenMPEdLb1EEENS_11R\l...angePolicyIJS3_EEES3_E7executeEv(%\"class.Kokkos::Impl::ParallelFor\"* %closure)\l  %space8 = getelementptr inbounds %\"struct.Kokkos::Impl::ViewValueFunctor\",\l... %\"struct.Kokkos::Impl::ViewValueFunctor\"* %this1, i32 0, i32 0\l  call void @_ZN6Kokkos6OpenMPC2Ev(%\"class.Kokkos::OpenMP\"* %ref.tmp9) #6\l  call void @_ZN6Kokkos6OpenMP5fenceERKS0_(%\"class.Kokkos::OpenMP\"*\l... dereferenceable(1) %ref.tmp9) #6\l  %call10 = call zeroext i1 @_ZN6Kokkos9Profiling20profileLibraryLoadedEv()\l  br i1 %call10, label %if.then11, label %if.end12\l|{<s0>T|<s1>F}}"];
+	Node0x5e5c700:s0 -> Node0x5e5e8c0;
+	Node0x5e5c700:s1 -> Node0x5e5e970;
+	Node0x5e5e8c0 [shape=record,label="{if.then11:                                        \l  %7 = load i64, i64* %kpID, align 8\l  call void @_ZN6Kokkos9Profiling14endParallelForEm(i64 %7)\l  br label %if.end12\l}"];
+	Node0x5e5e8c0 -> Node0x5e5e970;
+	Node0x5e5e970 [shape=record,label="{if.end12:                                         \l  br label %if.end14\l}"];
+	Node0x5e5e970 -> Node0x5e5ec60;
+	Node0x5e5c3b0 [shape=record,label="{if.else:                                          \l  store i64 0, i64* %i, align 8\l  br label %for.cond\l}"];
+	Node0x5e5c3b0 -> Node0x5e5ed90;
+	Node0x5e5ed90 [shape=record,label="{for.cond:                                         \l  %8 = load i64, i64* %i, align 8\l  %n13 = getelementptr inbounds %\"struct.Kokkos::Impl::ViewValueFunctor\",\l... %\"struct.Kokkos::Impl::ViewValueFunctor\"* %this1, i32 0, i32 2\l  %9 = load i64, i64* %n13, align 8\l  %cmp = icmp ult i64 %8, %9\l  br i1 %cmp, label %for.body, label %for.end\l|{<s0>T|<s1>F}}"];
+	Node0x5e5ed90:s0 -> Node0x5e5d730;
+	Node0x5e5ed90:s1 -> Node0x5e5f120;
+	Node0x5e5d730 [shape=record,label="{for.body:                                         \l  %10 = load i64, i64* %i, align 8\l  call void\l... @_ZNK6Kokkos4Impl16ViewValueFunctorINS_6OpenMPEdLb1EEclEm(%\"struct.Kokkos::Imp\l...l::ViewValueFunctor\"* %this1, i64 %10)\l  br label %for.inc\l}"];
+	Node0x5e5d730 -> Node0x5e5f280;
+	Node0x5e5f280 [shape=record,label="{for.inc:                                          \l  %11 = load i64, i64* %i, align 8\l  %inc = add i64 %11, 1\l  store i64 %inc, i64* %i, align 8\l  br label %for.cond\l}"];
+	Node0x5e5f280 -> Node0x5e5ed90;
+	Node0x5e5f120 [shape=record,label="{for.end:                                          \l  br label %if.end14\l}"];
+	Node0x5e5f120 -> Node0x5e5ec60;
+	Node0x5e5ec60 [shape=record,label="{if.end14:                                         \l  ret void\l}"];
+	Node0x5e5dae0 [shape=record,label="{eh.resume:                                        \l  %exn = load i8*, i8** %exn.slot, align 8\l  %sel = load i32, i32* %ehselector.slot, align 4\l  %lpad.val = insertvalue \{ i8*, i32 \} undef, i8* %exn, 0\l  %lpad.val15 = insertvalue \{ i8*, i32 \} %lpad.val, i32 %sel, 1\l  resume \{ i8*, i32 \} %lpad.val15\l}"];
+}

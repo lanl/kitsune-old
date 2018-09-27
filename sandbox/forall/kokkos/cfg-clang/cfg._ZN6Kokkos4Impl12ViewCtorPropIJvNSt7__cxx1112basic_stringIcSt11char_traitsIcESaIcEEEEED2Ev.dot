@@ -1,0 +1,5 @@
+digraph "CFG for '_ZN6Kokkos4Impl12ViewCtorPropIJvNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEEED2Ev' function" {
+	label="CFG for '_ZN6Kokkos4Impl12ViewCtorPropIJvNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEEED2Ev' function";
+
+	Node0x5e55740 [shape=record,label="{entry:\l  %this.addr = alloca %\"struct.Kokkos::Impl::ViewCtorProp.0\"*, align 8\l  store %\"struct.Kokkos::Impl::ViewCtorProp.0\"* %this,\l... %\"struct.Kokkos::Impl::ViewCtorProp.0\"** %this.addr, align 8\l  %this1 = load %\"struct.Kokkos::Impl::ViewCtorProp.0\"*,\l... %\"struct.Kokkos::Impl::ViewCtorProp.0\"** %this.addr, align 8\l  %value = getelementptr inbounds %\"struct.Kokkos::Impl::ViewCtorProp.0\",\l... %\"struct.Kokkos::Impl::ViewCtorProp.0\"* %this1, i32 0, i32 0\l  call void\l... @_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEED1Ev(%\"class.std::__cxx1\l...1::basic_string\"* %value) #6\l  ret void\l}"];
+}

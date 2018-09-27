@@ -79,6 +79,13 @@
      COMPATIBLE_VALUE_LANGOPT(Name, Bits, Default, Description)
 #endif
 
+// +===== Kitsune
+
+LANGOPT(FleCSI   , 1, 0, "C++")
+LANGOPT(GPU      , 1, 0, "GPU")
+
+// ==============
+
 // FIXME: A lot of the BENIGN_ options should be COMPATIBLE_ instead.
 LANGOPT(C99               , 1, 0, "C99")
 LANGOPT(C11               , 1, 0, "C11")
@@ -276,6 +283,10 @@ LANGOPT(XRayInstrument, 1, 0, "controls whether to do XRay instrumentation")
 
 BENIGN_LANGOPT(AllowEditorPlaceholders, 1, 0,
                "allow editor placeholders in source")
+
+// +===== Kokkos
+BENIGN_LANGOPT(Kokkos, 1, 0, "Enable Kitsune Kokkos code generation")
+// ==============
 
 #undef LANGOPT
 #undef COMPATIBLE_LANGOPT

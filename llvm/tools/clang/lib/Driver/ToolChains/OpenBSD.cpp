@@ -207,6 +207,11 @@ void openbsd::Linker::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back("-lgcc");
   }
 
+  // +===== Kitsune
+  if (D.CCCIsFleCSI() || D.CCCIsKokkos())
+    CmdArgs.push_back("-lcilkrts");
+  // ==============
+
   if (!Args.hasArg(options::OPT_nostdlib, options::OPT_nostartfiles)) {
     if (!Args.hasArg(options::OPT_shared))
       CmdArgs.push_back(

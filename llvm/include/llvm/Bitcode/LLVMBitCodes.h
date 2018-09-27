@@ -562,7 +562,10 @@ enum AttributeKindCodes {
   ATTR_KIND_INACCESSIBLEMEM_OR_ARGMEMONLY = 50,
   ATTR_KIND_ALLOC_SIZE = 51,
   ATTR_KIND_WRITEONLY = 52,
-  ATTR_KIND_SPECULATABLE = 53
+  ATTR_KIND_SPECULATABLE = 53,
+  ATTR_KIND_FleCSITask = 55,
+  ATTR_KIND_TapirTarget = 56,
+  ATTR_KIND_TapirStrategy = 57
 };
 
 enum ComdatSelectionKindCodes {

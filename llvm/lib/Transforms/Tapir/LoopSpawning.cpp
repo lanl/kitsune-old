@@ -82,10 +82,8 @@ static cl::opt<TapirTargetType> ClTapirTarget(
                           "openmp", "OpenMP"),
                clEnumValN(TapirTargetType::Qthreads,
                           "qthreads", "Qthreads"),
-               // +===== Kitsune
                clEnumValN(TapirTargetType::PTX,
                           "ptx", "PTX"))); 
-               // ==============
 
 namespace {
 // /// \brief This modifies LoopAccessReport to initialize message with
@@ -789,6 +787,7 @@ bool DACLoopSpawning::processLoop() {
                << "removing the IV "
                << NV("PHINode", PN));
       Value *NewIV = Exp.expandCodeFor(S, S->getType(), CanonicalIV);
+      if(S->getType() != CanonicalIVTy) return false; 
       PN->replaceAllUsesWith(NewIV);
       IVsToRemove.push_back(PN);
     }

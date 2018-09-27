@@ -1,0 +1,5 @@
+digraph "CFG for '_ZN6Kokkos4Impl21ParallelConstructNameIZ4mainE3$_0vLb0EED2Ev' function" {
+	label="CFG for '_ZN6Kokkos4Impl21ParallelConstructNameIZ4mainE3$_0vLb0EED2Ev' function";
+
+	Node0x5e96a30 [shape=record,label="{entry:\l  %this.addr = alloca %\"struct.Kokkos::Impl::ParallelConstructName\"*, align 8\l  store %\"struct.Kokkos::Impl::ParallelConstructName\"* %this,\l... %\"struct.Kokkos::Impl::ParallelConstructName\"** %this.addr, align 8\l  %this1 = load %\"struct.Kokkos::Impl::ParallelConstructName\"*,\l... %\"struct.Kokkos::Impl::ParallelConstructName\"** %this.addr, align 8\l  %default_name = getelementptr inbounds\l... %\"struct.Kokkos::Impl::ParallelConstructName\",\l... %\"struct.Kokkos::Impl::ParallelConstructName\"* %this1, i32 0, i32 1\l  call void\l... @_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEED1Ev(%\"class.std::__cxx1\l...1::basic_string\"* %default_name) #6\l  ret void\l}"];
+}

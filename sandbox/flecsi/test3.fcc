@@ -1,0 +1,38 @@
+#include <iostream>
+using namespace std;
+
+const unsigned int SIZE = 10;
+
+int main(int argc, char** argv){
+
+  int a[SIZE], b[SIZE];
+
+  forall(int i = 0; i < SIZE; i++) {
+    a[i] = i;
+    b[i] = a[i] * 2;
+  }
+
+  cout << "a: ";
+  forall(int i = 0; i < SIZE; i++) {
+    cout << a[i] << " ";
+  }
+  cout << endl << endl;;
+  cout << "b: ";
+  forall(int i = 0; i < SIZE; i++) {
+    cout << b[i] << " ";
+  }
+  cout << endl << endl;;  
+  
+
+  forall(int i = 0; i < SIZE; i++) {
+    b[i] += a[i];
+  }
+
+  cout << "b: ";  
+  forall(int i = 0; i < SIZE; i++) {
+    cout << b[i] << " ";
+  }
+  cout << endl;
+  
+  return 0;
+}

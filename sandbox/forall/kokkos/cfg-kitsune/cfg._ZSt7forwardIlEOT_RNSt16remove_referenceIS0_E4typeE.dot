@@ -1,0 +1,5 @@
+digraph "CFG for '_ZSt7forwardIlEOT_RNSt16remove_referenceIS0_E4typeE' function" {
+	label="CFG for '_ZSt7forwardIlEOT_RNSt16remove_referenceIS0_E4typeE' function";
+
+	Node0x57eded0 [shape=record,label="{entry:\l  %__t.addr = alloca i64*, align 8\l  store i64* %__t, i64** %__t.addr, align 8\l  %0 = load i64*, i64** %__t.addr, align 8\l  ret i64* %0\l}"];
+}

@@ -52,6 +52,7 @@ void CodeGenFunction::EmitCilkSyncStmt(const CilkSyncStmt &S) {
 struct ImplicitSyncCleanup : public EHScopeStack::Cleanup {
 public:
   ImplicitSyncCleanup() {}
+  virtual ~ImplicitSyncCleanup() {}
   void Emit(CodeGenFunction &CGF, Flags F) {
     if (F.isForEHCleanup()) {
       llvm::BasicBlock *ContinueBlock = CGF.createBasicBlock("sync.continue");
@@ -68,6 +69,7 @@ struct RethrowCleanup : public EHScopeStack::Cleanup {
 public:
   RethrowCleanup(llvm::BasicBlock *InvokeDest = nullptr)
       : InvokeDest(InvokeDest) {}
+  virtual ~RethrowCleanup() {} 
   void Emit(CodeGenFunction &CGF, Flags F) {
     llvm::BasicBlock *DetRethrowBlock = CGF.createBasicBlock("det.rethrow");
     if (InvokeDest)

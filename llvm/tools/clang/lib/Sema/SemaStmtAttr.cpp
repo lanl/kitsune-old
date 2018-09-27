@@ -20,6 +20,7 @@
 #include "clang/Sema/ScopeInfo.h"
 #include "llvm/ADT/StringExtras.h"
 
+#include <iostream>
 using namespace clang;
 using namespace sema;
 
@@ -76,6 +77,83 @@ static Attr *handleSuppressAttr(Sema &S, Stmt *St, const AttributeList &A,
   return ::new (S.Context) SuppressAttr(
       A.getRange(), S.Context, DiagnosticIdentifiers.data(),
       DiagnosticIdentifiers.size(), A.getAttributeSpellingListIndex());
+}
+
+static Attr *handleTapirTargetAttr(Sema &S, Stmt *St, const AttributeList &A, 
+                             SourceRange Range) {
+  
+  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
+  // !!! FIXME -- for some reason isa<KitsuneStmtClass> reports an incomplete !!!
+  // !!!          type here...  This is a hack to work around this (maybe).   !!!
+  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
+  if (!isa<ForStmt>(St) && (St->getStmtClass() != Stmt::KitsuneStmtClass)) {
+    S.Diag(A.getLoc(), diag::err_tapir_attr_invalid_stmt);
+    return nullptr;
+  }
+
+  if (A.getNumArgs() != 1) {
+    S.Diag(A.getLoc(), diag::err_tapir_attr_single_argument);
+    return nullptr;
+  }
+
+  StringRef Str;
+  SourceLocation ArgLoc;
+
+  if (!S.checkStringLiteralArgumentAttr(A, 0, Str, &ArgLoc))  {
+    S.Diag(A.getLoc(), diag::err_tapir_attr_unrecognized_target); 
+    return nullptr;
+  }
+
+  TapirTargetAttr::TapirTargetTy Kind;
+  if (!TapirTargetAttr::ConvertStrToTapirTargetTy(Str, Kind)) {
+    // FIXME: Is this redundant w/ CheckString call above???
+    S.Diag(A.getLoc(), diag::err_tapir_attr_unrecognized_target) 
+      << A.getName() << Str << ArgLoc;
+    return nullptr;
+  }
+
+  unsigned Index = A.getAttributeSpellingListIndex();
+  return ::new (S.Context) 
+    TapirTargetAttr(A.getLoc(), S.Context, Kind, Index);
+}
+
+static Attr* handleTapirStrategyAttr(Sema &S, Stmt *St, const AttributeList &A,
+				     SourceRange Range) {
+
+  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
+  // !!! FIXME -- for some reason isa<KitsuneStmtClass> reports an incomplete !!!
+  // !!!          type here...  This is a hack to work around this (maybe).   !!!
+  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  if (!isa<ForStmt>(St) && (St->getStmtClass() != Stmt::KitsuneStmtClass)) {
+    S.Diag(A.getLoc(), diag::err_tapir_attr_invalid_stmt);
+    return nullptr;
+  }
+
+  if (A.getNumArgs() != 1) {
+    S.Diag(A.getLoc(), diag::err_tapir_attr_single_argument);
+    return nullptr;
+  }
+
+  StringRef Str;
+  SourceLocation ArgLoc;
+
+  if (!S.checkStringLiteralArgumentAttr(A, 0, Str, &ArgLoc))  {
+    S.Diag(A.getLoc(), diag::err_tapir_attr_unrecognized_strategy); 
+    return nullptr;
+  }
+
+  TapirStrategyAttr::TapirStrategyTy Kind;
+  if (!TapirStrategyAttr::ConvertStrToTapirStrategyTy(Str, Kind)) {
+    // FIXME: Is this redundant w/ CheckString call above???
+    S.Diag(A.getLoc(), diag::err_tapir_attr_unrecognized_strategy) 
+      << A.getName() << Str << ArgLoc;
+    return nullptr;
+  }
+
+  unsigned Index = A.getAttributeSpellingListIndex();
+  return ::new (S.Context) 
+    TapirStrategyAttr(A.getLoc(), S.Context, Kind, Index);
+
 }
 
 static Attr *handleLoopHintAttr(Sema &S, Stmt *St, const AttributeList &A,
@@ -333,6 +411,14 @@ static Attr *ProcessStmtAttribute(Sema &S, Stmt *St, const AttributeList &A,
     return handleOpenCLUnrollHint(S, St, A, Range);
   case AttributeList::AT_Suppress:
     return handleSuppressAttr(S, St, A, Range);
+  // +===== Kitsune: TODO -- 
+  case AttributeList::AT_TapirTarget:
+    return handleTapirTargetAttr(S, St, A, Range);
+    break;
+  case AttributeList::AT_TapirStrategy:
+    return handleTapirStrategyAttr(S, St, A, Range);
+    break;
+  // ======
   default:
     // if we're here, then we parsed a known attribute, but didn't recognize
     // it as a statement attribute => it is declaration attribute
@@ -357,3 +443,4 @@ StmtResult Sema::ProcessStmtAttributes(Stmt *S, AttributeList *AttrList,
 
   return ActOnAttributedStmt(Range.getBegin(), Attrs, S);
 }
+
