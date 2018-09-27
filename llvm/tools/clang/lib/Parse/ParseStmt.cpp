@@ -117,6 +117,7 @@ Parser::ParseStatementOrDeclaration(StmtVector &Stmts,
   assert((Attrs.empty() || Res.isInvalid() || Res.isUsable()) &&
          "attributes on empty statement");
 
+
   if (Attrs.empty() || Res.isInvalid())
     return Res;
 
@@ -1961,6 +1962,7 @@ StmtResult Parser::ParsePragmaLoopHint(StmtVector &Stmts,
                                        AllowedConstructsKind Allowed,
                                        SourceLocation *TrailingElseLoc,
                                        ParsedAttributesWithRange &Attrs) {
+
   // Create temporary attribute list.
   ParsedAttributesWithRange TempAttrs(AttrFactory);
 
@@ -1994,26 +1996,31 @@ StmtResult Parser::ParsePragmaPvHint(StmtVector &Stmts,
 
 // Create temporary attribute list.
   ParsedAttributesWithRange TempAttrs(AttrFactory);
-  
+
 // Get loop hints and consume annotated token.
   while (Tok.is(tok::annot_pragma_pv_hint)) {
     PvHint Hint;
     if (!HandlePragmaPvHint(Hint))
      continue;
 
-   llvm::errs() << "parse pragma **PV** hint " << Hint.PragmaNameLoc << '\n';
-   llvm::errs() << "**PV** hint indexval" << Hint.IndexVal->Ident->getName() << '\n';
-
    ArgsUnion ArgHints[] = {Hint.PragmaNameLoc, Hint.OptionLoc, Hint.StateLoc,
-     Hint.GatherVal, Hint.IndexVal, Hint.BufferSize, Hint.ListSize};
-    // TempAttrs.addNew(Hint.PragmaNameLoc->Ident, Hint.Range, nullptr,
-    //                  Hint.PragmaNameLoc->Loc, ArgHints, 4,
-    //                  AttributeList::AS_Pragma);
+     Hint.GatherVal, Hint.IndexVal, ArgsUnion(Hint.BufferSize), ArgsUnion(Hint.ListSize)};
+
      TempAttrs.addNew(Hint.PragmaNameLoc->Ident, Hint.Range, nullptr,
        Hint.PragmaNameLoc->Loc, ArgHints, 7,
        AttributeList::AS_Pragma);
 
    }
+   
+// Get the next statement.
+  MaybeParseCXX11Attributes(Attrs);
+
+  StmtResult S = ParseStatementOrDeclarationAfterAttributes(
+      Stmts, Allowed, TrailingElseLoc, Attrs);
+
+  Attrs.takeAllFrom(TempAttrs);
+  return S;
+
 }
 
 Decl *Parser::ParseFunctionStatementBody(Decl *Decl, ParseScope &BodyScope) {

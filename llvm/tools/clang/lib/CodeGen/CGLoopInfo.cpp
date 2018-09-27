@@ -25,7 +25,7 @@ static MDNode *createMetadata(LLVMContext &Ctx, const LoopAttributes &Attrs,
 
   if (!Attrs.IsParallel && Attrs.VectorizeWidth == 0 &&
       Attrs.InterleaveCount == 0 && Attrs.UnrollCount == 0 &&
-      Attrs.TapirGrainsize == 0 &&
+      Attrs.TapirGrainsize == 0 && Attrs.PvEnable == LoopAttributes::Unspecified &&
       Attrs.VectorizeEnable == LoopAttributes::Unspecified &&
       Attrs.UnrollEnable == LoopAttributes::Unspecified &&
       Attrs.DistributeEnable == LoopAttributes::Unspecified &&
@@ -142,8 +142,10 @@ static MDNode *createMetadata(LLVMContext &Ctx, const LoopAttributes &Attrs,
 
 LoopAttributes::LoopAttributes(bool IsParallel)
     : IsParallel(IsParallel), VectorizeEnable(LoopAttributes::Unspecified),
-      UnrollEnable(LoopAttributes::Unspecified), VectorizeWidth(0),
-      InterleaveCount(0), UnrollCount(0), TapirGrainsize(0),
+      UnrollEnable(LoopAttributes::Unspecified), PvEnable(LoopAttributes::Unspecified),
+      VectorizeWidth(0),
+      InterleaveCount(0), UnrollCount(0),
+      TapirGrainsize(0),
       DistributeEnable(LoopAttributes::Unspecified),
       SpawnStrategy(LoopAttributes::Sequential) {}
 
