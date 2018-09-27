@@ -795,6 +795,9 @@ ANNOTATION(pragma_openmp_end)
 // handles #pragma loop ... directives.
 ANNOTATION(pragma_loop_hint)
 
+// pvhint for gather-scatter.
+ANNOTATION(pragma_pv_hint)
+
 ANNOTATION(pragma_fp)
 
 // Annotation for the attribute pragma directives - #pragma clang attribute ...

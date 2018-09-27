@@ -49,6 +49,8 @@ struct LoopAttributes {
   /// \brief Value for llvm.loop.unroll.* metadata (enable, disable, or full).
   LVEnableState UnrollEnable;
 
+  LVEnableState PvEnable;
+
   /// \brief Value for llvm.loop.vectorize.width metadata.
   unsigned VectorizeWidth;
 
@@ -60,6 +62,12 @@ struct LoopAttributes {
 
   /// \brief tapir.loop.grainsize.
   unsigned TapirGrainsize;
+
+  std::string GatherVar;
+  std::string IndexVar;
+
+  unsigned BufferSize;
+  unsigned ListSize;
 
   /// \brief Value for llvm.loop.distribute.enable metadata.
   LVEnableState DistributeEnable;
@@ -151,6 +159,15 @@ public:
   void setUnrollState(const LoopAttributes::LVEnableState &State) {
     StagedAttrs.UnrollEnable = State;
   }
+
+  /// \brief Set the next pushed loop pv state.
+  void setPvState(const LoopAttributes::LVEnableState &State) {
+    StagedAttrs.PvEnable = State;
+  }
+  void setGatherVar(std::string C) { StagedAttrs.GatherVar = C; }
+  void setIndexVar(std::string C) { StagedAttrs.IndexVar = C; }
+  void setBufferSize(unsigned C) { StagedAttrs.BufferSize = C; }
+  void setListSize(unsigned C) { StagedAttrs.ListSize = C; }
 
   /// \brief Set the vectorize width for the next loop pushed.
   void setVectorizeWidth(unsigned W) { StagedAttrs.VectorizeWidth = W; }

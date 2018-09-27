@@ -33,7 +33,7 @@ static MDNode *createMetadata(LLVMContext &Ctx, const LoopAttributes &Attrs,
       !StartLoc && !EndLoc)
     return nullptr;
 
-  SmallVector<Metadata *, 4> Args;
+  SmallVector<Metadata *, 4> Args; // TODO: Does this need to be 4?
   // Reserve operand 0 for loop id self reference.
   auto TempNode = MDNode::getTemporary(Ctx, None);
   Args.push_back(TempNode.get());
@@ -93,6 +93,23 @@ static MDNode *createMetadata(LLVMContext &Ctx, const LoopAttributes &Attrs,
     Args.push_back(MDNode::get(Ctx, Vals));
   }
 
+  if (Attrs.PvEnable != LoopAttributes::Unspecified) {
+    std::string Name;
+    // if (Attrs.PvEnable == LoopAttributes::Enable){
+      Name = "llvm.loop.pv.enable";
+    // }
+    // else {
+      // Name = "llvm.loop.pv.enable";
+    // }
+    Metadata *Vals[] = {MDString::get(Ctx, Name), MDString::get(Ctx, Attrs.GatherVar), MDString::get(Ctx, Attrs.IndexVar),
+    ConstantAsMetadata::get(ConstantInt::get(
+                            Type::getInt32Ty(Ctx), Attrs.BufferSize)),
+    ConstantAsMetadata::get(ConstantInt::get(
+                            Type::getInt32Ty(Ctx), Attrs.ListSize))};
+    Args.push_back(MDNode::get(Ctx, Vals));
+  }
+
+
   if (Attrs.DistributeEnable != LoopAttributes::Unspecified) {
     Metadata *Vals[] = {MDString::get(Ctx, "llvm.loop.distribute.enable"),
                         ConstantAsMetadata::get(ConstantInt::get(
@@ -138,6 +155,7 @@ void LoopAttributes::clear() {
   TapirGrainsize = 0;
   VectorizeEnable = LoopAttributes::Unspecified;
   UnrollEnable = LoopAttributes::Unspecified;
+  PvEnable = LoopAttributes::Unspecified;
   DistributeEnable = LoopAttributes::Unspecified;
   SpawnStrategy = LoopAttributes::Sequential;
 }
@@ -165,6 +183,36 @@ void LoopInfoStack::push(BasicBlock *Header, clang::ASTContext &Ctx,
     const LoopHintAttr *LH = dyn_cast<LoopHintAttr>(Attr);
     const OpenCLUnrollHintAttr *OpenCLHint =
         dyn_cast<OpenCLUnrollHintAttr>(Attr);
+
+    const PvHintAttr *PH = dyn_cast<PvHintAttr>(Attr);
+
+    if (PH){
+      IdentifierInfo *gatherInfo = PH->getGatherVal();
+      std::string gath = "";
+      if (gatherInfo){
+        gath = PH->getGatherVal()->getName();
+        setPvState(LoopAttributes::Enable);
+        setGatherVar(gath);
+        setIndexVar(PH->getIndexVal()->getName());
+
+        auto *BufferSize = PH->getBufferSize();
+        unsigned BufferInt = 1;
+        if (BufferSize) {
+          llvm::APSInt ValueAPS = BufferSize->EvaluateKnownConstInt(Ctx);
+          BufferInt = ValueAPS.getSExtValue();
+        }
+        setBufferSize(BufferInt);
+
+        auto *ListSize = PH->getListSize();
+        unsigned ListInt = 1;
+        if (ListSize) {
+          llvm::APSInt ValueAPS = ListSize->EvaluateKnownConstInt(Ctx);
+          ListInt = ValueAPS.getSExtValue();
+        }
+        setListSize(ListInt);
+      }
+      continue;
+    }
 
     // Skip non loop hint attributes
     if (!LH && !OpenCLHint) {

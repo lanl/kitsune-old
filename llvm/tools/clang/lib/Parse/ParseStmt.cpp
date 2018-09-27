@@ -18,6 +18,7 @@
 #include "clang/Parse/RAIIObjectsForParser.h"
 #include "clang/Sema/DeclSpec.h"
 #include "clang/Sema/LoopHint.h"
+#include "clang/Sema/PvHint.h"
 #include "clang/Sema/PrettyDeclStackTrace.h"
 #include "clang/Sema/Scope.h"
 #include "clang/Sema/TypoCorrection.h"
@@ -413,6 +414,10 @@ Retry:
   case tok::annot_pragma_loop_hint:
     ProhibitAttributes(Attrs);
     return ParsePragmaLoopHint(Stmts, Allowed, TrailingElseLoc, Attrs);
+
+  case tok::annot_pragma_pv_hint:
+    ProhibitAttributes(Attrs);
+    return ParsePragmaPvHint(Stmts, Allowed, TrailingElseLoc, Attrs);
 
   case tok::annot_pragma_dump:
     HandlePragmaDump();
@@ -1980,6 +1985,35 @@ StmtResult Parser::ParsePragmaLoopHint(StmtVector &Stmts,
 
   Attrs.takeAllFrom(TempAttrs);
   return S;
+}
+
+StmtResult Parser::ParsePragmaPvHint(StmtVector &Stmts,
+                                     AllowedConstructsKind Allowed,
+                                     SourceLocation *TrailingElseLoc,
+                                     ParsedAttributesWithRange &Attrs) {
+
+// Create temporary attribute list.
+  ParsedAttributesWithRange TempAttrs(AttrFactory);
+  
+// Get loop hints and consume annotated token.
+  while (Tok.is(tok::annot_pragma_pv_hint)) {
+    PvHint Hint;
+    if (!HandlePragmaPvHint(Hint))
+     continue;
+
+   llvm::errs() << "parse pragma **PV** hint " << Hint.PragmaNameLoc << '\n';
+   llvm::errs() << "**PV** hint indexval" << Hint.IndexVal->Ident->getName() << '\n';
+
+   ArgsUnion ArgHints[] = {Hint.PragmaNameLoc, Hint.OptionLoc, Hint.StateLoc,
+     Hint.GatherVal, Hint.IndexVal, Hint.BufferSize, Hint.ListSize};
+    // TempAttrs.addNew(Hint.PragmaNameLoc->Ident, Hint.Range, nullptr,
+    //                  Hint.PragmaNameLoc->Loc, ArgHints, 4,
+    //                  AttributeList::AS_Pragma);
+     TempAttrs.addNew(Hint.PragmaNameLoc->Ident, Hint.Range, nullptr,
+       Hint.PragmaNameLoc->Loc, ArgHints, 7,
+       AttributeList::AS_Pragma);
+
+   }
 }
 
 Decl *Parser::ParseFunctionStatementBody(Decl *Decl, ParseScope &BodyScope) {
