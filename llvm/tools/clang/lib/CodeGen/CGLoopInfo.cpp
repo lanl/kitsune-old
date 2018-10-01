@@ -183,7 +183,7 @@ void LoopInfoStack::push(BasicBlock *Header, clang::ASTContext &Ctx,
     const PvHintAttr *PH = dyn_cast<PvHintAttr>(Attr);
 
     if (PH){
-<<<<<<< HEAD
+
       auto *BufferSize = PH->getBufferSize();
       unsigned BufferInt = 1;
       if (BufferSize) {
@@ -200,32 +200,7 @@ void LoopInfoStack::push(BasicBlock *Header, clang::ASTContext &Ctx,
 
       setPvState(LoopAttributes::Enable, PH->getGatherVal()->getName(), 
                 PH->getIndexVal()->getName(), BufferInt, ListInt);
-=======
-      IdentifierInfo *gatherInfo = PH->getGatherVal();
-      std::string gath = "";
-      if (gatherInfo){
-        gath = PH->getGatherVal()->getName();
-        setPvState(LoopAttributes::Enable);
-        setGatherVar(gath);
-        setIndexVar(PH->getIndexVal()->getName());
 
-        auto *BufferSize = PH->getBufferSize();
-        unsigned BufferInt = 1;
-        if (BufferSize) {
-          llvm::APSInt ValueAPS = BufferSize->EvaluateKnownConstInt(Ctx);
-          BufferInt = ValueAPS.getSExtValue();
-        }
-        setBufferSize(BufferInt);
-
-        auto *ListSize = PH->getListSize();
-        unsigned ListInt = 1;
-        if (ListSize) {
-          llvm::APSInt ValueAPS = ListSize->EvaluateKnownConstInt(Ctx);
-          ListInt = ValueAPS.getSExtValue();
-        }
-        setListSize(ListInt);
-      }
->>>>>>> inital pipeline vectorization support added, such that sufficient information can be passed to a sequential gather-scatter transformation (transformation in separate repo).
       continue;
     }
 
