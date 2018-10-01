@@ -953,62 +953,26 @@ bool Parser::HandlePragmaPvHint(PvHint &Hint) {
 
  
   // If no option is specified the argument is assumed to be a constant expr.
-  bool OptionUnroll = false;
   bool OptionPv = false;
   bool OptionPvGather = false;
-  bool OptionDistribute = false;
   bool StateOption = false;
   if (OptionInfo) { // Pragma Unroll does not specify an option.
-    OptionUnroll = OptionInfo->isStr("unroll");
     OptionPv = OptionInfo->isStr("pipevec");
     OptionPvGather = OptionInfo->isStr("gather");
-    OptionDistribute = OptionInfo->isStr("distribute");
-    StateOption = llvm::StringSwitch<bool>(OptionInfo->getName())
-                      .Case("vectorize", true)
-                      .Case("interleave", true)
-                      .Default(false) ||
-                  OptionUnroll || OptionDistribute || OptionPv;
+    StateOption = false;
   }
 
 
-  bool AssumeSafetyArg = !OptionUnroll && !OptionDistribute && !OptionPv;
+  // bool AssumeSafetyArg = !OptionUnroll && !OptionDistribute && !OptionPv;
   // Verify loop hint has an argument.
   // Not sure if this needs pv stuff
   if (Toks[0].is(tok::eof)) {
     ConsumeAnnotationToken();
     Diag(Toks[0].getLocation(), diag::err_pragma_loop_missing_argument)
-        << /*StateArgument=*/StateOption << /*FullKeyword=*/OptionUnroll
-        << /*AssumeSafetyKeyword=*/AssumeSafetyArg;
+        << OptionPvGather;
     return false;
   }
 
-
-  // Validate the argument.
-  // if (StateOption) {
-  // llvm::errs() << "state option pvhint " << PragmaNameInfo->getName() << '\n';
-
-  //   ConsumeAnnotationToken();
-  //   SourceLocation StateLoc = Toks[0].getLocation();
-  //   IdentifierInfo *StateInfo = Toks[0].getIdentifierInfo();
-
-  //   // need pv here?
-  //   bool Valid = StateInfo &&
-  //                llvm::StringSwitch<bool>(StateInfo->getName())
-  //                    .Cases("enable", "disable", true)
-  //                    .Case("full", OptionUnroll)
-  //                    .Case("assume_safety", AssumeSafetyArg)
-  //                    .Default(false);
-  //   if (!Valid) {
-  //     Diag(Toks[0].getLocation(), diag::err_pragma_invalid_keyword)
-  //         << /*FullKeyword=*/OptionUnroll
-  //         << /*AssumeSafetyKeyword=*/AssumeSafetyArg;
-  //     return false;
-  //   }
-  //   if (Toks.size() > 2)
-  //     Diag(Tok.getLocation(), diag::warn_pragma_extra_tokens_at_eol)
-  //         << PragmaPvHintString(Info->PragmaName, Info->Option);
-  //   Hint.StateLoc = IdentifierLoc::create(Actions.Context, StateLoc, StateInfo);
-  // } else {
 
     // Enter constant expression including eof terminator into token stream.
     PP.EnterTokenStream(Toks, /*DisableMacroExpansion=*/false);
@@ -1027,19 +991,23 @@ bool Parser::HandlePragmaPvHint(PvHint &Hint) {
 
       ExprResult bsize = ParseConstantExpression();
    
-    // if (R.isInvalid() ||
-    //     Actions.CheckLoopHintExpr(R.get(), Toks[0].getLocation()))
-    //   return false;
+    if (bsize.isInvalid() ||
+        Actions.CheckLoopHintExpr(bsize.get(), Toks[0].getLocation()))
+      return false;
 
     // Argument is a constant expression with an integer type.
     Hint.BufferSize = bsize.get();
 
     ExprResult lsize = ParseConstantExpression();
 
+    if (lsize.isInvalid() ||
+        Actions.CheckLoopHintExpr(lsize.get(), Toks[0].getLocation()))
+      return false;
+
     Hint.ListSize = lsize.get();
 
 
-          // Tokens following an error in an ill-formed constant expression will
+    // Tokens following an error in an ill-formed constant expression will
     // remain in the token stream and must be removed.
     if (Tok.isNot(tok::eof)) {
       Diag(Tok.getLocation(), diag::warn_pragma_extra_tokens_at_eol)
@@ -1051,7 +1019,6 @@ bool Parser::HandlePragmaPvHint(PvHint &Hint) {
     ConsumeToken(); // Consume the constant expression eof terminator.
 
     }
-// }
 
   Hint.Range = SourceRange(Info->PragmaName.getLocation(),
                            Info->Toks.back().getLocation());
@@ -2827,117 +2794,66 @@ static bool ParseLoopHintValue(Preprocessor &PP, Token &Tok, Token PragmaName,
   return false;
 }
 
+//pvhint
 /// \brief Parses pipevec pragma hint value and fills in Info.
 static bool ParsePvHintValue(Preprocessor &PP, Token &Tok, Token PragmaName,
                                Token Option, bool ValueInParens,
-                               PragmaLoopHintInfo &Info) {
- 
+                               PragmaPvHintInfo &Info) {
+ //TODO this could be refactored. 
  
   SmallVector<Token, 1> ValueList;
-  int OpenParens = ValueInParens ? 1 : 0;
-  // Read constant expression.
-  while (Tok.isNot(tok::eod)) {
-    if (Tok.is(tok::l_paren))
-      OpenParens++;
-    else if (Tok.is(tok::r_paren)) {
-      OpenParens--;
-      if (OpenParens == 0 && ValueInParens)
-        break;
+  int OpenParens = 0;
+
+  IdentifierInfo *OptionInfo = nullptr;
+  bool OptionValid = false;
+  do {
+    OpenParens = ValueInParens ? 1 : 0;
+
+    // Read constant expression.
+    while (Tok.isNot(tok::eod)) {
+      if (Tok.is(tok::l_paren))
+        OpenParens++;
+      else if (Tok.is(tok::r_paren)) {
+        OpenParens--;
+        if (OpenParens == 0 && ValueInParens)
+          break;
+      }
+   
+      ValueList.push_back(Tok);
+      PP.Lex(Tok); 
     }
- 
-    ValueList.push_back(Tok);
-    PP.Lex(Tok);
-  }
- 
-  if (ValueInParens) {
-    // Read ')'
-    if (Tok.isNot(tok::r_paren)) {
-      PP.Diag(Tok.getLocation(), diag::err_expected) << tok::r_paren;
-      return true;
+   
+    if (ValueInParens) {
+      // Read ')'
+      if (Tok.isNot(tok::r_paren)) {
+        PP.Diag(Tok.getLocation(), diag::err_expected) << tok::r_paren;
+        return true;
+      }
+      PP.Lex(Tok);
     }
-    PP.Lex(Tok);
-  }
+
+    if (Tok.isNot(tok::eod)){
+      OptionInfo = Tok.getIdentifierInfo();
+      OptionValid = llvm::StringSwitch<bool>(OptionInfo->getName())
+                           .Case("index", true)
+                           .Case("buffer_size", true)
+                           .Case("list_size", true)
+                           .Default(false);
+
+      PP.Lex(Tok); // eat the option
  
-  PP.Lex(Tok); // eat index
- 
- 
-  while (Tok.isNot(tok::eod)) {
-    if (Tok.is(tok::l_paren))
-      OpenParens++;
-    else if (Tok.is(tok::r_paren)) {
-      OpenParens--;
-      if (OpenParens == 0 && ValueInParens)
-        break;
+      // Read '(' if it exists.
+      ValueInParens = Tok.is(tok::l_paren);
+      if (ValueInParens)
+        PP.Lex(Tok);
     }
-    PP.Lex(Tok); // eat '('
- 
- 
-    ValueList.push_back(Tok);
-    PP.Lex(Tok);
-  }
- 
-  if (ValueInParens) {
-    // Read ')'
-    if (Tok.isNot(tok::r_paren)) {
-      PP.Diag(Tok.getLocation(), diag::err_expected) << tok::r_paren;
-      return true;
+    else{
+      OptionValid = false;
     }
-    PP.Lex(Tok);
-  }
- 
-    PP.Lex(Tok); // eat bsize
- 
- 
-  while (Tok.isNot(tok::eod)) {
-    if (Tok.is(tok::l_paren))
-      OpenParens++;
-    else if (Tok.is(tok::r_paren)) {
-      OpenParens--;
-      if (OpenParens == 0 && ValueInParens)
-        break;
-    }
-    PP.Lex(Tok); // eat '('
- 
- 
-    ValueList.push_back(Tok);
-    PP.Lex(Tok);
-  }
- 
-  if (ValueInParens) {
-    // Read ')'
-    if (Tok.isNot(tok::r_paren)) {
-      PP.Diag(Tok.getLocation(), diag::err_expected) << tok::r_paren;
-      return true;
-    }
-    PP.Lex(Tok);
-  }
- 
-      PP.Lex(Tok); // eat bsize
- 
- 
-  while (Tok.isNot(tok::eod)) {
-    if (Tok.is(tok::l_paren))
-      OpenParens++;
-    else if (Tok.is(tok::r_paren)) {
-      OpenParens--;
-      if (OpenParens == 0 && ValueInParens)
-        break;
-    }
-    PP.Lex(Tok); // eat '('
- 
- 
-    ValueList.push_back(Tok);
-    PP.Lex(Tok);
-  }
- 
-  if (ValueInParens) {
-    // Read ')'
-    if (Tok.isNot(tok::r_paren)) {
-      PP.Diag(Tok.getLocation(), diag::err_expected) << tok::r_paren;
-      return true;
-    }
-    PP.Lex(Tok);
-  }
+
+  } while (OptionValid);
+
+
  
   Token EOFTok;
   EOFTok.startToken();
@@ -2951,21 +2867,21 @@ static bool ParsePvHintValue(Preprocessor &PP, Token &Tok, Token PragmaName,
   Info.Option = Option;
   return false;
 }
+//pvhint
 
 void PragmaPvHintHandler::HandlePragma(Preprocessor &PP,
                                            PragmaIntroducerKind Introducer,
                                            Token &Tok) {
-  // Incoming token is "unroll" for "#pragma unroll", or "nounroll" for
-  // "#pragma nounroll".
-  //should be incoming pv
- 
+  // Incoming token is pipevec for #pragma pipevec gather(X) index(Y) ...
   Token PragmaName = Tok;
   SmallVector<Token, 1> TokenList;
  
-  PP.Lex(Tok); // eat pv
+  PP.Lex(Tok); // eat pipevec
  
   if (Tok.isNot(tok::identifier)) {
-    //error
+    PP.Diag(Tok.getLocation(), diag::err_pragma_loop_invalid_option)
+        << /*MissingOption=*/true << "";
+    return;
   }
  
   while (Tok.is(tok::identifier)) {
@@ -2975,23 +2891,25 @@ void PragmaPvHintHandler::HandlePragma(Preprocessor &PP,
  
     bool OptionValid = llvm::StringSwitch<bool>(OptionInfo->getName())
                            .Case("gather", true)
-                           .Case("index", true)
                            .Default(false);
     if (!OptionValid) {
-      //error
+      PP.Diag(Tok.getLocation(), diag::err_pragma_loop_invalid_option)
+          << /*MissingOption=*/false << OptionInfo;
+      return;
     }
-    PP.Lex(Tok); // eat gather
+
+    PP.Lex(Tok); // eat the option
  
     // Read '(' if it exists.
     bool ValueInParens = Tok.is(tok::l_paren);
     if (ValueInParens)
       PP.Lex(Tok);
  
-    auto *Info = new (PP.getPreprocessorAllocator()) PragmaLoopHintInfo;
+    auto *Info = new (PP.getPreprocessorAllocator()) PragmaPvHintInfo;
     if (ParsePvHintValue(PP, Tok, PragmaName, Option, ValueInParens, *Info))
       return;
  
-    // Generate the loop hint token.
+  // Generate the loop hint token.
     Token LoopHintTok;
     LoopHintTok.startToken();
     LoopHintTok.setKind(tok::annot_pragma_pv_hint);
@@ -2999,10 +2917,15 @@ void PragmaPvHintHandler::HandlePragma(Preprocessor &PP,
     LoopHintTok.setAnnotationEndLoc(PragmaName.getLocation());
     LoopHintTok.setAnnotationValue(static_cast<void *>(Info));
     TokenList.push_back(LoopHintTok);
+    
   }
  
+  
+
   if (Tok.isNot(tok::eod)) {
-    //error
+    PP.Diag(Tok.getLocation(), diag::warn_pragma_extra_tokens_at_eol)
+        << "pipevec";
+    return;
   }
  
   auto TokenArray = llvm::make_unique<Token[]>(TokenList.size());
