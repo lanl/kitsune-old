@@ -94,18 +94,12 @@ static MDNode *createMetadata(LLVMContext &Ctx, const LoopAttributes &Attrs,
   }
 
   if (Attrs.PvEnable != LoopAttributes::Unspecified) {
-    std::string Name;
-    // if (Attrs.PvEnable == LoopAttributes::Enable){
-      Name = "llvm.loop.pv.enable";
-    // }
-    // else {
-      // Name = "llvm.loop.pv.enable";
-    // }
-    Metadata *Vals[] = {MDString::get(Ctx, Name), MDString::get(Ctx, Attrs.GatherVar), MDString::get(Ctx, Attrs.IndexVar),
+    std::string Name = "llvm.loop.pv.enable";
+    Metadata *Vals[] = {MDString::get(Ctx, Name), MDString::get(Ctx, Attrs.pvhints.GatherVar), MDString::get(Ctx, Attrs.pvhints.IndexVar),
     ConstantAsMetadata::get(ConstantInt::get(
-                            Type::getInt32Ty(Ctx), Attrs.BufferSize)),
+                            Type::getInt32Ty(Ctx), Attrs.pvhints.BufferSize)),
     ConstantAsMetadata::get(ConstantInt::get(
-                            Type::getInt32Ty(Ctx), Attrs.ListSize))};
+                            Type::getInt32Ty(Ctx), Attrs.pvhints.ListSize))};
     Args.push_back(MDNode::get(Ctx, Vals));
   }
 
@@ -189,30 +183,22 @@ void LoopInfoStack::push(BasicBlock *Header, clang::ASTContext &Ctx,
     const PvHintAttr *PH = dyn_cast<PvHintAttr>(Attr);
 
     if (PH){
-      IdentifierInfo *gatherInfo = PH->getGatherVal();
-      std::string gath = "";
-      if (gatherInfo){
-        gath = PH->getGatherVal()->getName();
-        setPvState(LoopAttributes::Enable);
-        setGatherVar(gath);
-        setIndexVar(PH->getIndexVal()->getName());
-
-        auto *BufferSize = PH->getBufferSize();
-        unsigned BufferInt = 1;
-        if (BufferSize) {
-          llvm::APSInt ValueAPS = BufferSize->EvaluateKnownConstInt(Ctx);
-          BufferInt = ValueAPS.getSExtValue();
-        }
-        setBufferSize(BufferInt);
-
-        auto *ListSize = PH->getListSize();
-        unsigned ListInt = 1;
-        if (ListSize) {
-          llvm::APSInt ValueAPS = ListSize->EvaluateKnownConstInt(Ctx);
-          ListInt = ValueAPS.getSExtValue();
-        }
-        setListSize(ListInt);
+      auto *BufferSize = PH->getBufferSize();
+      unsigned BufferInt = 1;
+      if (BufferSize) {
+        llvm::APSInt ValueAPS = BufferSize->EvaluateKnownConstInt(Ctx);
+        BufferInt = ValueAPS.getSExtValue();
       }
+
+      auto *ListSize = PH->getListSize();
+      unsigned ListInt = 1;
+      if (ListSize) {
+        llvm::APSInt ValueAPS = ListSize->EvaluateKnownConstInt(Ctx);
+        ListInt = ValueAPS.getSExtValue();
+      }
+
+      setPvState(LoopAttributes::Enable, PH->getGatherVal()->getName(), 
+                PH->getIndexVal()->getName(), BufferInt, ListInt);
       continue;
     }
 
