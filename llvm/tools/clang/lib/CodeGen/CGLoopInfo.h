@@ -63,13 +63,15 @@ struct LoopAttributes {
   /// \brief tapir.loop.grainsize.
   unsigned TapirGrainsize;
 
-  std::string GatherVar;
+  struct PipeVecHints{
+    std::string GatherVar;
 
-  std::string IndexVar;
+    std::string IndexVar;
   
-  unsigned BufferSize;
+    unsigned BufferSize;
 
-  unsigned ListSize;
+    unsigned ListSize;
+  } pvhints;
 
   /// \brief Value for llvm.loop.distribute.enable metadata.
   LVEnableState DistributeEnable;
@@ -163,13 +165,15 @@ public:
   }
 
   /// \brief Set the next pushed loop pv state.
-  void setPvState(const LoopAttributes::LVEnableState &State) {
+  void setPvState(const LoopAttributes::LVEnableState &State, std::string gath, std::string id_var, 
+                  unsigned bsize, unsigned lsize) {
     StagedAttrs.PvEnable = State;
+    StagedAttrs.pvhints.GatherVar = gath; 
+    StagedAttrs.pvhints.IndexVar = id_var; 
+    StagedAttrs.pvhints.BufferSize = bsize; 
+    StagedAttrs.pvhints.ListSize = lsize; 
   }
-  void setGatherVar(std::string C) { StagedAttrs.GatherVar = C; }
-  void setIndexVar(std::string C) { StagedAttrs.IndexVar = C; }
-  void setBufferSize(unsigned C) { StagedAttrs.BufferSize = C; }
-  void setListSize(unsigned C) { StagedAttrs.ListSize = C; }
+
 
   /// \brief Set the vectorize width for the next loop pushed.
   void setVectorizeWidth(unsigned W) { StagedAttrs.VectorizeWidth = W; }
