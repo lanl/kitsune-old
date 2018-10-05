@@ -17,70 +17,26 @@
 //
 //===----------------------------------------------------------------------===//
 
-// #include "llvm/Analysis/CFGPrinter.h"
-#include "llvm/Pass.h"
-#include "llvm/PassRegistry.h"
 #include "llvm/IR/BasicBlock.h"
-#include "llvm/IR/CFG.h"
-#include "llvm/IR/Constants.h"
 #include "llvm/IR/CallSite.h"
-#include "llvm/IR/DebugInfo.h"
-#include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instructions.h"
-#include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/Metadata.h"
-#include "llvm/IR/Module.h"
-#include "llvm/IR/PassManager.h"
-#include "llvm/IR/Type.h"
-#include "llvm/IR/ValueMap.h"
-#include "llvm/IR/ValueHandle.h"
 #include "llvm/IR/ValueSymbolTable.h"
 #include "llvm/IR/Verifier.h"
 
-#include "llvm/ADT/APFloat.h"
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/SetVector.h"
-#include "llvm/ADT/SmallVector.h"
-
 #include "llvm/Support/FileSystem.h"
-#include "llvm/Support/GraphWriter.h"
-#include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/raw_ostream.h"
 
 #include "llvm/Bitcode/BitcodeWriter.h"
 
-#include "llvm/Analysis/ConstantFolding.h"
-#include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/LoopInfo.h"
 
-#include "llvm/Transforms/Utils/Local.h"
-#include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
-#include "llvm/Transforms/Scalar.h"
-#include "llvm/Transforms/Scalar/GVN.h"
-#include "llvm/Transforms/IPO/PassManagerBuilder.h"
-#include "llvm/Transforms/Utils/LoopUtils.h"
 #include "llvm/Transforms/Utils/UnrollLoop.h"
-
-#include <map>
-#include <algorithm>
-#include <cassert>
-#include <cctype>
-#include <cstdint>
-#include <cstdio>
-#include <cstdlib>
-#include <memory>
-#include <string>
-#include <vector>
-
-
 
 using namespace llvm;
 // using namespace llvm::orc;
@@ -576,11 +532,11 @@ namespace {
 
           // errs() << M;
 
-
-          std::error_code EC;
-          raw_fd_ostream *Out = new raw_fd_ostream("/Users/amaleewilson/gs-pass/test/test_out.bc", EC, sys::fs::F_None);
-          WriteBitcodeToFile(&M, *Out);
-          Out->flush();
+          // debugging on local
+          // std::error_code EC;
+          // raw_fd_ostream *Out = new raw_fd_ostream("/Users/amaleewilson/gs-pass/test/test_out.bc", EC, sys::fs::F_None);
+          // WriteBitcodeToFile(&M, *Out);
+          // Out->flush();
 
           return true;
         }
