@@ -532,12 +532,20 @@ namespace {
 
           // errs() << M;
 
+<<<<<<< HEAD
           // debugging on local
           // errs() << "writing result to file\n";
           // std::error_code EC;
           // raw_fd_ostream *Out = new raw_fd_ostream("/Users/amaleewilson/gs-pass/test/test_out.bc", EC, sys::fs::F_None);
           // WriteBitcodeToFile(&M, *Out);
           // Out->flush();
+=======
+
+          std::error_code EC;
+          raw_fd_ostream *Out = new raw_fd_ostream("/Users/amaleewilson/gs-pass/test/test_out.bc", EC, sys::fs::F_None);
+          WriteBitcodeToFile(&M, *Out);
+          Out->flush();
+>>>>>>> Initial version of gather-scatter pass, works on minimal example, produces squential gather-scatter
 
           return true;
         }
