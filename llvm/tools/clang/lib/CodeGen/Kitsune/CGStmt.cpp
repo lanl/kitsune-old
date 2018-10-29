@@ -47,9 +47,7 @@
   *  SUCH DAMAGE.
   *
   ***************************************************************************/
-
 #include "CodeGenFunction.h"
-
 using namespace clang;
 using namespace CodeGen;
 
@@ -84,6 +82,7 @@ struct RethrowCleanup : public EHScopeStack::Cleanup {
 public:
   RethrowCleanup(llvm::BasicBlock *InvokeDest = nullptr)
       : InvokeDest(InvokeDest) {}
+  virtual ~RethrowCleanup() {} 
   void Emit(CodeGenFunction &CGF, Flags F) {
     llvm::BasicBlock *DetRethrowBlock = CGF.createBasicBlock("det.rethrow");
     if (InvokeDest)
@@ -105,6 +104,48 @@ static void EmitIfUsed(CodeGenFunction &CGF, llvm::BasicBlock *BB) {
 }
 
 
+static
+LoopAttributes::LSStrategy GetSpawnStrategyAttribute(ArrayRef<const Attr *> Attrs) 
+{
+  auto A = Attrs.begin();
+
+  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
+  // !!! FIXME -- this is our default setting for debugging but it    !!!
+  // !!! is probably not what we want in the longrun... Probably best !!!
+  // !!! to set this to DAC in a "released" version.                  !!!
+  // !!!                                  -PM                         !!!
+  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  LoopAttributes::LSStrategy strategy = LoopAttributes::Sequential;
+  
+  while(A != Attrs.end()) {
+
+    const attr::Kind AKind = (*A)->getKind();
+
+    if (AKind == attr::TapirStrategy) {
+      
+      const auto *SA = cast<const TapirStrategyAttr>(*A);
+      
+      switch(SA->getTapirStrategyType()) {
+      case TapirStrategyAttr::TapirSequentialStrategy:
+	strategy = LoopAttributes::Sequential;
+	break;
+      case TapirStrategyAttr::TapirDivAndConquerStrategy:
+	strategy = LoopAttributes::DAC;
+	break;
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!	
+	// !!! FIXME -- Other attributes (e.g. GPU) need to be !!!
+	// !!! handled here...  -PM                            !!!
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      default:
+	strategy = LoopAttributes::Sequential;
+	break;
+      }
+    }
+    A++;
+  }
+
+  return strategy; 
+}
 
 // Perform code generation for the forall statement -- this is our our
 // augmented 'for' construct that has explicit parallel semantics. In
@@ -112,9 +153,8 @@ static void EmitIfUsed(CodeGenFunction &CGF, llvm::BasicBlock *BB) {
 // independently of all others.  It follows similar logic to ForStmt
 // but utilizes Tapir's detach+reattach+sync constructs to express
 // the parallel form.
-void
-CodeGenFunction::EmitForallStmt(const ForallStmt &FS,
-				ArrayRef<const Attr *> ForAllAttrs) {
+void CodeGenFunction::EmitForallStmt(const ForallStmt &FS,
+				     ArrayRef<const Attr *> ForAllAttrs) {
 
   if (FS.getForRangeStmt()) {
     EmitForallRangeStmt(FS, ForAllAttrs);
@@ -143,46 +183,30 @@ CodeGenFunction::EmitForallStmt(const ForallStmt &FS,
   JumpDest Continue = getJumpDestInCurrentScope("forall.cond");
   llvm::BasicBlock *CondBlock = Continue.getBlock();
   EmitBlock(CondBlock);
-
-  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  // !!! FIXME -- Check to see if we need to get strategy !!!
-  // !!!          from attributes...                      !!! 
-  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  LoopStack.setSpawnStrategy(LoopAttributes::DAC);
+  LoopStack.setSpawnStrategy(GetSpawnStrategyAttribute(ForAllAttrs));
   
   const SourceRange &R = S.getSourceRange();
   LoopStack.push(CondBlock, CGM.getContext(), ForAllAttrs,
                  SourceLocToDebugLoc(R.getBegin()),
                  SourceLocToDebugLoc(R.getEnd()));
 
-  JumpDest Preattach = getJumpDestInCurrentScope("forall.reattach");
+  const Expr *Inc = S.getInc();
+  assert(Inc && "forall loop has no increment!");
+  Continue = getJumpDestInCurrentScope("forall.inc");  
+
+  JumpDest Preattach = getJumpDestInCurrentScope("forall.preattach");
   Continue = getJumpDestInCurrentScope("forall.inc");
-
-  // If the for loop doesn't have an increment we can just use the
-  // condition as the continue block.  Otherwise we'll need to create
-  // a block for it (in the current scope, i.e. in the scope of the
-  // condition), and that we will become our continue block.
-  if (S.getInc())
-    Continue = getJumpDestInCurrentScope("forall.inc");
-
-  // Store the blocks to use for break and continue.
-  // ???????????????????????????????????????????????????????
-  // ??? TODO: Wrap my head around why preattach here... ???
-  // ???                                       -PM       ???
-  // ???????????????????????????????????????????????????????  
-  BreakContinueStack.push_back(BreakContinue(Preattach, Preattach));
-  //BreakContinueStack.push_back(BreakContinue(LoopExit, Continue));
+  // Store the blocks to use for break and continue (routed through
+  // reattach...    
+  BreakContinueStack.push_back(BreakContinue(Preattach, Preattach));  
 
   // Create a cleanup scope for the condition variable cleanups.
   LexicalScope ConditionScope(*this, S.getSourceRange());
 
   // Save the alloca insertion point.
   llvm::AssertingVH<llvm::Instruction>  SavedAllocaInsertPt = AllocaInsertPt;
+
   // Save the exception handling state.
-  // ????????????????????????????????????????????????  
-  // ??? TODO: Do we only do this if in C++ mode? ???
-  // ???                                     -PM  ???
-  // ????????????????????????????????????????????????
   llvm::BasicBlock *SavedEHResumeBlock  = EHResumeBlock;
   llvm::Value      *SavedExceptionSlot  = ExceptionSlot;
   llvm::AllocaInst *SavedEHSelectorSlot = EHSelectorSlot;
@@ -196,11 +220,6 @@ CodeGenFunction::EmitForallStmt(const ForallStmt &FS,
   llvm::BasicBlock  *ForAllBodyEntry = nullptr;
   llvm::BasicBlock  *ForAllBody      = nullptr;  
   {
-    // If the for statement has a condition scope, emit the local variable
-    // declaration.
-    //if (S.getConditionVariable()) {
-    //  EmitAutoVarDecl(*S.getConditionVariable());
-    //}
     llvm::BasicBlock *ExitBlock = LoopExit.getBlock();
 
     // If there are any cleanups between here and the loop-exit scope,
@@ -208,18 +227,14 @@ CodeGenFunction::EmitForallStmt(const ForallStmt &FS,
     if (ForAllScope.requiresCleanups())
       ExitBlock = createBasicBlock("forall.cond.cleanup");
 
-    // As long as the condition is true, iterate the loop.
     DetachBlock = createBasicBlock("forall.detach");
-    // Emit an extra entry block for the deatch body -- this ensures the
-    // detached entry block has just one predecessor.
     ForAllBodyEntry  = createBasicBlock("forall.body.entry");    
     ForAllBody       = createBasicBlock("forall.body");
 
     // C99 6.8.5p2/p4: The first substatement is executed if the expression
     // compares unequal to 0.  The condition must be a scalar type.
     llvm::Value *BoolCondVal = EvaluateExprAsBool(S.getCond());
-    Builder.CreateCondBr(
-			 BoolCondVal, DetachBlock, ExitBlock,
+    Builder.CreateCondBr(BoolCondVal, DetachBlock, ExitBlock,
 			 createProfileWeightsForLoop(S.getCond(), getProfileCount(S.getBody())));
 
     if (ExitBlock != LoopExit.getBlock()) {
@@ -227,17 +242,13 @@ CodeGenFunction::EmitForallStmt(const ForallStmt &FS,
       Builder.CreateSync(SyncContinueBlock, SyncRegionStart);
       EmitBlock(SyncContinueBlock);
       PopSyncRegion();
-      madeSync = true;
       EmitBranchThroughCleanup(LoopExit);
+      madeSync = true;      
     }
 
     EmitBlock(DetachBlock);
-    
-    // Get the value of the loop variable initialization before we emit the
-    // detach.
     if (LoopVar)
       LoopVarInitRV = EmitAnyExprToTemp(LoopVar->getInit());
-
     Builder.CreateDetach(ForAllBodyEntry, Continue.getBlock(), SyncRegionStart);
 
     // Create a new alloca insert point.
@@ -294,26 +305,22 @@ CodeGenFunction::EmitForallStmt(const ForallStmt &FS,
     Ptr->eraseFromParent();
 
     // Restore the exception handling state.
-    //EmitIfUsed(*this, EHResumeBlock);
+    EmitIfUsed(*this, EHResumeBlock);
     EHResumeBlock  = SavedEHResumeBlock;
     ExceptionSlot  = SavedExceptionSlot;
     EHSelectorSlot = SavedEHSelectorSlot;
   }
 
-  // If there is an increment, emit it next.
-  //if (S.getInc()) {
+  // Emit the increment next. 
   EmitBlock(Continue.getBlock());
-  EmitStmt(S.getInc());
-  //}
+  EmitStmt(Inc);
 
   BreakContinueStack.pop_back();
   ConditionScope.ForceCleanup();
 
   EmitStopPoint(&S);
   EmitBranch(CondBlock);
-
   ForAllScope.ForceCleanup();
-
   LoopStack.pop();
 
   // Emit the fall-through block.
@@ -323,6 +330,8 @@ CodeGenFunction::EmitForallStmt(const ForallStmt &FS,
     EmitBlock(SyncContinueBlock);
     PopSyncRegion();
   }
+
+  //CurFn->dump();  
 }
 
 
@@ -341,12 +350,10 @@ void CodeGenFunction::EmitForallRangeStmt(const ForallStmt &FS,
   
   JumpDest LoopExit = getJumpDestInCurrentScope("forall.range.end");
 
-  // ...new... 
   PushSyncRegion();
   llvm::Instruction *SyncRegionStart = EmitSyncRegionStart();
   CurSyncRegion->setSyncRegionStart(SyncRegionStart);
-  // .........
-
+  
   LexicalScope ForAllScope(*this, S.getSourceRange());
 
   // Evaluate the first pieces before the loop.
@@ -357,136 +364,144 @@ void CodeGenFunction::EmitForallRangeStmt(const ForallStmt &FS,
   // Start the loop with a block that tests the condition.
   // If there's an increment, the continue scope will be overwritten
   // later.
-  llvm::BasicBlock *CondBlock = createBasicBlock("forall.range.cond");
+  JumpDest Continue = getJumpDestInCurrentScope("forall.range.cond");  
+  llvm::BasicBlock *CondBlock = Continue.getBlock();
   EmitBlock(CondBlock);
-  
-  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  // !!! FIXME -- Check to see if we need to get strategy !!!
-  // !!!          from attributes...                      !!! 
-  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  LoopStack.setSpawnStrategy(LoopAttributes::DAC);
+  LoopStack.setSpawnStrategy(GetSpawnStrategyAttribute(ForAllAttrs));
   
   const SourceRange &R = S.getSourceRange();
   LoopStack.push(CondBlock, CGM.getContext(), ForAllAttrs,
 		 SourceLocToDebugLoc(R.getBegin()),
 		 SourceLocToDebugLoc(R.getEnd()));
 
-  llvm::AssertingVH<llvm::Instruction>  SavedAllocaInsertPt = AllocaInsertPt;  
+  JumpDest Preattach = getJumpDestInCurrentScope("forall.range.preattach");  
+  Continue = getJumpDestInCurrentScope("forall.range.inc");
+
+  BreakContinueStack.push_back(BreakContinue(Preattach, Preattach));
+
+  // Create a cleanup scope for the condition variable cleanups.
+  LexicalScope ConditionScope(*this, S.getSourceRange());
+
+  // Save the alloca insertion point.
+  llvm::AssertingVH<llvm::Instruction>  SavedAllocaInsertPt = AllocaInsertPt;
+  
+  // Save the exception handling state.
   llvm::BasicBlock *SavedEHResumeBlock  = EHResumeBlock;
   llvm::Value      *SavedExceptionSlot  = ExceptionSlot;
-  llvm::AllocaInst *SavedEHSelectorSlot = EHSelectorSlot;
-
+  llvm::AllocaInst *SavedEHSelectorSlot = EHSelectorSlot;  
   llvm::BasicBlock *SyncContinueBlock = createBasicBlock("forall.range.end.continue");
   bool madeSync = false;
-  //const VarDecl *LoopVar = S.getLoopVariable();
 
-  JumpDest Continue = getJumpDestInCurrentScope("forall.range.inc");
+  const VarDecl *LoopVar = S.getLoopVariable();  
+  RValue LoopVarInitRV;
   
-  RValue            LoopVarInitRV;
-  llvm::BasicBlock  *DetachBlock     = nullptr;
-  llvm::BasicBlock  *ForAllBodyEntry = nullptr;
-  llvm::BasicBlock  *ForAllBody      = nullptr;
+  llvm::BasicBlock *ForAllBody      = createBasicBlock("forall.range.body");
+  llvm::BasicBlock *DetachBlock     = createBasicBlock("forall.range.detach");
+  llvm::BasicBlock *ForAllBodyEntry = createBasicBlock("forall.range.body.entry");
   {
+
     // If there are any cleanups between here and the loop-exit scope,
-    // create a block to stage a loop exit along.
-    llvm::BasicBlock *ExitBlock = LoopExit.getBlock();
+    // create a block to state a loop exit...
+    llvm::BasicBlock *ExitBlock = LoopExit.getBlock();  
     if (ForAllScope.requiresCleanups())
-      ExitBlock = createBasicBlock("forall.range.cond.cleanup");
-
-    DetachBlock = createBasicBlock("forall.range.detach");
-
-    // Emit an extra entry block for the deatch body -- this ensures the
-    // detached entry block has just one predecessor.        
-    ForAllBodyEntry  = createBasicBlock("forall.range.body.entry");
- 
-    // Emit an extra entry block for the deatch body 
-    // The loop body, consisting of the specified body and the loop
-    // variable.
-    ForAllBody = createBasicBlock("forall.range.body");
-
+      ExitBlock = createBasicBlock("forall.cond.cleanup");
+  
+  
     // The body is executed if the expression, contextually converted
-    // to bool is true.
+    // to bool, is true.
     llvm::Value *BoolCondVal = EvaluateExprAsBool(S.getCond());
-    Builder.CreateCondBr(BoolCondVal, DetachBlock/*ForAllBody*/, ExitBlock,
-			 createProfileWeightsForLoop(S.getCond(), getProfileCount(S.getBody())));
-
+    Builder.CreateCondBr(
+			 BoolCondVal, DetachBlock, ExitBlock,
+			 createProfileWeightsForLoop(S.getCond(), getProfileCount(S.getBody())));  
+  
+  
     if (ExitBlock != LoopExit.getBlock()) {
       EmitBlock(ExitBlock);
       Builder.CreateSync(SyncContinueBlock, SyncRegionStart);
       EmitBlock(SyncContinueBlock);
       PopSyncRegion();
-      madeSync = true;
       EmitBranchThroughCleanup(LoopExit);
+      madeSync = true;
     }
-  
-    EmitBlock(DetachBlock);  
 
+    EmitBlock(DetachBlock);
+
+    if (LoopVar) 
+      LoopVarInitRV = EmitAnyExprToTemp(LoopVar->getInit());
+    
     Builder.CreateDetach(ForAllBodyEntry, Continue.getBlock(), SyncRegionStart);
+  
+    // Create a new alloca insert point...
     llvm::Value *Undef = llvm::UndefValue::get(Int32Ty);
-    AllocaInsertPt = new llvm::BitCastInst(Undef, Int32Ty, "", ForAllBodyEntry);
-    // Set up a nested exception handling state (that is a no-op???).
+    AllocaInsertPt = new llvm::BitCastInst(Undef, Int32Ty, "", ForAllBodyEntry);  
+
+    // Set up a nested exception handling state.
     EHResumeBlock  = nullptr;
     ExceptionSlot  = nullptr;
     EHSelectorSlot = nullptr;
+  
     EmitBlock(ForAllBodyEntry);
   }
+  // Create a cleanup scope for the loop-variable cleanups.
+  RunCleanupsScope DetachCleanupScope(*this);
+  EHStack.pushCleanup<RethrowCleanup>(EHCleanup);
 
+  /*
+  if (LoopVar) {
+    AutoVarEmission LVEmission = EmitAutoVarAlloca(*LoopVar);
+    QualType type = LoopVar->getType();
+    Address Loc = LVEmission.getObjectAddress(*this);
+    LValue LV = MakeAddrLValue(Loc, type);
+    LV.setNonGC(true);
+    EmitStoreThroughLValue(LoopVarInitRV, LV, true);
+    EmitAutoVarCleanups(LVEmission);
+  }
+  */
+  Builder.CreateBr(ForAllBody);
   EmitBlock(ForAllBody);
   incrementProfileCounter(&S);
   
-  RunCleanupsScope DetachCleanupScope(*this);
-  //BreakContinueStack.push_back(BreakContinue(LoopExit, Continue));    
-  JumpDest Preattach = getJumpDestInCurrentScope("forall.range.preattach");
-  BreakContinueStack.push_back(BreakContinue(Preattach, Preattach));    
-
+  // Create a separate cleanup scope for the loop variable and body.
   {
-    // Create a separate cleanup scope for the loop variable and body.
-    LexicalScope BodyScope(*this, S.getSourceRange());
+    //LexicalScope BodyScope(*this, S.getSourceRange());
+    RunCleanupsScope BodyScope(*this);
     EmitStmt(S.getLoopVarStmt());
     EmitStmt(S.getBody());
+    Builder.CreateBr(Preattach.getBlock());
   }
-  Builder.CreateBr(Preattach.getBlock());
   
-
-  // Finish detached body and emit the reattach...
   {
-
     EmitBlock(Preattach.getBlock());
     DetachCleanupScope.ForceCleanup();
     Builder.CreateReattach(Continue.getBlock(), SyncRegionStart);
   }
 
-  // Restore CFG state after detached region.
+  // Restore CFG state after insertion point.
   {
-    // Restore the alloca insertion point.
     llvm::Instruction *Ptr = AllocaInsertPt;
     AllocaInsertPt = SavedAllocaInsertPt;
     Ptr->eraseFromParent();
-
-    //Restore the exception handling state.
-    //EmitIfUsed(*this, EHResumeBlock);
+    // Restore the exception handling state.
+    EmitIfUsed(*this, EHResumeBlock);
     EHResumeBlock  = SavedEHResumeBlock;
     ExceptionSlot  = SavedExceptionSlot;
-    EHSelectorSlot = SavedEHSelectorSlot;    
-  }    
-
-  EmitStopPoint(&S);
-  // If there is an increment, emit it next.
+    EHSelectorSlot = SavedEHSelectorSlot;
+  }
+  
+  // Emit the increment next. 
   EmitBlock(Continue.getBlock());
-  EmitStmt(S.getInc());
-
+  EmitStmt(S.getInc());  
   BreakContinueStack.pop_back();
-
+  ConditionScope.ForceCleanup();
+  
+  EmitStopPoint(&S);
   EmitBranch(CondBlock);
-
   ForAllScope.ForceCleanup();
-
   LoopStack.pop();
 
   // Emit the fall-through block.
   EmitBlock(LoopExit.getBlock(), true);
-  
-  if (!madeSync) {
+  if (! madeSync) {
     Builder.CreateSync(SyncContinueBlock, SyncRegionStart);
     EmitBlock(SyncContinueBlock);
     PopSyncRegion();
@@ -494,43 +509,36 @@ void CodeGenFunction::EmitForallRangeStmt(const ForallStmt &FS,
 }
 
 
-
-
-
-
-
-
 // this method handles the code generation corresponding to Kokkos parallel for
 // or parallel reduce
-void CodeGenFunction::EmitKokkosConstruct(const CallExpr* E){
-  // anything to include here?
-  ArrayRef<const Attr *> ForAttrs;
+void CodeGenFunction::EmitKokkosConstruct(const CallExpr* E) {
+  //					  ArrayRef<const Attr *> ForAttrs) {
 
-  // extract the lambda expression which will be used as a body of the
-  // parallel for loop
-  const LambdaExpr* LE = GetLambda(E->getArg(1));
-  const CXXMethodDecl* MD = LE->getCallOperator();
+  ArrayRef<const Attr *> ForAttrs; 
+
+  // Start by extracting the lambda expression that will be used as the
+  // body of a forall loop.
+  const LambdaExpr* LE       = GetLambda(E->getArg(1));
+  const CXXMethodDecl* MD    = LE->getCallOperator();
   const ParmVarDecl* LoopVar = MD->getParamDecl(0);
 
   const FunctionDecl* F = E->getDirectCallee();
-  assert(F);
+  assert(F && "kokkos construct doesn't seem to have a funcdecl!");
 
   const VarDecl* ReduceVar;
 
-  if(F->getQualifiedNameAsString() == "Kokkos::parallel_for"){
-    assert(MD->getNumParams() == 1);
-    assert(E->getNumArgs() == 3);
+  if (F->getQualifiedNameAsString() == "Kokkos::parallel_for") {
+    assert(MD->getNumParams() == 1 && "too many parameters in method decl!");
+    assert(E->getNumArgs() == 3 && "too many arguments in call expr!");
     ReduceVar = nullptr;
-  }
-  else if(F->getQualifiedNameAsString() == "Kokkos::parallel_reduce"){
+  } else if(F->getQualifiedNameAsString() == "Kokkos::parallel_reduce") {
     ReduceVar = MD->getParamDecl(1);
     assert(MD->getNumParams() == 2);
-  }
-  else{
+  } else {
     assert(false && "expected parallel for or reduce");
   }
-
-  JumpDest LoopExit = getJumpDestInCurrentScope("pfor.end");
+  
+  JumpDest LoopExit = getJumpDestInCurrentScope("kokkos.forall.end");
 
   PushSyncRegion();
   llvm::Instruction *SyncRegionStart = EmitSyncRegionStart();
@@ -545,7 +553,7 @@ void CodeGenFunction::EmitKokkosConstruct(const CallExpr* E){
   llvm::Value *Zero = llvm::ConstantInt::get(ConvertType(LoopVar->getType()), 0);
   Builder.CreateStore(Zero, Addr);
 
-  if(ReduceVar){
+  if (ReduceVar) {
     EmitVarDecl(*ReduceVar);
   }
 
@@ -560,14 +568,13 @@ void CodeGenFunction::EmitKokkosConstruct(const CallExpr* E){
 
   // we may need to truncate or extend the end range to get it to match the
   // type of the loop variable
-  if(NBits > LoopVarBits){
+  if (NBits > LoopVarBits) {
     N = Builder.CreateTrunc(N, LoopVarTy);
-  }
-  else if(NBits < LoopVarBits){
+  } else if(NBits < LoopVarBits) {
     N = Builder.CreateZExt(N, LoopVarTy);
   }
 
-  JumpDest Continue = getJumpDestInCurrentScope("pfor.cond");
+  JumpDest Continue = getJumpDestInCurrentScope("kokkos.forall.cond");
   llvm::BasicBlock *CondBlock = Continue.getBlock();
   EmitBlock(CondBlock);
 
@@ -578,8 +585,8 @@ void CodeGenFunction::EmitKokkosConstruct(const CallExpr* E){
                  SourceLocToDebugLoc(R.getBegin()),
                  SourceLocToDebugLoc(R.getEnd()));
 
-  JumpDest Preattach = getJumpDestInCurrentScope("pfor.preattach");
-  Continue = getJumpDestInCurrentScope("pfor.inc");
+  JumpDest Preattach = getJumpDestInCurrentScope("kokkos.forall.preattach");
+  Continue = getJumpDestInCurrentScope("kokkos.forall.inc");
 
   // Store the blocks to use for break and continue.
   BreakContinueStack.push_back(BreakContinue(Preattach, Preattach));
@@ -594,7 +601,7 @@ void CodeGenFunction::EmitKokkosConstruct(const CallExpr* E){
   llvm::Value *OldExceptionSlot = ExceptionSlot;
   llvm::AllocaInst *OldEHSelectorSlot = EHSelectorSlot;
 
-  llvm::BasicBlock *SyncContinueBlock = createBasicBlock("pfor.end.continue");
+  llvm::BasicBlock *SyncContinueBlock = createBasicBlock("kokkos.end.continue");
   bool madeSync = false;
   llvm::BasicBlock *DetachBlock;
   llvm::BasicBlock *ForBodyEntry;
@@ -605,14 +612,14 @@ void CodeGenFunction::EmitKokkosConstruct(const CallExpr* E){
     // If there are any cleanups between here and the loop-exit scope,
     // create a block to stage a loop exit along.
     if (ForScope.requiresCleanups())
-      ExitBlock = createBasicBlock("pfor.cond.cleanup");
+      ExitBlock = createBasicBlock("kokkos.cond.cleanup");
 
     // As long as the condition is true, iterate the loop.
-    DetachBlock = createBasicBlock("pfor.detach");
+    DetachBlock = createBasicBlock("kokkos.forall.detach");
     // Emit extra entry block for detached body, to ensure that this detached
     // entry block has just one predecessor.
-    ForBodyEntry = createBasicBlock("pfor.body.entry");
-    ForBody = createBasicBlock("pfor.body");
+    ForBodyEntry = createBasicBlock("kokkos.forall.body.entry");
+    ForBody = createBasicBlock("kokkos.forall.pfor.body");
 
     llvm::Value *LoopVal = Builder.CreateLoad(Addr);
 

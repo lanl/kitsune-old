@@ -11,6 +11,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// !!! FIXME -- Need to remove this after debugging... !!!
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #include "CodeGenFunction.h"
 #include "CGDebugInfo.h"
 #include "CodeGenModule.h"
@@ -152,6 +155,9 @@ void CodeGenFunction::EmitStmt(const Stmt *S) {
     const CapturedStmt *CS = cast<CapturedStmt>(S);
     EmitCapturedStmt(*CS, CS->getCapturedRegionKind());
     }
+    break;
+  case Stmt::KitsuneStmtClass:
+    EmitForallStmt(cast<ForallStmt>(*S));
     break;
   case Stmt::CilkSpawnStmtClass:
     EmitCilkSpawnStmt(cast<CilkSpawnStmt>(*S)); break;
@@ -577,6 +583,9 @@ void CodeGenFunction::EmitAttributedStmt(const AttributedStmt &S) {
     break;
   case Stmt::CilkForStmtClass:
     EmitCilkForStmt(cast<CilkForStmt>(*SubStmt), S.getAttrs());
+    break;
+  case Stmt::KitsuneStmtClass:
+    EmitForallStmt(cast<ForallStmt>(*SubStmt), S.getAttrs());
     break;
   default:
     EmitStmt(SubStmt);

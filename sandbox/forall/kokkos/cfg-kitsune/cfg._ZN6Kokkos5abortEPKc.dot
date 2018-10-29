@@ -1,0 +1,5 @@
+digraph "CFG for '_ZN6Kokkos5abortEPKc' function" {
+	label="CFG for '_ZN6Kokkos5abortEPKc' function";
+
+	Node0x57d82d0 [shape=record,label="{entry:\l  %message.addr = alloca i8*, align 8\l  store i8* %message, i8** %message.addr, align 8\l  %0 = load i8*, i8** %message.addr, align 8\l  call void @_ZN6Kokkos4Impl10host_abortEPKc(i8* %0)\l  ret void\l}"];
+}

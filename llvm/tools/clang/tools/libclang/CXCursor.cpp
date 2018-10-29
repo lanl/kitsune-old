@@ -139,6 +139,13 @@ CXCursor cxcursor::MakeCXCursor(const Stmt *S, const Decl *Parent,
   case Stmt::ForStmtClass:
     K = CXCursor_ForStmt;
     break;
+
+  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!    
+  // FIXME! -- This need to split into forall stmt cases.. --PM !!!
+  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  case Stmt::KitsuneStmtClass:
+    K = CXCursor_KitsuneStmt;
+    break;    
   
   case Stmt::GotoStmtClass:
     K = CXCursor_GotoStmt;

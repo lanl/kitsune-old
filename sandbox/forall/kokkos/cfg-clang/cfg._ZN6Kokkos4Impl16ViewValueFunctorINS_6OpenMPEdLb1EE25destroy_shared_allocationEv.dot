@@ -1,0 +1,5 @@
+digraph "CFG for '_ZN6Kokkos4Impl16ViewValueFunctorINS_6OpenMPEdLb1EE25destroy_shared_allocationEv' function" {
+	label="CFG for '_ZN6Kokkos4Impl16ViewValueFunctorINS_6OpenMPEdLb1EE25destroy_shared_allocationEv' function";
+
+	Node0x5e6eba0 [shape=record,label="{entry:\l  %this.addr = alloca %\"struct.Kokkos::Impl::ViewValueFunctor\"*, align 8\l  store %\"struct.Kokkos::Impl::ViewValueFunctor\"* %this,\l... %\"struct.Kokkos::Impl::ViewValueFunctor\"** %this.addr, align 8\l  %this1 = load %\"struct.Kokkos::Impl::ViewValueFunctor\"*,\l... %\"struct.Kokkos::Impl::ViewValueFunctor\"** %this.addr, align 8\l  ret void\l}"];
+}

@@ -1,0 +1,38 @@
+digraph "CFG for '_ZN6Kokkos12parallel_forIZ4mainE3$_0EEvmRKT_RKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE' function" {
+	label="CFG for '_ZN6Kokkos12parallel_forIZ4mainE3$_0EEvmRKT_RKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE' function";
+
+	Node0x5e31170 [shape=record,label="{entry:\l  %work_count.addr = alloca i64, align 8\l  %functor.addr = alloca %class.anon*, align 8\l  %str.addr = alloca %\"class.std::__cxx11::basic_string\"*, align 8\l  %kpID = alloca i64, align 8\l  %name = alloca %\"struct.Kokkos::Impl::ParallelConstructName\", align 8\l  %exn.slot = alloca i8*\l  %ehselector.slot = alloca i32\l  %closure = alloca %\"class.Kokkos::Impl::ParallelFor.8\", align 8\l  %agg.tmp = alloca %\"class.Kokkos::RangePolicy\", align 8\l  store i64 %work_count, i64* %work_count.addr, align 8\l  store %class.anon* %functor, %class.anon** %functor.addr, align 8\l  store %\"class.std::__cxx11::basic_string\"* %str,\l... %\"class.std::__cxx11::basic_string\"** %str.addr, align 8\l  store i64 0, i64* %kpID, align 8\l  %call = call zeroext i1 @_ZN6Kokkos9Profiling20profileLibraryLoadedEv()\l  br i1 %call, label %if.then, label %if.end\l|{<s0>T|<s1>F}}"];
+	Node0x5e31170:s0 -> Node0x5e31b60;
+	Node0x5e31170:s1 -> Node0x5e31c30;
+	Node0x5e31b60 [shape=record,label="{if.then:                                          \l  %0 = load %\"class.std::__cxx11::basic_string\"*,\l... %\"class.std::__cxx11::basic_string\"** %str.addr, align 8\l  call void\l... @\"_ZN6Kokkos4Impl21ParallelConstructNameIZ4mainE3$_0vLb0EEC2ERKNSt7__cxx1112ba\l...sic_stringIcSt11char_traitsIcESaIcEEE\"(%\"struct.Kokkos::Impl::ParallelConstruct\l...Name\"* %name, %\"class.std::__cxx11::basic_string\"* dereferenceable(32) %0)\l  %call1 = invoke dereferenceable(32) %\"class.std::__cxx11::basic_string\"*\l... @\"_ZN6Kokkos4Impl21ParallelConstructNameIZ4mainE3$_0vLb0EE3getB5cxx11Ev\"(%\"str\l...uct.Kokkos::Impl::ParallelConstructName\"* %name)\l          to label %invoke.cont unwind label %lpad\l}"];
+	Node0x5e31b60 -> Node0x5e321e0;
+	Node0x5e31b60 -> Node0x5e322c0;
+	Node0x5e321e0 [shape=record,label="{invoke.cont:                                      \l  invoke void\l... @_ZN6Kokkos9Profiling16beginParallelForERKNSt7__cxx1112basic_stringIcSt11char_\l...traitsIcESaIcEEEjPm(%\"class.std::__cxx11::basic_string\"* dereferenceable(32)\l... %call1, i32 0, i64* %kpID)\l          to label %invoke.cont2 unwind label %lpad\l}"];
+	Node0x5e321e0 -> Node0x5e32190;
+	Node0x5e321e0 -> Node0x5e322c0;
+	Node0x5e32190 [shape=record,label="{invoke.cont2:                                     \l  call void\l... @\"_ZN6Kokkos4Impl21ParallelConstructNameIZ4mainE3$_0vLb0EED2Ev\"(%\"struct.Kokko\l...s::Impl::ParallelConstructName\"* %name) #6\l  br label %if.end\l}"];
+	Node0x5e32190 -> Node0x5e31c30;
+	Node0x5e322c0 [shape=record,label="{lpad:                                             \l  %1 = landingpad \{ i8*, i32 \}\l          cleanup\l  %2 = extractvalue \{ i8*, i32 \} %1, 0\l  store i8* %2, i8** %exn.slot, align 8\l  %3 = extractvalue \{ i8*, i32 \} %1, 1\l  store i32 %3, i32* %ehselector.slot, align 4\l  call void\l... @\"_ZN6Kokkos4Impl21ParallelConstructNameIZ4mainE3$_0vLb0EED2Ev\"(%\"struct.Kokko\l...s::Impl::ParallelConstructName\"* %name) #6\l  br label %eh.resume\l}"];
+	Node0x5e322c0 -> Node0x5e1ccf0;
+	Node0x5e31c30 [shape=record,label="{if.end:                                           \l  call void @_ZN6Kokkos4Impl34shared_allocation_tracking_disableEv()\l  %4 = load %class.anon*, %class.anon** %functor.addr, align 8\l  %5 = load i64, i64* %work_count.addr, align 8\l  call void\l... @_ZN6Kokkos11RangePolicyIJNS_6OpenMPEEEC2Emm(%\"class.Kokkos::RangePolicy\"*\l... %agg.tmp, i64 0, i64 %5)\l  call void\l... @\"_ZN6Kokkos4Impl11ParallelForIZ4mainE3$_0NS_11RangePolicyIJNS_6OpenMPEEEES4_E\l...C2ERKS2_S5_\"(%\"class.Kokkos::Impl::ParallelFor.8\"* %closure, %class.anon*\l... dereferenceable(32) %4, %\"class.Kokkos::RangePolicy\"* byval align 8 %agg.tmp)\l  invoke void @_ZN6Kokkos4Impl33shared_allocation_tracking_enableEv()\l          to label %invoke.cont4 unwind label %lpad3\l}"];
+	Node0x5e31c30 -> Node0x5e34250;
+	Node0x5e31c30 -> Node0x5e342d0;
+	Node0x5e34250 [shape=record,label="{invoke.cont4:                                     \l  invoke void\l... @\"_ZNK6Kokkos4Impl11ParallelForIZ4mainE3$_0NS_11RangePolicyIJNS_6OpenMPEEEES4_\l...E7executeEv\"(%\"class.Kokkos::Impl::ParallelFor.8\"* %closure)\l          to label %invoke.cont5 unwind label %lpad3\l}"];
+	Node0x5e34250 -> Node0x5e34620;
+	Node0x5e34250 -> Node0x5e342d0;
+	Node0x5e34620 [shape=record,label="{invoke.cont5:                                     \l  %call7 = invoke zeroext i1 @_ZN6Kokkos9Profiling20profileLibraryLoadedEv()\l          to label %invoke.cont6 unwind label %lpad3\l}"];
+	Node0x5e34620 -> Node0x5e349f0;
+	Node0x5e34620 -> Node0x5e342d0;
+	Node0x5e349f0 [shape=record,label="{invoke.cont6:                                     \l  br i1 %call7, label %if.then8, label %if.end10\l|{<s0>T|<s1>F}}"];
+	Node0x5e349f0:s0 -> Node0x5e316f0;
+	Node0x5e349f0:s1 -> Node0x5e34d90;
+	Node0x5e316f0 [shape=record,label="{if.then8:                                         \l  %6 = load i64, i64* %kpID, align 8\l  invoke void @_ZN6Kokkos9Profiling14endParallelForEm(i64 %6)\l          to label %invoke.cont9 unwind label %lpad3\l}"];
+	Node0x5e316f0 -> Node0x5e34ea0;
+	Node0x5e316f0 -> Node0x5e342d0;
+	Node0x5e34ea0 [shape=record,label="{invoke.cont9:                                     \l  br label %if.end10\l}"];
+	Node0x5e34ea0 -> Node0x5e34d90;
+	Node0x5e342d0 [shape=record,label="{lpad3:                                            \l  %7 = landingpad \{ i8*, i32 \}\l          cleanup\l  %8 = extractvalue \{ i8*, i32 \} %7, 0\l  store i8* %8, i8** %exn.slot, align 8\l  %9 = extractvalue \{ i8*, i32 \} %7, 1\l  store i32 %9, i32* %ehselector.slot, align 4\l  call void\l... @\"_ZN6Kokkos4Impl11ParallelForIZ4mainE3$_0NS_11RangePolicyIJNS_6OpenMPEEEES4_E\l...D2Ev\"(%\"class.Kokkos::Impl::ParallelFor.8\"* %closure) #6\l  br label %eh.resume\l}"];
+	Node0x5e342d0 -> Node0x5e1ccf0;
+	Node0x5e34d90 [shape=record,label="{if.end10:                                         \l  call void\l... @\"_ZN6Kokkos4Impl11ParallelForIZ4mainE3$_0NS_11RangePolicyIJNS_6OpenMPEEEES4_E\l...D2Ev\"(%\"class.Kokkos::Impl::ParallelFor.8\"* %closure) #6\l  ret void\l}"];
+	Node0x5e1ccf0 [shape=record,label="{eh.resume:                                        \l  %exn = load i8*, i8** %exn.slot, align 8\l  %sel = load i32, i32* %ehselector.slot, align 4\l  %lpad.val = insertvalue \{ i8*, i32 \} undef, i8* %exn, 0\l  %lpad.val11 = insertvalue \{ i8*, i32 \} %lpad.val, i32 %sel, 1\l  resume \{ i8*, i32 \} %lpad.val11\l}"];
+}

@@ -1,0 +1,5 @@
+digraph "CFG for '_ZNK6Kokkos4ViewIA2_PdJEE5labelB5cxx11Ev' function" {
+	label="CFG for '_ZNK6Kokkos4ViewIA2_PdJEE5labelB5cxx11Ev' function";
+
+	Node0x57a5a70 [shape=record,label="{entry:\l  %this.addr = alloca %\"class.Kokkos::View\"*, align 8\l  store %\"class.Kokkos::View\"* %this, %\"class.Kokkos::View\"** %this.addr,\l... align 8\l  %this1 = load %\"class.Kokkos::View\"*, %\"class.Kokkos::View\"** %this.addr,\l... align 8\l  %m_track = getelementptr inbounds %\"class.Kokkos::View\",\l... %\"class.Kokkos::View\"* %this1, i32 0, i32 0\l  call void\l... @_ZNK6Kokkos4Impl23SharedAllocationTracker9get_labelINS_9HostSpaceEEENSt7__cxx\l...1112basic_stringIcSt11char_traitsIcESaIcEEEv(%\"class.std::__cxx11::basic_string\l...\"* sret %agg.result, %\"union.Kokkos::Impl::SharedAllocationTracker\"* %m_track)\l  ret void\l}"];
+}

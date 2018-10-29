@@ -1,0 +1,19 @@
+digraph "CFG for '_ZNK6Kokkos4Impl10OpenMPExec15get_thread_dataEv' function" {
+	label="CFG for '_ZNK6Kokkos4Impl10OpenMPExec15get_thread_dataEv' function";
+
+	Node0x57dfbb0 [shape=record,label="{entry:\l  %this.addr = alloca %\"class.Kokkos::Impl::OpenMPExec\"*, align 8\l  store %\"class.Kokkos::Impl::OpenMPExec\"* %this,\l... %\"class.Kokkos::Impl::OpenMPExec\"** %this.addr, align 8\l  %this1 = load %\"class.Kokkos::Impl::OpenMPExec\"*,\l... %\"class.Kokkos::Impl::OpenMPExec\"** %this.addr, align 8\l  %m_pool = getelementptr inbounds %\"class.Kokkos::Impl::OpenMPExec\",\l... %\"class.Kokkos::Impl::OpenMPExec\"* %this1, i32 0, i32 2\l  %m_level = getelementptr inbounds %\"class.Kokkos::Impl::OpenMPExec\",\l... %\"class.Kokkos::Impl::OpenMPExec\"* %this1, i32 0, i32 1\l  %0 = load i32, i32* %m_level, align 4\l  %call = invoke i32 @omp_get_level()\l          to label %invoke.cont unwind label %terminate.lpad\l}"];
+	Node0x57dfbb0 -> Node0x57dfeb0;
+	Node0x57dfbb0 -> Node0x57dff90;
+	Node0x57dfeb0 [shape=record,label="{invoke.cont:                                      \l  %cmp = icmp eq i32 %0, %call\l  br i1 %cmp, label %cond.true, label %cond.false\l|{<s0>T|<s1>F}}"];
+	Node0x57dfeb0:s0 -> Node0x57e0210;
+	Node0x57dfeb0:s1 -> Node0x57e0290;
+	Node0x57e0210 [shape=record,label="{cond.true:                                        \l  br label %cond.end\l}"];
+	Node0x57e0210 -> Node0x57e0400;
+	Node0x57e0290 [shape=record,label="{cond.false:                                       \l  %call3 = invoke i32 @omp_get_thread_num()\l          to label %invoke.cont2 unwind label %terminate.lpad\l}"];
+	Node0x57e0290 -> Node0x57dfb40;
+	Node0x57e0290 -> Node0x57dff90;
+	Node0x57dfb40 [shape=record,label="{invoke.cont2:                                     \l  br label %cond.end\l}"];
+	Node0x57dfb40 -> Node0x57e0400;
+	Node0x57e0400 [shape=record,label="{cond.end:                                         \l  %cond = phi i32 [ 0, %cond.true ], [ %call3, %invoke.cont2 ]\l  %idxprom = sext i32 %cond to i64\l  %arrayidx = getelementptr inbounds [512 x\l... %\"class.Kokkos::Impl::HostThreadTeamData\"*], [512 x\l... %\"class.Kokkos::Impl::HostThreadTeamData\"*]* %m_pool, i64 0, i64 %idxprom\l  %1 = load %\"class.Kokkos::Impl::HostThreadTeamData\"*,\l... %\"class.Kokkos::Impl::HostThreadTeamData\"** %arrayidx, align 8\l  ret %\"class.Kokkos::Impl::HostThreadTeamData\"* %1\l}"];
+	Node0x57dff90 [shape=record,label="{terminate.lpad:                                   \l  %2 = landingpad \{ i8*, i32 \}\l          catch i8* null\l  %3 = extractvalue \{ i8*, i32 \} %2, 0\l  call void @__clang_call_terminate(i8* %3) #12\l  unreachable\l}"];
+}

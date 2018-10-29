@@ -10,6 +10,7 @@
 // This contains code to emit Expr nodes as LLVM code.
 //
 //===----------------------------------------------------------------------===//
+#include <iostream>
 
 #include "CGCXXABI.h"
 #include "CGCall.h"
@@ -2291,6 +2292,14 @@ LValue CodeGenFunction::EmitDeclRefLValue(const DeclRefExpr *E) {
 
     // Check for captured variables.
     if (E->refersToEnclosingVariableOrCapture()) {
+      // +===== Kitsune
+      if (InKokkosConstruct) {
+        auto I = LocalDeclMap.find(VD);
+        assert(I != LocalDeclMap.end());
+        return MakeAddrLValue(I->second, T);  
+      }
+      // ==============
+
       if (auto *FD = LambdaCaptureFields.lookup(VD))
         return EmitCapturedFieldLValue(*this, FD, CXXABIThisValue);
       else if (CapturedStmtInfo) {
@@ -4070,6 +4079,20 @@ RValue CodeGenFunction::EmitRValueForField(LValue LV,
 
 RValue CodeGenFunction::EmitCallExpr(const CallExpr *E,
                                      ReturnValueSlot ReturnValue) {
+  // +===== Kitsune
+  if(getLangOpts().Kokkos/* && isMainStmt(E)*/){
+    const FunctionDecl* f = E->getDirectCallee();
+    if (f) {
+      std::string qn = f->getQualifiedNameAsString();
+      if (qn == "Kokkos::parallel_for" || qn == "Kokkos::parallel_reduce") {
+	std::cerr << "I'm in an emit kokkos construct phase.\n";
+        EmitKokkosConstruct(E);
+        return RValue::get(nullptr);
+      }
+    }
+  }
+  // ==============
+
   // Builtins never have block type.
   if (E->getCallee()->getType()->isBlockPointerType())
     return EmitBlockCallExpr(E, ReturnValue);

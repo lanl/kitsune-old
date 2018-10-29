@@ -1,0 +1,5 @@
+digraph "CFG for '_ZN6Kokkos4Impl34shared_allocation_tracking_disableEv' function" {
+	label="CFG for '_ZN6Kokkos4Impl34shared_allocation_tracking_disableEv' function";
+
+	Node0x5e97030 [shape=record,label="{entry:\l  call void @_ZN6Kokkos4Impl22SharedAllocationRecordIvvE16tracking_disableEv()\l  ret void\l}"];
+}

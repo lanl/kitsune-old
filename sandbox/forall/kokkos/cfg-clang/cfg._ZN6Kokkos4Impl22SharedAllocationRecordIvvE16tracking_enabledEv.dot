@@ -1,0 +1,5 @@
+digraph "CFG for '_ZN6Kokkos4Impl22SharedAllocationRecordIvvE16tracking_enabledEv' function" {
+	label="CFG for '_ZN6Kokkos4Impl22SharedAllocationRecordIvvE16tracking_enabledEv' function";
+
+	Node0x5e92c60 [shape=record,label="{entry:\l  %0 = load i32, i32*\l... @_ZN6Kokkos4Impl22SharedAllocationRecordIvvE18t_tracking_enabledE, align 4\l  ret i32 %0\l}"];
+}

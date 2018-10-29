@@ -1,0 +1,14 @@
+digraph "CFG for '_ZN6Kokkos4ViewIA2_PdJEED2Ev' function" {
+	label="CFG for '_ZN6Kokkos4ViewIA2_PdJEED2Ev' function";
+
+	Node0x5e3aac0 [shape=record,label="{entry:\l  %this.addr.i = alloca %\"union.Kokkos::Impl::SharedAllocationTracker\"*, align\l... 8\l  %this.addr = alloca %\"class.Kokkos::View\"*, align 8\l  store %\"class.Kokkos::View\"* %this, %\"class.Kokkos::View\"** %this.addr,\l... align 8\l  %this1 = load %\"class.Kokkos::View\"*, %\"class.Kokkos::View\"** %this.addr,\l... align 8\l  %m_map = getelementptr inbounds %\"class.Kokkos::View\",\l... %\"class.Kokkos::View\"* %this1, i32 0, i32 1\l  call void\l... @_ZN6Kokkos4Impl11ViewMappingINS_10ViewTraitsIA2_PdJEEEJvEED2Ev(%\"class.Kokkos\l...::Impl::ViewMapping\"* %m_map) #6\l  %m_track = getelementptr inbounds %\"class.Kokkos::View\",\l... %\"class.Kokkos::View\"* %this1, i32 0, i32 0\l  store %\"union.Kokkos::Impl::SharedAllocationTracker\"* %m_track,\l... %\"union.Kokkos::Impl::SharedAllocationTracker\"** %this.addr.i, align 8\l  %this1.i = load %\"union.Kokkos::Impl::SharedAllocationTracker\"*,\l... %\"union.Kokkos::Impl::SharedAllocationTracker\"** %this.addr.i, align 8\l  %m_record_bits.i = bitcast %\"union.Kokkos::Impl::SharedAllocationTracker\"*\l... %this1.i to i64*\l  %0 = load i64, i64* %m_record_bits.i, align 8\l  %and.i = and i64 %0, 1\l  %tobool.i = icmp ne i64 %and.i, 0\l  br i1 %tobool.i, label %_ZN6Kokkos4Impl23SharedAllocationTrackerD2Ev.exit,\l... label %if.then.i\l|{<s0>T|<s1>F}}"];
+	Node0x5e3aac0:s0 -> Node0x5e3ac50;
+	Node0x5e3aac0:s1 -> Node0x5e3b350;
+	Node0x5e3b350 [shape=record,label="{if.then.i:                                        \l  %m_record.i = bitcast %\"union.Kokkos::Impl::SharedAllocationTracker\"*\l... %this1.i to %\"class.Kokkos::Impl::SharedAllocationRecord\"**\l  %1 = load %\"class.Kokkos::Impl::SharedAllocationRecord\"*,\l... %\"class.Kokkos::Impl::SharedAllocationRecord\"** %m_record.i, align 8\l  %call.i = invoke %\"class.Kokkos::Impl::SharedAllocationRecord\"*\l... @_ZN6Kokkos4Impl22SharedAllocationRecordIvvE9decrementEPS2_(%\"class.Kokkos::Im\l...pl::SharedAllocationRecord\"* %1)\l          to label %invoke.cont.i unwind label %terminate.lpad.i\l}"];
+	Node0x5e3b350 -> Node0x5e3b6b0;
+	Node0x5e3b350 -> Node0x5e3b790;
+	Node0x5e3b6b0 [shape=record,label="{invoke.cont.i:                                    \l  br label %_ZN6Kokkos4Impl23SharedAllocationTrackerD2Ev.exit\l}"];
+	Node0x5e3b6b0 -> Node0x5e3ac50;
+	Node0x5e3b790 [shape=record,label="{terminate.lpad.i:                                 \l  %2 = landingpad \{ i8*, i32 \}\l          catch i8* null\l  %3 = extractvalue \{ i8*, i32 \} %2, 0\l  call void @__clang_call_terminate(i8* %3) #11\l  unreachable\l}"];
+	Node0x5e3ac50 [shape=record,label="{_ZN6Kokkos4Impl23SharedAllocationTrackerD2Ev.exit: \l  ret void\l}"];
+}

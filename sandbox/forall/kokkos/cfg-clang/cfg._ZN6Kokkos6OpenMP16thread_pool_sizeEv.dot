@@ -1,0 +1,16 @@
+digraph "CFG for '_ZN6Kokkos6OpenMP16thread_pool_sizeEv' function" {
+	label="CFG for '_ZN6Kokkos6OpenMP16thread_pool_sizeEv' function";
+
+	Node0x5e7dc80 [shape=record,label="{entry:\l  %ref.tmp = alloca %\"class.Kokkos::OpenMP\", align 1\l  call void @_ZN6Kokkos6OpenMPC2Ev(%\"class.Kokkos::OpenMP\"* %ref.tmp) #6\l  %call = call zeroext i1\l... @_ZN6Kokkos6OpenMP11in_parallelERKS0_(%\"class.Kokkos::OpenMP\"*\l... dereferenceable(1) %ref.tmp) #6\l  br i1 %call, label %cond.true, label %cond.false\l|{<s0>T|<s1>F}}"];
+	Node0x5e7dc80:s0 -> Node0x5e7dfd0;
+	Node0x5e7dc80:s1 -> Node0x5e7e080;
+	Node0x5e7dfd0 [shape=record,label="{cond.true:                                        \l  %call1 = invoke i32 @omp_get_num_threads()\l          to label %invoke.cont unwind label %terminate.lpad\l}"];
+	Node0x5e7dfd0 -> Node0x5e7e1c0;
+	Node0x5e7dfd0 -> Node0x5e7e240;
+	Node0x5e7e1c0 [shape=record,label="{invoke.cont:                                      \l  br label %cond.end\l}"];
+	Node0x5e7e1c0 -> Node0x5e7e5a0;
+	Node0x5e7e080 [shape=record,label="{cond.false:                                       \l  %0 = load %\"class.Kokkos::Impl::OpenMPExec\"*,\l... %\"class.Kokkos::Impl::OpenMPExec\"** @_ZN6Kokkos4Impl17t_openmp_instanceE,\l... align 8\l  %m_pool_size = getelementptr inbounds %\"class.Kokkos::Impl::OpenMPExec\",\l... %\"class.Kokkos::Impl::OpenMPExec\"* %0, i32 0, i32 0\l  %1 = load i32, i32* %m_pool_size, align 8\l  br label %cond.end\l}"];
+	Node0x5e7e080 -> Node0x5e7e5a0;
+	Node0x5e7e5a0 [shape=record,label="{cond.end:                                         \l  %cond = phi i32 [ %call1, %invoke.cont ], [ %1, %cond.false ]\l  ret i32 %cond\l}"];
+	Node0x5e7e240 [shape=record,label="{terminate.lpad:                                   \l  %2 = landingpad \{ i8*, i32 \}\l          catch i8* null\l  %3 = extractvalue \{ i8*, i32 \} %2, 0\l  call void @__clang_call_terminate(i8* %3) #11\l  unreachable\l}"];
+}

@@ -1,0 +1,19 @@
+digraph "CFG for '_ZN6Kokkos11RangePolicyIJNS_6OpenMPEEEC2ERKS1_mm' function" {
+	label="CFG for '_ZN6Kokkos11RangePolicyIJNS_6OpenMPEEEC2ERKS1_mm' function";
+
+	Node0x5e75fb0 [shape=record,label="{entry:\l  %this.addr = alloca %\"class.Kokkos::RangePolicy\"*, align 8\l  %work_space.addr = alloca %\"class.Kokkos::OpenMP\"*, align 8\l  %work_begin.addr = alloca i64, align 8\l  %work_end.addr = alloca i64, align 8\l  store %\"class.Kokkos::RangePolicy\"* %this, %\"class.Kokkos::RangePolicy\"**\l... %this.addr, align 8\l  store %\"class.Kokkos::OpenMP\"* %work_space, %\"class.Kokkos::OpenMP\"**\l... %work_space.addr, align 8\l  store i64 %work_begin, i64* %work_begin.addr, align 8\l  store i64 %work_end, i64* %work_end.addr, align 8\l  %this1 = load %\"class.Kokkos::RangePolicy\"*, %\"class.Kokkos::RangePolicy\"**\l... %this.addr, align 8\l  %0 = bitcast %\"class.Kokkos::RangePolicy\"* %this1 to\l... %\"struct.Kokkos::Impl::PolicyTraits\"*\l  %m_space = getelementptr inbounds %\"class.Kokkos::RangePolicy\",\l... %\"class.Kokkos::RangePolicy\"* %this1, i32 0, i32 0\l  %1 = load %\"class.Kokkos::OpenMP\"*, %\"class.Kokkos::OpenMP\"**\l... %work_space.addr, align 8\l  %m_begin = getelementptr inbounds %\"class.Kokkos::RangePolicy\",\l... %\"class.Kokkos::RangePolicy\"* %this1, i32 0, i32 1\l  %2 = load i64, i64* %work_begin.addr, align 8\l  %3 = load i64, i64* %work_end.addr, align 8\l  %cmp = icmp ult i64 %2, %3\l  br i1 %cmp, label %cond.true, label %cond.false\l|{<s0>T|<s1>F}}"];
+	Node0x5e75fb0:s0 -> Node0x5e75e70;
+	Node0x5e75fb0:s1 -> Node0x5e768d0;
+	Node0x5e75e70 [shape=record,label="{cond.true:                                        \l  %4 = load i64, i64* %work_begin.addr, align 8\l  br label %cond.end\l}"];
+	Node0x5e75e70 -> Node0x5e76a90;
+	Node0x5e768d0 [shape=record,label="{cond.false:                                       \l  br label %cond.end\l}"];
+	Node0x5e768d0 -> Node0x5e76a90;
+	Node0x5e76a90 [shape=record,label="{cond.end:                                         \l  %cond = phi i64 [ %4, %cond.true ], [ 0, %cond.false ]\l  store i64 %cond, i64* %m_begin, align 8\l  %m_end = getelementptr inbounds %\"class.Kokkos::RangePolicy\",\l... %\"class.Kokkos::RangePolicy\"* %this1, i32 0, i32 2\l  %5 = load i64, i64* %work_begin.addr, align 8\l  %6 = load i64, i64* %work_end.addr, align 8\l  %cmp2 = icmp ult i64 %5, %6\l  br i1 %cmp2, label %cond.true3, label %cond.false4\l|{<s0>T|<s1>F}}"];
+	Node0x5e76a90:s0 -> Node0x5e76e90;
+	Node0x5e76a90:s1 -> Node0x5e76f70;
+	Node0x5e76e90 [shape=record,label="{cond.true3:                                       \l  %7 = load i64, i64* %work_end.addr, align 8\l  br label %cond.end5\l}"];
+	Node0x5e76e90 -> Node0x5e770e0;
+	Node0x5e76f70 [shape=record,label="{cond.false4:                                      \l  br label %cond.end5\l}"];
+	Node0x5e76f70 -> Node0x5e770e0;
+	Node0x5e770e0 [shape=record,label="{cond.end5:                                        \l  %cond6 = phi i64 [ %7, %cond.true3 ], [ 0, %cond.false4 ]\l  store i64 %cond6, i64* %m_end, align 8\l  %m_granularity = getelementptr inbounds %\"class.Kokkos::RangePolicy\",\l... %\"class.Kokkos::RangePolicy\"* %this1, i32 0, i32 3\l  store i64 0, i64* %m_granularity, align 8\l  %m_granularity_mask = getelementptr inbounds %\"class.Kokkos::RangePolicy\",\l... %\"class.Kokkos::RangePolicy\"* %this1, i32 0, i32 4\l  store i64 0, i64* %m_granularity_mask, align 8\l  call void\l... @_ZN6Kokkos11RangePolicyIJNS_6OpenMPEEE19set_auto_chunk_sizeEv(%\"class.Kokkos:\l...:RangePolicy\"* %this1)\l  ret void\l}"];
+}

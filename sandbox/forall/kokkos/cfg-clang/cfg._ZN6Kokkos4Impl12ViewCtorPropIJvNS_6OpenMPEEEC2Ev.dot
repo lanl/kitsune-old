@@ -1,0 +1,5 @@
+digraph "CFG for '_ZN6Kokkos4Impl12ViewCtorPropIJvNS_6OpenMPEEEC2Ev' function" {
+	label="CFG for '_ZN6Kokkos4Impl12ViewCtorPropIJvNS_6OpenMPEEEC2Ev' function";
+
+	Node0x5e2ec70 [shape=record,label="{entry:\l  %this.addr = alloca %\"struct.Kokkos::Impl::ViewCtorProp.4\"*, align 8\l  store %\"struct.Kokkos::Impl::ViewCtorProp.4\"* %this,\l... %\"struct.Kokkos::Impl::ViewCtorProp.4\"** %this.addr, align 8\l  %this1 = load %\"struct.Kokkos::Impl::ViewCtorProp.4\"*,\l... %\"struct.Kokkos::Impl::ViewCtorProp.4\"** %this.addr, align 8\l  %value = getelementptr inbounds %\"struct.Kokkos::Impl::ViewCtorProp.4\",\l... %\"struct.Kokkos::Impl::ViewCtorProp.4\"* %this1, i32 0, i32 0\l  call void @_ZN6Kokkos6OpenMPC2Ev(%\"class.Kokkos::OpenMP\"* %value) #6\l  ret void\l}"];
+}

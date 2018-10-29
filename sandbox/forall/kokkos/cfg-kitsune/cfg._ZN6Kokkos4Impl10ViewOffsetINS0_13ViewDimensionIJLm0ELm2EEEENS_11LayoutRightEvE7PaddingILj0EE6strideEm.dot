@@ -1,0 +1,5 @@
+digraph "CFG for '_ZN6Kokkos4Impl10ViewOffsetINS0_13ViewDimensionIJLm0ELm2EEEENS_11LayoutRightEvE7PaddingILj0EE6strideEm' function" {
+	label="CFG for '_ZN6Kokkos4Impl10ViewOffsetINS0_13ViewDimensionIJLm0ELm2EEEENS_11LayoutRightEvE7PaddingILj0EE6strideEm' function";
+
+	Node0x57bebc0 [shape=record,label="{entry:\l  %N.addr = alloca i64, align 8\l  store i64 %N, i64* %N.addr, align 8\l  %0 = load i64, i64* %N.addr, align 8\l  ret i64 %0\l}"];
+}

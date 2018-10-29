@@ -1541,8 +1541,10 @@ FinishIdentifier:
 
     // Finally, now that we know we have an identifier, pass this off to the
     // preprocessor, which may macro expand it or something.
-    if (II->isHandleIdentifierCase())
-      return PP->HandleIdentifier(Result);
+    if (II->isHandleIdentifierCase()) {
+      bool retval = PP->HandleIdentifier(Result);
+      return retval;
+    }
 
     if (II->getTokenID() == tok::identifier && isCodeCompletionPoint(CurPtr)
         && II->getPPKeywordID() == tok::pp_not_keyword

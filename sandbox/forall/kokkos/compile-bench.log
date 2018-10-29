@@ -1,0 +1,1484 @@
+************** Optimization flag: O0
+----- forall-kokkos-1.cpp
+clang O0:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O0 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-1.cpp -o forall-kokkos-1.clang.O0 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 6.20
+user 5.94
+sys 0.15
+kitsune O0:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O0 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-1.cpp -o forall-kokkos-1.kitsune.O0 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+real 4.99
+user 4.67
+sys 0.21
+-----
+----- forall-kokkos-2.cpp
+clang O0:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O0 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-2.cpp -o forall-kokkos-2.clang.O0 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 6.22
+user 5.96
+sys 0.15
+kitsune O0:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O0 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-2.cpp -o forall-kokkos-2.kitsune.O0 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+real 5.00
+user 4.69
+sys 0.21
+-----
+----- forall-kokkos-3.cpp
+clang O0:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O0 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-3.cpp -o forall-kokkos-3.clang.O0 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 6.21
+user 5.93
+sys 0.17
+kitsune O0:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O0 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-3.cpp -o forall-kokkos-3.kitsune.O0 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+real 5.01
+user 4.70
+sys 0.20
+-----
+----- forall-kokkos-4.cpp
+clang O0:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O0 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-4.cpp -o forall-kokkos-4.clang.O0 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 6.20
+user 5.95
+sys 0.17
+kitsune O0:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O0 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-4.cpp -o forall-kokkos-4.kitsune.O0 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+real 5.00
+user 4.69
+sys 0.20
+-----
+----- forall-kokkos-5.cpp
+clang O0:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O0 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-5.cpp -o forall-kokkos-5.clang.O0 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 6.28
+user 6.03
+sys 0.14
+kitsune O0:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O0 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-5.cpp -o forall-kokkos-5.kitsune.O0 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+real 5.05
+user 4.70
+sys 0.23
+-----
+----- forall-kokkos-10.cpp
+clang O0:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O0 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-10.cpp -o forall-kokkos-10.clang.O0 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 6.46
+user 6.10
+sys 0.26
+kitsune O0:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O0 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-10.cpp -o forall-kokkos-10.kitsune.O0 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+real 5.06
+user 4.72
+sys 0.22
+-----
+----- forall-kokkos-15.cpp
+clang O0:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O0 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-15.cpp -o forall-kokkos-15.clang.O0 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 6.45
+user 6.19
+sys 0.15
+kitsune O0:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O0 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-15.cpp -o forall-kokkos-15.kitsune.O0 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+real 5.21
+user 4.84
+sys 0.27
+-----
+----- forall-kokkos-30.cpp
+clang O0:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O0 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-30.cpp -o forall-kokkos-30.clang.O0 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 6.60
+user 6.36
+sys 0.13
+kitsune O0:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O0 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-30.cpp -o forall-kokkos-30.kitsune.O0 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+real 5.16
+user 4.85
+sys 0.20
+-----
+----- forall-kokkos-60.cpp
+clang O0:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O0 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-60.cpp -o forall-kokkos-60.clang.O0 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 7.03
+user 6.76
+sys 0.16
+kitsune O0:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O0 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-60.cpp -o forall-kokkos-60.kitsune.O0 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+real 5.36
+user 5.05
+sys 0.21
+-----
+----- forall-kokkos-120.cpp
+clang O0:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O0 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-120.cpp -o forall-kokkos-120.clang.O0 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 7.89
+user 7.60
+sys 0.17
+kitsune O0:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O0 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-120.cpp -o forall-kokkos-120.kitsune.O0 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+real 5.78
+user 5.47
+sys 0.20
+-----
+************** Optimization flag: O1
+----- forall-kokkos-1.cpp
+clang O1:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O1 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-1.cpp -o forall-kokkos-1.clang.O1 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 6.42
+user 6.16
+sys 0.15
+kitsune O1:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O1 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-1.cpp -o forall-kokkos-1.kitsune.O1 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+real 5.26
+user 4.95
+sys 0.19
+-----
+----- forall-kokkos-2.cpp
+clang O1:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O1 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-2.cpp -o forall-kokkos-2.clang.O1 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 6.45
+user 6.18
+sys 0.16
+kitsune O1:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O1 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-2.cpp -o forall-kokkos-2.kitsune.O1 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+real 5.19
+user 4.87
+sys 0.23
+-----
+----- forall-kokkos-3.cpp
+clang O1:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O1 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-3.cpp -o forall-kokkos-3.clang.O1 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 6.47
+user 6.21
+sys 0.15
+kitsune O1:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O1 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-3.cpp -o forall-kokkos-3.kitsune.O1 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+real 5.23
+user 4.93
+sys 0.20
+-----
+----- forall-kokkos-4.cpp
+clang O1:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O1 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-4.cpp -o forall-kokkos-4.clang.O1 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 6.49
+user 6.23
+sys 0.16
+kitsune O1:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O1 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-4.cpp -o forall-kokkos-4.kitsune.O1 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+real 5.23
+user 4.96
+sys 0.19
+-----
+----- forall-kokkos-5.cpp
+clang O1:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O1 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-5.cpp -o forall-kokkos-5.clang.O1 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 6.53
+user 6.29
+sys 0.14
+kitsune O1:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O1 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-5.cpp -o forall-kokkos-5.kitsune.O1 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+real 5.25
+user 4.96
+sys 0.21
+-----
+----- forall-kokkos-10.cpp
+clang O1:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O1 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-10.cpp -o forall-kokkos-10.clang.O1 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 6.69
+user 6.43
+sys 0.17
+kitsune O1:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O1 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-10.cpp -o forall-kokkos-10.kitsune.O1 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+real 5.37
+user 5.06
+sys 0.22
+-----
+----- forall-kokkos-15.cpp
+clang O1:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O1 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-15.cpp -o forall-kokkos-15.clang.O1 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 6.86
+user 6.61
+sys 0.16
+kitsune O1:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O1 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-15.cpp -o forall-kokkos-15.kitsune.O1 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+real 5.47
+user 5.18
+sys 0.20
+-----
+----- forall-kokkos-30.cpp
+clang O1:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O1 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-30.cpp -o forall-kokkos-30.clang.O1 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 7.40
+user 7.17
+sys 0.15
+kitsune O1:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O1 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-30.cpp -o forall-kokkos-30.kitsune.O1 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+real 5.82
+user 5.54
+sys 0.20
+-----
+----- forall-kokkos-60.cpp
+clang O1:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O1 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-60.cpp -o forall-kokkos-60.clang.O1 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 8.42
+user 8.15
+sys 0.18
+kitsune O1:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O1 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-60.cpp -o forall-kokkos-60.kitsune.O1 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+real 6.58
+user 6.25
+sys 0.23
+-----
+----- forall-kokkos-120.cpp
+clang O1:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O1 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-120.cpp -o forall-kokkos-120.clang.O1 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 10.53
+user 10.24
+sys 0.19
+kitsune O1:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O1 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-120.cpp -o forall-kokkos-120.kitsune.O1 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+real 8.28
+user 7.97
+sys 0.19
+-----
+************** Optimization flag: O2
+----- forall-kokkos-1.cpp
+clang O2:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O2 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-1.cpp -o forall-kokkos-1.clang.O2 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 6.39
+user 6.15
+sys 0.13
+kitsune O2:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O2 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-1.cpp -o forall-kokkos-1.kitsune.O2 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+real 5.15
+user 4.85
+sys 0.19
+-----
+----- forall-kokkos-2.cpp
+clang O2:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O2 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-2.cpp -o forall-kokkos-2.clang.O2 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 6.48
+user 6.21
+sys 0.17
+kitsune O2:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O2 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-2.cpp -o forall-kokkos-2.kitsune.O2 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+real 5.17
+user 4.85
+sys 0.21
+-----
+----- forall-kokkos-3.cpp
+clang O2:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O2 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-3.cpp -o forall-kokkos-3.clang.O2 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 6.52
+user 6.29
+sys 0.13
+kitsune O2:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O2 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-3.cpp -o forall-kokkos-3.kitsune.O2 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+real 5.17
+user 4.89
+sys 0.19
+-----
+----- forall-kokkos-4.cpp
+clang O2:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O2 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-4.cpp -o forall-kokkos-4.clang.O2 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 6.57
+user 6.35
+sys 0.15
+kitsune O2:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O2 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-4.cpp -o forall-kokkos-4.kitsune.O2 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+real 5.17
+user 4.88
+sys 0.21
+-----
+----- forall-kokkos-5.cpp
+clang O2:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O2 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-5.cpp -o forall-kokkos-5.clang.O2 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 6.66
+user 6.40
+sys 0.16
+kitsune O2:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O2 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-5.cpp -o forall-kokkos-5.kitsune.O2 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+real 5.18
+user 4.92
+sys 0.18
+-----
+----- forall-kokkos-10.cpp
+clang O2:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O2 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-10.cpp -o forall-kokkos-10.clang.O2 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 6.99
+user 6.75
+sys 0.15
+kitsune O2:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O2 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-10.cpp -o forall-kokkos-10.kitsune.O2 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+real 5.31
+user 5.04
+sys 0.19
+-----
+----- forall-kokkos-15.cpp
+clang O2:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O2 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-15.cpp -o forall-kokkos-15.clang.O2 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 7.36
+user 7.10
+sys 0.16
+kitsune O2:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O2 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-15.cpp -o forall-kokkos-15.kitsune.O2 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+real 5.42
+user 5.14
+sys 0.19
+-----
+----- forall-kokkos-30.cpp
+clang O2:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O2 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-30.cpp -o forall-kokkos-30.clang.O2 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 8.44
+user 8.20
+sys 0.15
+kitsune O2:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O2 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-30.cpp -o forall-kokkos-30.kitsune.O2 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+real 6.04
+user 5.48
+sys 0.22
+-----
+----- forall-kokkos-60.cpp
+clang O2:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O2 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-60.cpp -o forall-kokkos-60.clang.O2 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 11.01
+user 10.72
+sys 0.18
+kitsune O2:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O2 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-60.cpp -o forall-kokkos-60.kitsune.O2 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+real 6.59
+user 6.27
+sys 0.22
+-----
+----- forall-kokkos-120.cpp
+clang O2:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O2 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-120.cpp -o forall-kokkos-120.clang.O2 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 17.28
+user 16.96
+sys 0.21
+kitsune O2:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O2 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-120.cpp -o forall-kokkos-120.kitsune.O2 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+real 8.66
+user 8.32
+sys 0.23
+-----
+************** Optimization flag: O3
+----- forall-kokkos-1.cpp
+clang O3:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O3 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-1.cpp -o forall-kokkos-1.clang.O3 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 6.38
+user 6.11
+sys 0.17
+kitsune O3:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O3 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-1.cpp -o forall-kokkos-1.kitsune.O3 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+real 5.13
+user 4.86
+sys 0.18
+-----
+----- forall-kokkos-2.cpp
+clang O3:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O3 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-2.cpp -o forall-kokkos-2.clang.O3 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 6.53
+user 6.19
+sys 0.14
+kitsune O3:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O3 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-2.cpp -o forall-kokkos-2.kitsune.O3 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+real 5.14
+user 4.83
+sys 0.21
+-----
+----- forall-kokkos-3.cpp
+clang O3:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O3 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-3.cpp -o forall-kokkos-3.clang.O3 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 6.57
+user 6.31
+sys 0.14
+kitsune O3:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O3 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-3.cpp -o forall-kokkos-3.kitsune.O3 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+real 5.17
+user 4.88
+sys 0.20
+-----
+----- forall-kokkos-4.cpp
+clang O3:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O3 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-4.cpp -o forall-kokkos-4.clang.O3 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 6.57
+user 6.33
+sys 0.16
+kitsune O3:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O3 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-4.cpp -o forall-kokkos-4.kitsune.O3 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+real 5.17
+user 4.84
+sys 0.24
+-----
+----- forall-kokkos-5.cpp
+clang O3:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O3 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-5.cpp -o forall-kokkos-5.clang.O3 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 6.64
+user 6.42
+sys 0.12
+kitsune O3:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O3 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-5.cpp -o forall-kokkos-5.kitsune.O3 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+real 5.18
+user 4.88
+sys 0.22
+-----
+----- forall-kokkos-10.cpp
+clang O3:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O3 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-10.cpp -o forall-kokkos-10.clang.O3 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 7.03
+user 6.77
+sys 0.16
+kitsune O3:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O3 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-10.cpp -o forall-kokkos-10.kitsune.O3 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+real 5.30
+user 5.01
+sys 0.21
+-----
+----- forall-kokkos-15.cpp
+clang O3:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O3 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-15.cpp -o forall-kokkos-15.clang.O3 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 7.37
+user 7.12
+sys 0.16
+kitsune O3:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O3 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-15.cpp -o forall-kokkos-15.kitsune.O3 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+real 5.43
+user 5.16
+sys 0.19
+-----
+----- forall-kokkos-30.cpp
+clang O3:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O3 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-30.cpp -o forall-kokkos-30.clang.O3 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 8.47
+user 8.23
+sys 0.15
+kitsune O3:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O3 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-30.cpp -o forall-kokkos-30.kitsune.O3 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+real 5.82
+user 5.51
+sys 0.21
+-----
+----- forall-kokkos-60.cpp
+clang O3:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O3 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-60.cpp -o forall-kokkos-60.clang.O3 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 11.07
+user 10.78
+sys 0.19
+kitsune O3:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O3 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-60.cpp -o forall-kokkos-60.kitsune.O3 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+real 6.56
+user 6.29
+sys 0.19
+-----
+----- forall-kokkos-120.cpp
+clang O3:
+/projects/kitsune/local/llvm/bin/clang++ -std=c++11 -O3 -fopenmp -I/projects/kitsune/local/kokkos/include forall-kokkos-120.cpp -o forall-kokkos-120.clang.O3 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+real 17.37
+user 17.09
+sys 0.20
+kitsune O3:
+/projects/kitsune/local/kitsune/bin/kokkos-clang++ -std=c++11 -O3 -fopenmp -fkokkos -ftapir=cilk -I/projects/kitsune/local/kokkos/include forall-kokkos-120.cpp -o forall-kokkos-120.kitsune.O3 -L/projects/kitsune/local/kokkos/lib -L/projects/kitsune/local/lib -lkokkos -ldl
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+I'm in an emit kokkos construct phase.
+real 8.68
+user 8.37
+sys 0.20
+-----

@@ -1,0 +1,5 @@
+digraph "CFG for '_ZN6Kokkos6OpenMP5fenceERKS0_' function" {
+	label="CFG for '_ZN6Kokkos6OpenMP5fenceERKS0_' function";
+
+	Node0x5e74e70 [shape=record,label="{entry:\l  %instance.addr = alloca %\"class.Kokkos::OpenMP\"*, align 8\l  store %\"class.Kokkos::OpenMP\"* %instance, %\"class.Kokkos::OpenMP\"**\l... %instance.addr, align 8\l  ret void\l}"];
+}
