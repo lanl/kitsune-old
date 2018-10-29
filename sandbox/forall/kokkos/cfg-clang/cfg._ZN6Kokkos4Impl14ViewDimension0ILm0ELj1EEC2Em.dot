@@ -1,0 +1,5 @@
+digraph "CFG for '_ZN6Kokkos4Impl14ViewDimension0ILm0ELj1EEC2Em' function" {
+	label="CFG for '_ZN6Kokkos4Impl14ViewDimension0ILm0ELj1EEC2Em' function";
+
+	Node0x5e41b70 [shape=record,label="{entry:\l  %this.addr = alloca %\"struct.Kokkos::Impl::ViewDimension0\"*, align 8\l  %V.addr = alloca i64, align 8\l  store %\"struct.Kokkos::Impl::ViewDimension0\"* %this,\l... %\"struct.Kokkos::Impl::ViewDimension0\"** %this.addr, align 8\l  store i64 %V, i64* %V.addr, align 8\l  %this1 = load %\"struct.Kokkos::Impl::ViewDimension0\"*,\l... %\"struct.Kokkos::Impl::ViewDimension0\"** %this.addr, align 8\l  %N0 = getelementptr inbounds %\"struct.Kokkos::Impl::ViewDimension0\",\l... %\"struct.Kokkos::Impl::ViewDimension0\"* %this1, i32 0, i32 0\l  %0 = load i64, i64* %V.addr, align 8\l  store i64 %0, i64* %N0, align 8\l  ret void\l}"];
+}

@@ -789,6 +789,7 @@ bool DACLoopSpawning::processLoop() {
                << "removing the IV "
                << NV("PHINode", PN));
       Value *NewIV = Exp.expandCodeFor(S, S->getType(), CanonicalIV);
+      if(S->getType() != CanonicalIVTy) return false; 
       PN->replaceAllUsesWith(NewIV);
       IVsToRemove.push_back(PN);
     }

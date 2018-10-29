@@ -50,6 +50,7 @@
 #include <system_error>
 using namespace clang;
 
+
 //===----------------------------------------------------------------------===//
 // Initialization.
 //===----------------------------------------------------------------------===//
@@ -2730,6 +2731,9 @@ bool CompilerInvocation::CreateFromArgs(CompilerInvocation &Res,
   // Set the triple of the host for OpenMP device compile.
   if (LangOpts.OpenMPIsDevice)
     Res.getTargetOpts().HostTriple = Res.getFrontendOpts().AuxTriple;
+
+  LangOpts.FleCSI = Args.hasArg(OPT_fflecsi);
+  LangOpts.Kokkos = Args.hasArg(OPT_fkokkos);
 
   // FIXME: Override value name discarding when asan or msan is used because the
   // backend passes depend on the name of the alloca in order to print out

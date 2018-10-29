@@ -73,7 +73,9 @@ class Driver {
     GCCMode,
     GXXMode,
     CPPMode,
-    CLMode
+    CLMode,
+    FleCSIMode,
+    KokkosMode,
   } Mode;
 
   enum SaveTempsMode {
@@ -171,7 +173,9 @@ public:
       InputList;
 
   /// Whether the driver should follow g++ like behavior.
-  bool CCCIsCXX() const { return Mode == GXXMode; }
+  bool CCCIsCXX() const { 
+    return Mode == GXXMode || Mode == FleCSIMode || Mode == KokkosMode;
+  }
 
   /// Whether the driver is just the preprocessor.
   bool CCCIsCPP() const { return Mode == CPPMode; }
@@ -181,6 +185,9 @@ public:
 
   /// Whether the driver should follow cl.exe like behavior.
   bool IsCLMode() const { return Mode == CLMode; }
+
+  bool CCCIsFleCSI() const { return Mode == FleCSIMode; }
+  bool CCCIsKokkos() const { return Mode == KokkosMode; }
 
   /// Only print tool bindings, don't build any jobs.
   unsigned CCCPrintBindings : 1;

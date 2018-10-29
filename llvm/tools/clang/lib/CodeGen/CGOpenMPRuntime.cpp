@@ -6867,7 +6867,7 @@ void CGOpenMPRuntime::emitTargetCall(CodeGenFunction &CGF,
   for (CapturedStmt::const_capture_iterator CI = CS.capture_begin(),
                                             CE = CS.capture_end();
        CI != CE; ++CI, ++RI, ++CV) {
-    StringRef Name;
+    //StringRef Name;
     QualType Ty;
 
     CurBasePointers.clear();

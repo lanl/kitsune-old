@@ -2493,7 +2493,12 @@ enum CXCursorKind {
    */
   CXCursor_CilkForStmt                   = 283,
 
-  CXCursor_LastStmt = CXCursor_CilkForStmt,
+  /** \brief A _Kitsune_ statement.  
+   */
+  /* FIXME! -- Needs to be split out into forall stmts. */
+  CXCursor_KitsuneStmt                   = 284,  
+
+  CXCursor_LastStmt = CXCursor_KitsuneStmt,
 
   /**
    * \brief Cursor that represents the translation unit itself.

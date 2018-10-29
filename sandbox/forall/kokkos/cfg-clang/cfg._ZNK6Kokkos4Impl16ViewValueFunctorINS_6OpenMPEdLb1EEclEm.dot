@@ -1,0 +1,5 @@
+digraph "CFG for '_ZNK6Kokkos4Impl16ViewValueFunctorINS_6OpenMPEdLb1EEclEm' function" {
+	label="CFG for '_ZNK6Kokkos4Impl16ViewValueFunctorINS_6OpenMPEdLb1EEclEm' function";
+
+	Node0x5e75070 [shape=record,label="{entry:\l  %this.addr = alloca %\"struct.Kokkos::Impl::ViewValueFunctor\"*, align 8\l  %i.addr = alloca i64, align 8\l  store %\"struct.Kokkos::Impl::ViewValueFunctor\"* %this,\l... %\"struct.Kokkos::Impl::ViewValueFunctor\"** %this.addr, align 8\l  store i64 %i, i64* %i.addr, align 8\l  %this1 = load %\"struct.Kokkos::Impl::ViewValueFunctor\"*,\l... %\"struct.Kokkos::Impl::ViewValueFunctor\"** %this.addr, align 8\l  %ptr = getelementptr inbounds %\"struct.Kokkos::Impl::ViewValueFunctor\",\l... %\"struct.Kokkos::Impl::ViewValueFunctor\"* %this1, i32 0, i32 1\l  %0 = load double*, double** %ptr, align 8\l  %1 = load i64, i64* %i.addr, align 8\l  %arrayidx = getelementptr inbounds double, double* %0, i64 %1\l  store double 0.000000e+00, double* %arrayidx, align 8\l  ret void\l}"];
+}

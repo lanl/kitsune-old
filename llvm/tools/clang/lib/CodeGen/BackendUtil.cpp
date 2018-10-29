@@ -508,6 +508,7 @@ void EmitAssemblyHelper::CreatePasses(legacy::PassManager &MPM,
   PMBuilder.OptLevel = CodeGenOpts.OptimizationLevel;
 
   switch(LangOpts.Tapir){
+    case TapirTargetType::CilkR: // FIXME! -- not sure if this is valid or not... -PM 
     case TapirTargetType::Cilk:
       PMBuilder.tapirTarget = new llvm::CilkABI();
       break;

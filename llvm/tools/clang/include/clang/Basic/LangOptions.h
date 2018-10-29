@@ -24,6 +24,7 @@
 #include <string>
 #include <vector>
 
+
 namespace clang {
 
 /// Bitfields of LangOptions, split out from LangOptions in order to ensure that

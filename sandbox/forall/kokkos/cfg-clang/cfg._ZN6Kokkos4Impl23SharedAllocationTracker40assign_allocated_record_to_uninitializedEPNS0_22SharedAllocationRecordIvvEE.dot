@@ -1,0 +1,12 @@
+digraph "CFG for '_ZN6Kokkos4Impl23SharedAllocationTracker40assign_allocated_record_to_uninitializedEPNS0_22SharedAllocationRecordIvvEE' function" {
+	label="CFG for '_ZN6Kokkos4Impl23SharedAllocationTracker40assign_allocated_record_to_uninitializedEPNS0_22SharedAllocationRecordIvvEE' function";
+
+	Node0x5e52900 [shape=record,label="{entry:\l  %this.addr = alloca %\"union.Kokkos::Impl::SharedAllocationTracker\"*, align 8\l  %arg_record.addr = alloca %\"class.Kokkos::Impl::SharedAllocationRecord\"*,\l... align 8\l  store %\"union.Kokkos::Impl::SharedAllocationTracker\"* %this,\l... %\"union.Kokkos::Impl::SharedAllocationTracker\"** %this.addr, align 8\l  store %\"class.Kokkos::Impl::SharedAllocationRecord\"* %arg_record,\l... %\"class.Kokkos::Impl::SharedAllocationRecord\"** %arg_record.addr, align 8\l  %this1 = load %\"union.Kokkos::Impl::SharedAllocationTracker\"*,\l... %\"union.Kokkos::Impl::SharedAllocationTracker\"** %this.addr, align 8\l  %0 = load %\"class.Kokkos::Impl::SharedAllocationRecord\"*,\l... %\"class.Kokkos::Impl::SharedAllocationRecord\"** %arg_record.addr, align 8\l  %tobool = icmp ne %\"class.Kokkos::Impl::SharedAllocationRecord\"* %0, null\l  br i1 %tobool, label %if.then, label %if.else\l|{<s0>T|<s1>F}}"];
+	Node0x5e52900:s0 -> Node0x5e52c00;
+	Node0x5e52900:s1 -> Node0x5e52cd0;
+	Node0x5e52c00 [shape=record,label="{if.then:                                          \l  %1 = load %\"class.Kokkos::Impl::SharedAllocationRecord\"*,\l... %\"class.Kokkos::Impl::SharedAllocationRecord\"** %arg_record.addr, align 8\l  %m_record = bitcast %\"union.Kokkos::Impl::SharedAllocationTracker\"* %this1\l... to %\"class.Kokkos::Impl::SharedAllocationRecord\"**\l  store %\"class.Kokkos::Impl::SharedAllocationRecord\"* %1,\l... %\"class.Kokkos::Impl::SharedAllocationRecord\"** %m_record, align 8\l  call void\l... @_ZN6Kokkos4Impl22SharedAllocationRecordIvvE9incrementEPS2_(%\"class.Kokkos::Im\l...pl::SharedAllocationRecord\"* %1)\l  br label %if.end\l}"];
+	Node0x5e52c00 -> Node0x5e52f60;
+	Node0x5e52cd0 [shape=record,label="{if.else:                                          \l  %m_record_bits = bitcast %\"union.Kokkos::Impl::SharedAllocationTracker\"*\l... %this1 to i64*\l  store i64 1, i64* %m_record_bits, align 8\l  br label %if.end\l}"];
+	Node0x5e52cd0 -> Node0x5e52f60;
+	Node0x5e52f60 [shape=record,label="{if.end:                                           \l  ret void\l}"];
+}

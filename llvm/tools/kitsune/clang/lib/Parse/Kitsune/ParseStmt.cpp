@@ -105,7 +105,7 @@ StmtResult Parser::ParseForAllStatement(SourceLocation *TrailingElseLoc) {
 
   BalancedDelimiterTracker T(*this, tok::l_paren);
   
-  SourceLocation LP = Tok.getLocation();
+  //SourceLocation LP = Tok.getLocation();
   T.consumeOpen();
 
   ExprResult Value;

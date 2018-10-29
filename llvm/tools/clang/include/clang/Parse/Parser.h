@@ -55,6 +55,7 @@ namespace clang {
 /// been read.
 ///
 class Parser : public CodeCompletionHandler {
+
   friend class ColonProtectionRAIIObject;
   friend class InMessageExpressionRAIIObject;
   friend class PoisonSEHIdentifiersRAIIObject;
