@@ -20,7 +20,6 @@
 #include "clang/Sema/ScopeInfo.h"
 #include "llvm/ADT/StringExtras.h"
 
-#include <iostream>
 using namespace clang;
 using namespace sema;
 
@@ -411,14 +410,6 @@ static Attr *ProcessStmtAttribute(Sema &S, Stmt *St, const AttributeList &A,
     return handleOpenCLUnrollHint(S, St, A, Range);
   case AttributeList::AT_Suppress:
     return handleSuppressAttr(S, St, A, Range);
-  // +===== Kitsune: TODO -- 
-  case AttributeList::AT_TapirTarget:
-    return handleTapirTargetAttr(S, St, A, Range);
-    break;
-  case AttributeList::AT_TapirStrategy:
-    return handleTapirStrategyAttr(S, St, A, Range);
-    break;
-  // ======
   default:
     // if we're here, then we parsed a known attribute, but didn't recognize
     // it as a statement attribute => it is declaration attribute
@@ -443,4 +434,3 @@ StmtResult Sema::ProcessStmtAttributes(Stmt *S, AttributeList *AttrList,
 
   return ActOnAttributedStmt(Range.getBegin(), Attrs, S);
 }
-

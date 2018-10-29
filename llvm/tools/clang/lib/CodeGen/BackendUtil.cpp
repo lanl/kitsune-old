@@ -59,19 +59,12 @@
 #include "llvm/Transforms/Tapir/CilkABI.h"
 #include "llvm/Transforms/Tapir/OpenMPABI.h"
 #include "llvm/Transforms/Tapir/QthreadsABI.h"
+#include "llvm/Transforms/Tapir/RealmABI.h"
 #include "llvm/Transforms/Utils/NameAnonGlobals.h"
 #include "llvm/Transforms/Utils/SymbolRewriter.h"
 #include <memory>
 
-// +===== Kitsune
-#include "llvm/Transforms/Tapir/TapirTypes.h"
-#include "llvm/Transforms/Tapir/TapirUtils.h"
-#include "llvm/Transforms/Tapir/CilkABI.h"
-#include "llvm/Transforms/Tapir/OpenMPABI.h"
-#include "llvm/Transforms/Tapir/PTXABI.h"
-// ==============
 #include <iostream>
-
 using namespace clang;
 using namespace llvm;
 
@@ -514,7 +507,6 @@ void EmitAssemblyHelper::CreatePasses(legacy::PassManager &MPM,
 
   PMBuilder.OptLevel = CodeGenOpts.OptimizationLevel;
 
-  // +===== Kitsune
   switch(LangOpts.Tapir){
     case TapirTargetType::CilkR: // FIXME! -- not sure if this is valid or not... -PM 
     case TapirTargetType::Cilk:
@@ -526,8 +518,8 @@ void EmitAssemblyHelper::CreatePasses(legacy::PassManager &MPM,
     case TapirTargetType::Qthreads:
       PMBuilder.tapirTarget = new llvm::QthreadsABI();
       break;
-    case TapirTargetType::PTX:
-      PMBuilder.tapirTarget = new llvm::PTXABI();
+    case TapirTargetType::Realm:
+      PMBuilder.tapirTarget = new llvm::RealmABI();
       break;
     case TapirTargetType::Serial:
       assert(0 && "TODO MAKE OTHER TAPIR OPTS");
@@ -535,7 +527,7 @@ void EmitAssemblyHelper::CreatePasses(legacy::PassManager &MPM,
       PMBuilder.tapirTarget = nullptr;
       break;
   }
-  
+
   if (LangOpts.Detach) PMBuilder.DisableTapirOpts = true;
   if (LangOpts.Rhino) PMBuilder.Rhino = true;
 

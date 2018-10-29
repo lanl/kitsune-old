@@ -38,8 +38,6 @@
 #include "llvm/Support/Path.h"
 #include "llvm/Transforms/Utils/SanitizerStats.h"
 
-#include "clang/AST/ExprCilk.h"
-
 #include <string>
 
 using namespace clang;

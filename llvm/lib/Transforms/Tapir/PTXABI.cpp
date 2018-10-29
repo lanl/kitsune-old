@@ -289,7 +289,7 @@ bool PTXABILoopSpawning::processLoop(){
       }
     }
     else{
-      v->dump();
+      //v->dump();
       assert(false && "expected a pointer or array type");
     }
   }
@@ -609,10 +609,10 @@ bool PTXABILoopSpawning::processLoop(){
       "__kitsune_gpu_init_kernel"), {kernelId, ptxStr});
 
   for(Value* v : extValues){
-    Value* elementSize = nullptr;
+    Value* elementSize;
     Value* vptr;
     Value* fieldName;
-    Value* size = nullptr;
+    Value* size;
 
     // TODO: fix
     // this is a temporary hack to get the size of the field
@@ -647,7 +647,7 @@ bool PTXABILoopSpawning::processLoop(){
 
       size = b.CreateUDiv(bytes, ConstantInt::get(i64Ty, it->getBitWidth()/8));
     }
-    else if(auto ai = dyn_cast<AllocaInst>(v)) {
+    else if(auto ai = dyn_cast<AllocaInst>(v)){
       Constant* fn = ConstantDataArray::getString(c, ai->getName());
 
       GlobalVariable* fieldNameGlobal = 

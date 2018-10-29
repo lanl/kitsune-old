@@ -10,6 +10,7 @@
 // This coordinates the per-function state used while generating code.
 //
 //===----------------------------------------------------------------------===//
+
 #include "CodeGenFunction.h"
 #include "CGBlocks.h"
 #include "CGCleanup.h"
@@ -1144,13 +1145,6 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD, llvm::Function *Fn,
   // Check if we should generate debug info for this function.
   if (FD->hasAttr<NoDebugAttr>())
     DebugInfo = nullptr; // disable debug info indefinitely for this function
-
-  // +===== Kitsune 
-  // Check to see if the FD has a FleCSI task attribute. 
-  //if (FD->hasAttr<FleCSITaskAttr>()) {
-  //  
-  //}
-  // ======
 
   // The function might not have a body if we're generating thunks for a
   // function declaration.

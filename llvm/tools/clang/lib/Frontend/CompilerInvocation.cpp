@@ -2691,7 +2691,6 @@ bool CompilerInvocation::CreateFromArgs(CompilerInvocation &Res,
   LangOpts.Rhino = Args.hasArg(OPT_frhino);
   LangOpts.Detach = Args.hasArg(OPT_fdetach);
   LangOpts.Cilk = Args.hasArg(OPT_fcilkplus);
-  LangOpts.Tapir = llvm::TapirTargetType::None;
 
   // FIXME: Fix -ftapir=* parsing to use conventional mechanisms for handling
   // arguments.
@@ -2707,6 +2706,8 @@ bool CompilerInvocation::CreateFromArgs(CompilerInvocation &Res,
         LangOpts.Tapir = llvm::TapirTargetType::OpenMP;
       else if (Name == "qthreads")
         LangOpts.Tapir = llvm::TapirTargetType::Qthreads;
+      else if (Name == "realm")
+	LangOpts.Tapir = llvm::TapirTargetType::Realm;
       else if (Name == "serial")
         LangOpts.Tapir = llvm::TapirTargetType::Serial;
       else

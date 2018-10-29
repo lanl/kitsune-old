@@ -7,4 +7,3 @@
 [submodule "llvm/tools/polly"]
 	path = llvm/tools/polly
 	url = https://github.com/wsmoses/Tapir-Polly.git
-	branch=master

@@ -2772,32 +2772,3 @@ def InternalLinkage : InheritableAttr {
   let Subjects = SubjectList<[Var, Function, CXXRecord]>;
   let Documentation = [InternalLinkageDocs];
 }
-
-// +===== Kitsune
-def FleCSITask : Attr {
-  let Spellings = [CXX11<"flecsi", "task">];
-  let Subjects  = SubjectList<[Function], ErrorDiag, "ExpectedFunction">;
-  let Documentation = [Undocumented];
-}
-
-def TapirTarget : StmtAttr {
-  let Spellings = [CXX11<"tapir","target">];
-  let Args = [
-      EnumArgument<"TapirTargetType", "TapirTargetTy",
-      ["ptx", "cilk", "qthreads", "realm", "rocm", "omp"],
-      ["TapirTargetPTX", "TapirTargetCilk", "TapirTargetQthreads", 
-       "TapirTargetRealm", "TapirTargetROCm", "TapirTargetOMP"], 0> 
-  ];
-  let Documentation = [Undocumented];
-}
-
-def TapirStrategy : StmtAttr {
-  let Spellings = [CXX11<"tapir", "strategy">];
-  let Args = [
-      EnumArgument<"TapirStrategyType", "TapirStrategyTy",
-      ["gpu", "seq", "dac"],
-      ["TapirGPUStrategy", "TapirSequentialStrategy", "TapirDivAndConquerStrategy"], 0> 
-  ];
-  let Documentation = [Undocumented];
-}
-// ==============

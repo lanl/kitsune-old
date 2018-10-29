@@ -16,6 +16,7 @@ add_llvm_library(LLVMTapirOpts
 
 # +===== Kitsune
   PTXABI.cpp
+  RealmABI.cpp
 # =============
 
   ADDITIONAL_HEADER_DIRS

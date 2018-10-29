@@ -31,8 +31,6 @@
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/MDBuilder.h"
 
-#include "clang/AST/StmtCilk.h"
-
 using namespace clang;
 using namespace CodeGen;
 
@@ -165,7 +163,6 @@ void CodeGenFunction::EmitStmt(const Stmt *S) {
     EmitCilkSpawnStmt(cast<CilkSpawnStmt>(*S)); break;
   case Stmt::CilkForStmtClass:
     EmitCilkForStmt(cast<CilkForStmt>(*S)); break;
-
   case Stmt::ObjCAtTryStmtClass:
     EmitObjCAtTryStmt(cast<ObjCAtTryStmt>(*S));
     break;
