@@ -914,7 +914,10 @@ static std::string PragmaPvHintString(Token PragmaName, Token Option) {
 }
 
 bool Parser::HandlePragmaPvHint(PvHint &Hint) {
+<<<<<<< HEAD
 
+=======
+>>>>>>> inital pipeline vectorization support added, such that sufficient information can be passed to a sequential gather-scatter transformation (transformation in separate repo).
   assert(Tok.is(tok::annot_pragma_pv_hint));
   PragmaPvHintInfo *Info =
       static_cast<PragmaPvHintInfo *>(Tok.getAnnotationValue());
@@ -962,8 +965,6 @@ bool Parser::HandlePragmaPvHint(PvHint &Hint) {
     StateOption = false;
   }
 
-
-  // bool AssumeSafetyArg = !OptionUnroll && !OptionDistribute && !OptionPv;
   // Verify loop hint has an argument.
   // Not sure if this needs pv stuff
   if (Toks[0].is(tok::eof)) {
@@ -2794,6 +2795,7 @@ static bool ParseLoopHintValue(Preprocessor &PP, Token &Tok, Token PragmaName,
   return false;
 }
 
+<<<<<<< HEAD
 //pvhint
 /// \brief Parses pipevec pragma hint value and fills in Info.
 static bool ParsePvHintValue(Preprocessor &PP, Token &Tok, Token PragmaName,
@@ -2854,6 +2856,119 @@ static bool ParsePvHintValue(Preprocessor &PP, Token &Tok, Token PragmaName,
   } while (OptionValid);
 
 
+=======
+/// \brief Parses pipevec pragma hint value and fills in Info.
+static bool ParsePvHintValue(Preprocessor &PP, Token &Tok, Token PragmaName,
+                               Token Option, bool ValueInParens,
+                               PragmaLoopHintInfo &Info) {
+ 
+ 
+  SmallVector<Token, 1> ValueList;
+  int OpenParens = ValueInParens ? 1 : 0;
+  // Read constant expression.
+  while (Tok.isNot(tok::eod)) {
+    if (Tok.is(tok::l_paren))
+      OpenParens++;
+    else if (Tok.is(tok::r_paren)) {
+      OpenParens--;
+      if (OpenParens == 0 && ValueInParens)
+        break;
+    }
+ 
+    ValueList.push_back(Tok);
+    PP.Lex(Tok);
+  }
+ 
+  if (ValueInParens) {
+    // Read ')'
+    if (Tok.isNot(tok::r_paren)) {
+      PP.Diag(Tok.getLocation(), diag::err_expected) << tok::r_paren;
+      return true;
+    }
+    PP.Lex(Tok);
+  }
+ 
+  PP.Lex(Tok); // eat index
+ 
+ 
+  while (Tok.isNot(tok::eod)) {
+    if (Tok.is(tok::l_paren))
+      OpenParens++;
+    else if (Tok.is(tok::r_paren)) {
+      OpenParens--;
+      if (OpenParens == 0 && ValueInParens)
+        break;
+    }
+    PP.Lex(Tok); // eat '('
+ 
+ 
+    ValueList.push_back(Tok);
+    PP.Lex(Tok);
+  }
+ 
+  if (ValueInParens) {
+    // Read ')'
+    if (Tok.isNot(tok::r_paren)) {
+      PP.Diag(Tok.getLocation(), diag::err_expected) << tok::r_paren;
+      return true;
+    }
+    PP.Lex(Tok);
+  }
+ 
+    PP.Lex(Tok); // eat bsize
+ 
+ 
+  while (Tok.isNot(tok::eod)) {
+    if (Tok.is(tok::l_paren))
+      OpenParens++;
+    else if (Tok.is(tok::r_paren)) {
+      OpenParens--;
+      if (OpenParens == 0 && ValueInParens)
+        break;
+    }
+    PP.Lex(Tok); // eat '('
+ 
+ 
+    ValueList.push_back(Tok);
+    PP.Lex(Tok);
+  }
+ 
+  if (ValueInParens) {
+    // Read ')'
+    if (Tok.isNot(tok::r_paren)) {
+      PP.Diag(Tok.getLocation(), diag::err_expected) << tok::r_paren;
+      return true;
+    }
+    PP.Lex(Tok);
+  }
+ 
+      PP.Lex(Tok); // eat bsize
+ 
+ 
+  while (Tok.isNot(tok::eod)) {
+    if (Tok.is(tok::l_paren))
+      OpenParens++;
+    else if (Tok.is(tok::r_paren)) {
+      OpenParens--;
+      if (OpenParens == 0 && ValueInParens)
+        break;
+    }
+    PP.Lex(Tok); // eat '('
+ 
+ 
+    ValueList.push_back(Tok);
+    PP.Lex(Tok);
+  }
+ 
+  if (ValueInParens) {
+    // Read ')'
+    if (Tok.isNot(tok::r_paren)) {
+      PP.Diag(Tok.getLocation(), diag::err_expected) << tok::r_paren;
+      return true;
+    }
+    PP.Lex(Tok);
+  }
+>>>>>>> inital pipeline vectorization support added, such that sufficient information can be passed to a sequential gather-scatter transformation (transformation in separate repo).
  
   Token EOFTok;
   EOFTok.startToken();
@@ -2867,11 +2982,15 @@ static bool ParsePvHintValue(Preprocessor &PP, Token &Tok, Token PragmaName,
   Info.Option = Option;
   return false;
 }
+<<<<<<< HEAD
 //pvhint
+=======
+>>>>>>> inital pipeline vectorization support added, such that sufficient information can be passed to a sequential gather-scatter transformation (transformation in separate repo).
 
 void PragmaPvHintHandler::HandlePragma(Preprocessor &PP,
                                            PragmaIntroducerKind Introducer,
                                            Token &Tok) {
+<<<<<<< HEAD
   // Incoming token is pipevec for #pragma pipevec gather(X) index(Y) ...
   Token PragmaName = Tok;
   SmallVector<Token, 1> TokenList;
@@ -2882,6 +3001,22 @@ void PragmaPvHintHandler::HandlePragma(Preprocessor &PP,
     PP.Diag(Tok.getLocation(), diag::err_pragma_loop_invalid_option)
         << /*MissingOption=*/true << "";
     return;
+=======
+  // Incoming token is "unroll" for "#pragma unroll", or "nounroll" for
+  // "#pragma nounroll".
+  //should be incoming pv
+ 
+    llvm::errs() << "optionpvgather " << Tok.getName() << '\n';
+    llvm::errs() << "optionpvgather " << Tok.getIdentifierInfo()->getName() << '\n';
+ 
+  Token PragmaName = Tok;
+  SmallVector<Token, 1> TokenList;
+ 
+  PP.Lex(Tok); // eat pv
+ 
+  if (Tok.isNot(tok::identifier)) {
+    //error
+>>>>>>> inital pipeline vectorization support added, such that sufficient information can be passed to a sequential gather-scatter transformation (transformation in separate repo).
   }
  
   while (Tok.is(tok::identifier)) {
@@ -2891,6 +3026,7 @@ void PragmaPvHintHandler::HandlePragma(Preprocessor &PP,
  
     bool OptionValid = llvm::StringSwitch<bool>(OptionInfo->getName())
                            .Case("gather", true)
+<<<<<<< HEAD
                            .Default(false);
     if (!OptionValid) {
       PP.Diag(Tok.getLocation(), diag::err_pragma_loop_invalid_option)
@@ -2899,17 +3035,33 @@ void PragmaPvHintHandler::HandlePragma(Preprocessor &PP,
     }
 
     PP.Lex(Tok); // eat the option
+=======
+                           .Case("index", true)
+                           .Default(false);
+    if (!OptionValid) {
+      //error
+    }
+    PP.Lex(Tok); // eat gather
+>>>>>>> inital pipeline vectorization support added, such that sufficient information can be passed to a sequential gather-scatter transformation (transformation in separate repo).
  
     // Read '(' if it exists.
     bool ValueInParens = Tok.is(tok::l_paren);
     if (ValueInParens)
       PP.Lex(Tok);
  
+<<<<<<< HEAD
     auto *Info = new (PP.getPreprocessorAllocator()) PragmaPvHintInfo;
     if (ParsePvHintValue(PP, Tok, PragmaName, Option, ValueInParens, *Info))
       return;
  
   // Generate the loop hint token.
+=======
+    auto *Info = new (PP.getPreprocessorAllocator()) PragmaLoopHintInfo;
+    if (ParsePvHintValue(PP, Tok, PragmaName, Option, ValueInParens, *Info))
+      return;
+ 
+    // Generate the loop hint token.
+>>>>>>> inital pipeline vectorization support added, such that sufficient information can be passed to a sequential gather-scatter transformation (transformation in separate repo).
     Token LoopHintTok;
     LoopHintTok.startToken();
     LoopHintTok.setKind(tok::annot_pragma_pv_hint);
@@ -2917,6 +3069,7 @@ void PragmaPvHintHandler::HandlePragma(Preprocessor &PP,
     LoopHintTok.setAnnotationEndLoc(PragmaName.getLocation());
     LoopHintTok.setAnnotationValue(static_cast<void *>(Info));
     TokenList.push_back(LoopHintTok);
+<<<<<<< HEAD
     
   }
  
@@ -2926,6 +3079,12 @@ void PragmaPvHintHandler::HandlePragma(Preprocessor &PP,
     PP.Diag(Tok.getLocation(), diag::warn_pragma_extra_tokens_at_eol)
         << "pipevec";
     return;
+=======
+  }
+ 
+  if (Tok.isNot(tok::eod)) {
+    //error
+>>>>>>> inital pipeline vectorization support added, such that sufficient information can be passed to a sequential gather-scatter transformation (transformation in separate repo).
   }
  
   auto TokenArray = llvm::make_unique<Token[]>(TokenList.size());
