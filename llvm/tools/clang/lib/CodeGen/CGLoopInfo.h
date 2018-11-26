@@ -72,6 +72,7 @@ struct LoopAttributes {
 
     unsigned ListSize;
   } pvhints;
+
   /// \brief Value for llvm.loop.distribute.enable metadata.
   LVEnableState DistributeEnable;
 
@@ -172,10 +173,7 @@ public:
     StagedAttrs.pvhints.BufferSize = bsize; 
     StagedAttrs.pvhints.ListSize = lsize; 
   }
-<<<<<<< HEAD
-=======
 
->>>>>>> pipevec pragma refactored a bit, working
 
   /// \brief Set the vectorize width for the next loop pushed.
   void setVectorizeWidth(unsigned W) { StagedAttrs.VectorizeWidth = W; }
