@@ -31,6 +31,7 @@
 #include "llvm/Support/raw_ostream.h"
 
 #include "llvm/Bitcode/BitcodeWriter.h"
+#include "llvm/Bitcode/BitcodeReader.h"
 
 #include "llvm/Analysis/LoopInfo.h"
 
@@ -42,6 +43,8 @@ using namespace llvm;
 // using namespace llvm::orc;
 
 namespace {
+
+  std::string idx_var;
 
   struct GatherScatter : public ModulePass {
     static char ID; // Pass identification, replacement for typeid
@@ -101,8 +104,6 @@ namespace {
             Builder.SetInsertPoint(LoopBB);
             Instruction *whileEnd = LoopBB->getTerminator();
             whileEnd->setOperand(0, to_end);
-
-
           }
 
           if (I->getOpcode() == Instruction::ICmp){
@@ -118,9 +119,20 @@ namespace {
                 I->setOperand(1, ld_bsize);
               }
             }
-          
+          }
+
+        // if gather and A, replace A[idx[i]] with A[idx[tracker]]
+        // if compute, leave g_A[i] and s_A[i]
+        // if scatter and A, replace A[idx[i]] with A[idx[tracker]]
+
+          if (I->getOpcode() == Instruction::GetElementPtr){ // if it is GEP
+            if (I->getOperand(0)->getName() == idx_var){
+              Builder.SetInsertPoint(&*I);
+              Value *t_load = Builder.CreateLoad(trkr, "trkr");
+              I->setOperand(2, t_load);
+            }
+          } 
         }
-      }
 
       // BasicBlock *lp_body = GEPg_A->getParent();
       Instruction *lp_bod_term = lp_body->getTerminator();
@@ -135,7 +147,7 @@ namespace {
       errs() << "running on module\n";
 
       std::string gather_var = "";
-      std::string idx_var = "";
+      idx_var = "";
       unsigned bsize = 1;
       unsigned lsize = 1;
 
@@ -200,6 +212,7 @@ namespace {
       for (auto &globalVar : M.getGlobalList()){
         if (globalVar.getName() == gather_var){ 
           A = &globalVar;
+          // TODO: fix the initializers so that the gather and scatter buffs are buffer_size, not list_size. 
           g_A = new GlobalVariable(M, globalVar.getValueType(), globalVar.isConstant(), globalVar.getLinkage(),
             globalVar.getInitializer(), "g_" + globalVar.getName(), 
             (GlobalVariable*) nullptr, globalVar.getThreadLocalMode(), 
@@ -211,8 +224,6 @@ namespace {
           continue;
         }
       }
-
-
 
       llvm::ValueToValueMapTy vmap;
       Function *gatherF;
@@ -231,6 +242,7 @@ namespace {
       Value *lp_i; // i in g_A[i]
       for (inst_iterator I = inst_begin(gatherF), E = inst_end(gatherF); I != E; ++I){
 
+
         if (I->getOpcode() == Instruction::GetElementPtr){ // if it is GEP
 
           if (I->getOperand(0)->getName() == idx_var){
@@ -240,9 +252,13 @@ namespace {
           if (I->getOperand(0)->getName() == gather_var){
             GEPg_A = I->clone(); // Cloning GEP for A because we need to add a GEP for g_A
             // A[idx[i]] => g_A[i]
+            // IMPORTANT: it shouild be g_A[tracker], not g_A[i]
             // But need to preserve A[idx[i]] because we will store that val in g_A[i].
             GEPg_A->setOperand(0, g_A); // Fixing operand from A to g_A 
             GEPg_A->setOperand(2, lp_i); // Fixing operand from idx[i] to just i
+
+            //TODO
+            // GEPg_A->setOperand(2, Builder.CreateLoad(M.getNamedValue("tracker"))); // Fixing operand from idx[i] to just i
 
             for (User *U : I->users()) {
               if (Instruction *Inst = dyn_cast<Instruction>(U)) {
@@ -281,8 +297,6 @@ namespace {
       } 
 
     } // end instruction iterator on gatherF
-
-
 
 
           // Instruction *GEPg_A2; //GEP for g_A[i] = ... 
@@ -381,7 +395,6 @@ namespace {
       std::vector<Instruction*> s_discards;
 
 
-
       // Instruction *s_GEPg_A; //GEP for g_A[i] = ... 
       // Value *s_A;
 
@@ -454,6 +467,8 @@ namespace {
                     str_main_tracker_size->setOperand(0, main_tracker_size);
                     str_main_tracker_size->setOperand(1, M.getNamedValue("main_tracker"));
                     str_main_tracker_size->insertAfter(str_buff_size);
+
+
                   }
                 }
 
@@ -495,6 +510,20 @@ namespace {
 
                       //insert call to gather function before compute. 
                       Builder.SetInsertPoint(LoopBB);
+                      
+                        // llvm::Instruction *SRStart = llvm::CallInst::Create(
+                    //   Builder.getIntrinsic(llvm::Intrinsic::syncregion_start),
+                    //   "syncreg", str_buff_size);
+
+                    // std::vector<Type *> arg_type;
+                    // arg_type.push_back(Type::getFloatTy(getGlobalContext()));
+                    
+                    // IRBuilder<> Builder(&I);
+
+                    Function *fun = Intrinsic::getDeclaration(&M, Intrinsic::syncregion_start);
+                    Builder.CreateCall(fun);
+
+
                       Builder.CreateCall( M.getFunction("gather"));
                       Builder.CreateCall( M.getFunction(compute_name));
                       Builder.CreateCall( M.getFunction("scatter"));
@@ -533,12 +562,12 @@ namespace {
           // errs() << M;
 
           // debugging on local
-          // errs() << "writing result to file\n";
+          errs() << "writing result to file\n";
 
-          // std::error_code EC;<
-          // raw_fd_ostream *Out = new raw_fd_ostream("/Users/amaleewilson/gs-pass/test/test_out.bc", EC, sys::fs::F_None);
-          // WriteBitcodeToFile(&M, *Out);
-          // Out->flush();
+          std::error_code EC;
+          raw_fd_ostream *Out = new raw_fd_ostream("/home/amaleewilson/pv_tests/test_out.bc", EC, sys::fs::F_None);
+          WriteBitcodeToFile(&M, *Out);
+          Out->flush();
 
           return true;
         }
@@ -553,4 +582,5 @@ namespace {
 
     char GatherScatter::ID = 0;
     static RegisterPass<GatherScatter> Z("gather", "Gather Pass attempt");
+
 
