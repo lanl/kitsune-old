@@ -447,6 +447,8 @@ namespace {
           verifyFunction(*scatterF);
           verifyModule(M);
 
+          Instruction *synctoken;
+
           for (Module::iterator it = M.begin(), end = M.end(); it != end; ++it){
             if (it->getName().find("main") != std::string::npos){
               for (inst_iterator I = inst_begin(*it), E = inst_end(*it); I != E; ++I){
@@ -455,6 +457,13 @@ namespace {
                 if (isa<StoreInst>(&(*I))) {
                   if (I->getOperand(1) == M.getNamedValue("list_size")) {
                     // errs() << "found store to list size" << '\n';
+
+                      llvm::errs() << "creating sync token\n";
+                      // SYNC TOKEN! 
+                      Builder.SetInsertPoint(&*I);
+                      Function *synctok = Intrinsic::getDeclaration(&M, Intrinsic::syncregion_start);
+                      synctoken = Builder.CreateCall(synctok, None, "synctoken");
+
 
                     Instruction *str_buff_size = I->clone();
                     Value *buffer_size = ConstantInt::get(Type::getInt32Ty(M.getContext()), 10);
@@ -468,11 +477,12 @@ namespace {
                     str_main_tracker_size->setOperand(1, M.getNamedValue("main_tracker"));
                     str_main_tracker_size->insertAfter(str_buff_size);
 
-
                   }
                 }
 
                 if (I->getOpcode() == Instruction::Call) {
+                  
+                  
                   // Insert calls to gather and scatter. 
                   CallSite cs(&(*I));
                   if (!cs.getInstruction()){
@@ -489,18 +499,20 @@ namespace {
                       Function *main = &(*it); //Builder.GetInsertBlock()->getParent(); // Could prob just set it to it, but hey
                       // BasicBlock *PreheaderBB = Builder.GetInsertBlock();
 
-                      BasicBlock *LoopCmpBB = BasicBlock::Create(M.getContext(), "loopcmpBB", main);
+                      BasicBlock *LoopCmpBB = BasicBlock::Create(M.getContext(), "while.cond", main);
                       BasicBlock *head = I->getParent(); 
-                      BasicBlock *tail = head->splitBasicBlock(&*I); 
+                      BasicBlock *tail = head->splitBasicBlock(&*I, "while.end"); 
                       head->getTerminator()->eraseFromParent();
                       Builder.SetInsertPoint(head);
+
+
                       Builder.CreateBr(LoopCmpBB);
                       I->eraseFromParent();
                       // Not sure if it is important, but tail's pred is only loopcmp, and no longer includes ref to main 
 
 
                       Builder.SetInsertPoint(LoopCmpBB);
-                      BasicBlock *LoopBB = BasicBlock::Create(M.getContext(), "LoopBB", main);
+                      BasicBlock *LoopBB = BasicBlock::Create(M.getContext(), "while.body", main);
                       // BasicBlock *PostLoopBB = BasicBlock::Create(M.getContext(), "PostLoopBB", main);
 
                       Value *endCond = Builder.CreateICmpSLT(Builder.CreateLoad(M.getNamedValue("main_tracker"), "main_tracker"),
@@ -520,13 +532,39 @@ namespace {
                     
                     // IRBuilder<> Builder(&I);
 
-                    Function *fun = Intrinsic::getDeclaration(&M, Intrinsic::syncregion_start);
-                    Builder.CreateCall(fun);
 
+                    // Need to restructure to have the detach, sync, continue blocks here, but also need
+                    // to ensure the blocks are split correctly. 
+                    // Pretty sure Builder has a thing for this. 
+                      Instruction *gather_call = Builder.CreateCall( M.getFunction("gather"));
+                      
+                     
+                     /* 
+                      errs() << M;
 
-                      Builder.CreateCall( M.getFunction("gather"));
-                      Builder.CreateCall( M.getFunction(compute_name));
-                      Builder.CreateCall( M.getFunction("scatter"));
+                      Builder.SetInsertPoint(gather_call->getNextNode());
+                      BasicBlock *ContinueBlock = BasicBlock::Create(M.getContext(), "sync.continue", main);
+                      
+                      errs() << M;
+                      
+                      //llvm::Instruction *SRStart = CurSyncRegion->getSyncRegionStart();
+                      llvm::Instruction *SRStart = gather_call->getNextNode();
+                      Builder.CreateSync(ContinueBlock, SRStart);
+
+  
+                      errs() << M;
+        
+                      //BasicBlock *ContinueBlock = BasicBlock::Create(M.getContext(), "sync.continue", main);
+
+                      //llvm::BasicBlock *ContinueBlock = Builder.CreateBasicBlock("sync.continue");
+
+                      
+                      Builder.SetInsertPoint(ContinueBlock);
+                      Builder.SetInsertPoint(sync_continue);
+                     */
+
+                      Instruction *compute_call = Builder.CreateCall( M.getFunction(compute_name));
+                      Instruction *scatter_call = Builder.CreateCall( M.getFunction("scatter"));
 
                       Value *addition = Builder.CreateNSWAdd(Builder.CreateLoad(M.getNamedValue("main_tracker"), "main_tracker"),
                                       Builder.CreateLoad(M.getNamedValue("buffer_size"), "buffer_size"));
@@ -534,6 +572,38 @@ namespace {
                       Builder.CreateBr(LoopCmpBB);
 
                       
+                      
+                      
+                      
+                      
+                      BasicBlock *while_body = gather_call->getParent(); 
+                      BasicBlock *sync_continue = while_body->splitBasicBlock(compute_call, "sync.continue"); 
+                      while_body->getTerminator()->eraseFromParent();
+                      Builder.SetInsertPoint(while_body);
+                      Builder.CreateSync(sync_continue, synctoken);
+                      
+                      BasicBlock *detached = sync_continue->splitBasicBlock(scatter_call, "detached"); 
+                      sync_continue->getTerminator()->eraseFromParent();
+                      Builder.SetInsertPoint(sync_continue);
+                      Instruction *det_inst = Builder.CreateDetach(detached, detached, synctoken);
+                     
+                      BasicBlock *det_cont = detached->splitBasicBlock(scatter_call->getNextNode(), "det.cont"); 
+                      detached->getTerminator()->eraseFromParent();
+                      Builder.SetInsertPoint(detached);
+                      Builder.CreateReattach(det_cont, synctoken);
+                      det_inst->setOperand(1, det_cont);
+                      
+
+                      // split tail
+
+                      BasicBlock *sec_sync = tail->splitBasicBlock(tail->getFirstNonPHI(), "final_sync_continue");
+                      tail->getTerminator()->eraseFromParent();
+                      Builder.SetInsertPoint(tail);
+                      Builder.CreateSync(sec_sync, synctoken);
+
+                      
+
+
 
                       break;
                     } 
@@ -544,9 +614,9 @@ namespace {
 
               
 
-
-              verifyFunction(*it);
-              verifyModule(M);
+              // PUT THESE BACK
+              //verifyFunction(*it);
+              //verifyModule(M);
 
               // errs() << *it;
 
@@ -554,10 +624,24 @@ namespace {
               // errs() << *gatherF;
               // errs() << *scatterF;
             }
+
+/*
+            for (inst_iterator I = inst_begin(*it), E = inst_end(*it); I != E; ++I){
+
+
+                      BasicBlock *while_body = gather_call->getParent(); 
+                      BasicBlock *sync_continue = while_body->splitBasicBlock(gather_call, "sync.continue"); 
+                      while_body->getTerminator()->eraseFromParent();
+                      Builder.SetInsertPoint(while_body);
+                      Builder.CreateSync(sync_continue, synctoken);
+
+          
+            }
+*/
           }
 
-
-          verifyModule(M);
+          //PUT THIS BACK
+          //verifyModule(M);
 
           // errs() << M;
 
