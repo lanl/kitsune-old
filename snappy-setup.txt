@@ -1,0 +1,14 @@
+git clone git@github.com:google/snappy.git
+cd snappy
+mkdir snappy_stuff
+
+edit the CMakeLists.txt to set BUILD_SHARED_LIBS to ON, as such:
+    option(BUILD_SHARED_LIBS "Build shared libraries(DLLs)." ON)
+
+cmake -DCMAKE_INSTALL_PREFIX:PATH=./snappy_stuff . && make all install
+
+now add snappy_stuff/lib64 to your library path
+export LIBRARY_PATH=$LIBRARY_PATH:$PWD/snappy_stuff/lib64
+
+and add the include to your path
+export PATH=$PATH:$PWD/snappy_stuff/include
