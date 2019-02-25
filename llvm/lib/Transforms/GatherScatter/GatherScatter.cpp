@@ -245,6 +245,8 @@ namespace {
       //zero_args.push_back(dyn_cast<Value*>(ConstantInt::get(Type::getInt32Ty(M.getContext()), 10)));
       //zero_args.push_back(ConstantInt::get(Type::getInt32Ty(M.getContext()), 10));
 
+
+      Instruction *compute_call_to_delete;
       for (User *U : compute_function->users()) {
         if (Instruction *Inst = dyn_cast<Instruction>(U)) {
         //int i = 0;
@@ -269,7 +271,9 @@ namespace {
                // Builder.CreateCall(M.getFunction("new_comput"), ArrayRef<Value*>(args1));
                Builder.CreateCall(compute_copy, ArrayRef<Value*>(args1));
                //llvm::errs() << FT->getNumParams() << "\n"; 
-                //Inst->removeFromParent();
+               llvm::errs() << *Inst << "\n";
+               compute_call_to_delete = Inst;
+                // Inst->removeFromParent();
                 //Inst->setOperand(i, compute_copy);
                 //Inst->setOperand();
                //v = compute_copy; 
@@ -278,6 +282,7 @@ namespace {
           }        
         }
       }
+      compute_call_to_delete->eraseFromParent();
      llvm::errs() << "got this far!\n"; 
       //compute_function->replaceAllUsesWith(compute_copy);
       //compute_function->removeFromParent();
@@ -286,6 +291,8 @@ namespace {
       //gatherF = CloneFunction(compute_copy, vmap);
       gatherF = CloneFunction(compute_function, vmap);
       gatherF->setName("gather");
+
+      compute_function->eraseFromParent();
 
       Instruction *GEPg_A; //GEP for g_A[i] = ... 
       Instruction *ld_idx_A; // ... = A[idx[i]];
@@ -349,11 +356,13 @@ namespace {
     } // end instruction iterator on gatherF
 
 
+
           // Instruction *GEPg_A2; //GEP for g_A[i] = ... 
           Value *lp_i2; // i in g_A[i]
           // Instruction *idx_instr;
-          // PUT BACK computeF = compute_copy;
-          computeF = compute_function;
+          computeF = compute_copy;
+          // computeF = compute_function;
+
           Instruction *str_in_s_A;
           Value *val_for_store;
           std::vector<Instruction*> to_delete; 
@@ -433,9 +442,8 @@ namespace {
             inst->eraseFromParent();
           }
 
-
           // PUT BACK add_while(compute_copy, M, str_in_s_A->getParent());
-          add_while(compute_function, M, str_in_s_A->getParent());
+         // add_while(compute_function, M, str_in_s_A->getParent());
   
 
       scatterF = CloneFunction(gatherF, s_vmap);
