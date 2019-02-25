@@ -4,18 +4,6 @@
 //
 // This file is distributed under the University of Illinois Open Source
 // License. See LICENSE.TXT for details.
-//
-//===----------------------------------------------------------------------===//
-// 
-// 
-// 
-// 
-//
-// 
-// 
-// 
-//
-//===----------------------------------------------------------------------===//
 
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/CallSite.h"
@@ -233,7 +221,69 @@ namespace {
 
       IRBuilder<> Builder(M.getContext());
 
+      std::vector<Type*> new_args(2, Type::getInt32Ty(M.getContext()));
+      
+      FunctionType *FT = FunctionType::get(Type::getVoidTy(M.getContext()),
+                                                   new_args, false);
+
+
+      Function *compute_copy = Function::Create(FT, Function::ExternalLinkage, "new_comput", &M);
+
+      llvm::ValueToValueMapTy vmap3;
+      llvm::SmallVector<llvm::ReturnInst*, 2> Returns;
+      CloneFunctionInto(compute_copy, compute_function, vmap3, 0, Returns);
+      Function::arg_iterator args = compute_copy->arg_begin();
+      Value* x = args++;
+      x->setName("x");
+      Value* y = args++;
+      y->setName("y");
+//      llvm::SmallVector<Value*, 2> zero_args;
+//      Value* v = dyn_cast<Value>(new LoadInst(M.getNamedValue("buffer_size"))); 
+//      zero_args.push_back(v);
+//      v = dyn_cast<Value>(new LoadInst(M.getNamedValue("buffer_size"))); 
+//      zero_args.push_back(v);
+      //zero_args.push_back(dyn_cast<Value*>(ConstantInt::get(Type::getInt32Ty(M.getContext()), 10)));
+      //zero_args.push_back(ConstantInt::get(Type::getInt32Ty(M.getContext()), 10));
+
+      for (User *U : compute_function->users()) {
+        if (Instruction *Inst = dyn_cast<Instruction>(U)) {
+        //int i = 0;
+        for (Use &U2 : Inst->operands()) {
+            Value *v = U2.get();
+            if (v == compute_function){
+              llvm::errs() << "found compute\n";
+
+              std::vector<Value*> args1;
+
+              args1.push_back(dyn_cast<Value>(new LoadInst(M.getNamedValue("buffer_size"), "load buff 1", Inst)));
+              args1.push_back(dyn_cast<Value>(new LoadInst(M.getNamedValue("buffer_size"), "load buff 2", Inst)));
+ //     llvm::SmallVector<Value*, 2> zero_args;
+ //     Value* v = dyn_cast<Value>(new LoadInst(M.getNamedValue("buffer_size"), "load buff 1", Inst)); 
+ //     zero_args.push_back(v);
+ //     v = dyn_cast<Value>(new LoadInst(M.getNamedValue("buffer_size"), "load buff 2", Inst)); 
+ //     zero_args.push_back(v);
+                //llvm::errs() << "v == compute_function\n";
+                
+               //Builder.SetInsertPoint(Inst->getNextNode());
+               Builder.SetInsertPoint(Inst);
+               // Builder.CreateCall(M.getFunction("new_comput"), ArrayRef<Value*>(args1));
+               Builder.CreateCall(compute_copy, ArrayRef<Value*>(args1));
+               //llvm::errs() << FT->getNumParams() << "\n"; 
+                //Inst->removeFromParent();
+                //Inst->setOperand(i, compute_copy);
+                //Inst->setOperand();
+               //v = compute_copy; 
+            }
+            //++i;
+          }        
+        }
+      }
+     llvm::errs() << "got this far!\n"; 
+      //compute_function->replaceAllUsesWith(compute_copy);
+      //compute_function->removeFromParent();
       // Obviously this is not the best way to do this.
+      
+      //gatherF = CloneFunction(compute_copy, vmap);
       gatherF = CloneFunction(compute_function, vmap);
       gatherF->setName("gather");
 
@@ -302,6 +352,7 @@ namespace {
           // Instruction *GEPg_A2; //GEP for g_A[i] = ... 
           Value *lp_i2; // i in g_A[i]
           // Instruction *idx_instr;
+          // PUT BACK computeF = compute_copy;
           computeF = compute_function;
           Instruction *str_in_s_A;
           Value *val_for_store;
@@ -383,6 +434,7 @@ namespace {
           }
 
 
+          // PUT BACK add_while(compute_copy, M, str_in_s_A->getParent());
           add_while(compute_function, M, str_in_s_A->getParent());
   
 
@@ -447,7 +499,12 @@ namespace {
           verifyFunction(*scatterF);
           verifyModule(M);
 
-          Instruction *synctoken;
+          Instruction *synctoken_g0;
+          Instruction *synctoken_g1;
+          Instruction *synctoken_s0;
+          Instruction *synctoken_s1;
+
+          
 
           for (Module::iterator it = M.begin(), end = M.end(); it != end; ++it){
             if (it->getName().find("main") != std::string::npos){
@@ -462,7 +519,15 @@ namespace {
                       // SYNC TOKEN! 
                       Builder.SetInsertPoint(&*I);
                       Function *synctok = Intrinsic::getDeclaration(&M, Intrinsic::syncregion_start);
-                      synctoken = Builder.CreateCall(synctok, None, "synctoken");
+                      synctoken_g0 = Builder.CreateCall(synctok, None, "synctoken_g0");
+                      synctoken_g1 = Builder.CreateCall(synctok, None, "synctoken_g1");
+                      synctoken_s0 = Builder.CreateCall(synctok, None, "synctoken_s0");
+                      synctoken_s1 = Builder.CreateCall(synctok, None, "synctoken_s1");
+                      
+                      AllocaInst *Alloca_ct = Builder.CreateAlloca(Type::getInt32Ty(M.getContext()), nullptr, "compute_tracker");
+                      StoreInst *Store_ct = Builder.CreateStore(ConstantInt::get(Type::getInt32Ty(M.getContext()), 0), Alloca_ct);
+
+                      
 
 
                     Instruction *str_buff_size = I->clone();
@@ -492,9 +557,11 @@ namespace {
                   if (Function* f = dyn_cast<Function>(called)){
                     // if (f->getName().find("compute") != std::string::npos){
                     if (f == compute_function){
+                    // PUT BACK! if (f == compute_copy){
 
                       // Instruction *computeCall = I->clone();
                       std::string compute_name = f->getName();
+                      llvm::errs() << compute_name << "\n";
 
                       Function *main = &(*it); //Builder.GetInsertBlock()->getParent(); // Could prob just set it to it, but hey
                       // BasicBlock *PreheaderBB = Builder.GetInsertBlock();
@@ -505,6 +572,14 @@ namespace {
                       head->getTerminator()->eraseFromParent();
                       Builder.SetInsertPoint(head);
 
+                      Function *synctok = Intrinsic::getDeclaration(&M, Intrinsic::syncregion_start);
+                      //Builder.CreateCall(synctok, None, "TESTESTTESTESTS");
+
+                      // TODO: Insert initial calls to gather here
+                      LoadInst *load_main = Builder.CreateLoad(M.getNamedValue("main_tracker"), "main_tracker");
+                      // load the main tracker, then call gather 0 and gather 1
+                      //  
+                      
 
                       Builder.CreateBr(LoopCmpBB);
                       I->eraseFromParent();
@@ -536,6 +611,20 @@ namespace {
                     // Need to restructure to have the detach, sync, continue blocks here, but also need
                     // to ensure the blocks are split correctly. 
                     // Pretty sure Builder has a thing for this. 
+                      
+                      // TODO list:  
+                      // Insert load for compute_tracker
+                      // compare compute tracker
+                      // create if.then and if.else blocks. 
+                      // insert syncs in those boxes. 
+                      //
+
+//              std::vector<Value*> args1;
+//
+//              args1.push_back(dyn_cast<Value>(new LoadInst(M.getNamedValue("buffer_size"), "load buff 3", LoopBB->getFirstNonPHI())));
+//              args1.push_back(dyn_cast<Value>(new LoadInst(M.getNamedValue("buffer_size"), "load buff 4", LoopBB->getFirstNonPHI())));
+                
+              //PUT BACK          Instruction *gather_call = Builder.CreateCall( M.getFunction("gather"), ArrayRef<Value*>(args1));         
                       Instruction *gather_call = Builder.CreateCall( M.getFunction("gather"));
                       
                      
@@ -562,8 +651,20 @@ namespace {
                       Builder.SetInsertPoint(ContinueBlock);
                       Builder.SetInsertPoint(sync_continue);
                      */
+              std::vector<Value*> args1;
+
+              args1.push_back(dyn_cast<Value>(new LoadInst(M.getNamedValue("buffer_size"), "load buff a", gather_call)));
+              args1.push_back(dyn_cast<Value>(new LoadInst(M.getNamedValue("buffer_size"), "load buff b", gather_call)));
+                
+
+                      // PUT BACK Instruction *compute_call = Builder.CreateCall( M.getFunction(compute_name), ArrayRef<Value*>(args1));
 
                       Instruction *compute_call = Builder.CreateCall( M.getFunction(compute_name));
+                      Builder.CreateCall(compute_copy, ArrayRef<Value*>(args1));
+
+                       // PUT BACK Instruction *scatter_call = Builder.CreateCall( M.getFunction("scatter"), ArrayRef<Value*>(args1));
+
+                      //Instruction *compute_call = Builder.CreateCall( M.getFunction(compute_name));
                       Instruction *scatter_call = Builder.CreateCall( M.getFunction("scatter"));
 
                       Value *addition = Builder.CreateNSWAdd(Builder.CreateLoad(M.getNamedValue("main_tracker"), "main_tracker"),
@@ -580,17 +681,17 @@ namespace {
                       BasicBlock *sync_continue = while_body->splitBasicBlock(compute_call, "sync.continue"); 
                       while_body->getTerminator()->eraseFromParent();
                       Builder.SetInsertPoint(while_body);
-                      Builder.CreateSync(sync_continue, synctoken);
+                      Builder.CreateSync(sync_continue, synctoken_g0);
                       
                       BasicBlock *detached = sync_continue->splitBasicBlock(scatter_call, "detached"); 
                       sync_continue->getTerminator()->eraseFromParent();
                       Builder.SetInsertPoint(sync_continue);
-                      Instruction *det_inst = Builder.CreateDetach(detached, detached, synctoken);
+                      Instruction *det_inst = Builder.CreateDetach(detached, detached, synctoken_g0);
                      
                       BasicBlock *det_cont = detached->splitBasicBlock(scatter_call->getNextNode(), "det.cont"); 
                       detached->getTerminator()->eraseFromParent();
                       Builder.SetInsertPoint(detached);
-                      Builder.CreateReattach(det_cont, synctoken);
+                      Builder.CreateReattach(det_cont, synctoken_g0);
                       det_inst->setOperand(1, det_cont);
                       
 
@@ -599,7 +700,7 @@ namespace {
                       BasicBlock *sec_sync = tail->splitBasicBlock(tail->getFirstNonPHI(), "final_sync_continue");
                       tail->getTerminator()->eraseFromParent();
                       Builder.SetInsertPoint(tail);
-                      Builder.CreateSync(sec_sync, synctoken);
+                      Builder.CreateSync(sec_sync, synctoken_g0);
 
                       
 
@@ -615,8 +716,8 @@ namespace {
               
 
               // PUT THESE BACK
-              //verifyFunction(*it);
-              //verifyModule(M);
+              verifyFunction(*it);
+              verifyModule(M);
 
               // errs() << *it;
 
@@ -641,9 +742,9 @@ namespace {
           }
 
           //PUT THIS BACK
-          //verifyModule(M);
+          verifyModule(M);
 
-          // errs() << M;
+          errs() << M;
 
           // debugging on local
           errs() << "writing result to file\n";
