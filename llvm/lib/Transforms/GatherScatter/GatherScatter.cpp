@@ -556,12 +556,15 @@ namespace {
                   Value* called = cs.getCalledValue()->stripPointerCasts();
                   if (Function* f = dyn_cast<Function>(called)){
                     // if (f->getName().find("compute") != std::string::npos){
-                    if (f == compute_function){
-                    // PUT BACK! if (f == compute_copy){
+                    // if (f == compute_function){
+                    if (f == compute_copy){
 
                       // Instruction *computeCall = I->clone();
-                      std::string compute_name = f->getName();
-                      llvm::errs() << compute_name << "\n";
+                      
+                      
+                      // put back: std::string compute_name = f->getName();
+                     //  std::string compute_name = "compute";
+                     //  llvm::errs() << compute_name << "\n";
 
                       Function *main = &(*it); //Builder.GetInsertBlock()->getParent(); // Could prob just set it to it, but hey
                       // BasicBlock *PreheaderBB = Builder.GetInsertBlock();
@@ -657,10 +660,10 @@ namespace {
               args1.push_back(dyn_cast<Value>(new LoadInst(M.getNamedValue("buffer_size"), "load buff b", gather_call)));
                 
 
-                      // PUT BACK Instruction *compute_call = Builder.CreateCall( M.getFunction(compute_name), ArrayRef<Value*>(args1));
+                      Instruction *compute_call = Builder.CreateCall( M.getFunction("new_comput"), ArrayRef<Value*>(args1));
 
-                      Instruction *compute_call = Builder.CreateCall( M.getFunction(compute_name));
-                      Builder.CreateCall(compute_copy, ArrayRef<Value*>(args1));
+                      // Instruction *compute_call = Builder.CreateCall( M.getFunction(compute_name));
+                      // Builder.CreateCall(compute_copy, ArrayRef<Value*>(args1));
 
                        // PUT BACK Instruction *scatter_call = Builder.CreateCall( M.getFunction("scatter"), ArrayRef<Value*>(args1));
 
