@@ -1,43 +1,48 @@
 #
 #
-clang=$(KITSUNE_HOME)/local/kitsune/bin/clang++
-clang_flags=-std=c++14 -fno-exceptions 
-tapir_flags=-DSTRATEGY=\"seq\"
-opt=$(KITSUNE_HOME)/local/kitsune/bin/opt
+SHELL := bash 
+
+ifndef KITSUNE_INSTALL_DIR
+	$(error enviornment variable KITSUNE_INSTALL_DIR is undefined.)
+endif
+
+clang=$(KITSUNE_INSTALL_DIR)/local/kitsune/bin/clang++
+clang_flags=-std=c++14 -fno-exceptions
+
+tapir_flags=-DTAPIR_STRATEGY=\"seq\"
+opt=$(KITSUNE_INSTALL_DIR)/local/kitsune/bin/opt
 opt_flags=-O2 
-ld_flags=-L/$(KITSUNE_HOME)/local/lib 
+ld_flags=-L/$(KITSUNE_INSTALL_DIR)/local/lib 
 cilk_flags=-ftapir=cilk 
 omp_flags=-fopenmp
 
-kokkos_home=/projects/kitsune/local/kokkos
-kokkos_flags= -fopenmp -fkokkos -I${kokkos_home}/include
-kokkos_ld_flags= -L${kokkos_home}/lib 
-kokkos_libs=-lkokkos -ldl 
-%: %.cpp 
-	${clang} ${clang_flags} -o $@ ${opt_flags} $< 
 
-%_serial: %.cpp
-	${clang} ${clang_flags} -o $@ ${opt_flags} $< 
+%_seq: %.cpp
+	@(test -d build || (mkdir build))
+	@(test -d build/$@.d || (mkdir build/$@.d))
+	${clang} ${clang_flags} -S -emit-llvm ${opt_flags} -o build/$@.d/$@.ll $<
+	@(cd build/$@.d ; ${opt} -dot-cfg $@.ll)
+	@(cd build/$@.d ; (for fn in *.dot ; do dot -Tpdf -o $$fn.pdf $$fn; done))
+	${clang} ${clang_flags} ${opt_flags} -o build/$@ $<
 
-%_cilk: %.cpp
-	${clang} ${clang_flags} ${tapir_flags} -o $@ ${cilk_flags} ${opt_flags} ${ld_flags} $<
 
 %_omp: %.cpp
-	${clang} ${clang_flags} ${omp_flags} ${tapir_flags} -o $@ ${cilk_flags} ${opt_flags} ${ld_flags} $<
+	@(test -d build || (mkdir build))
+	@(test -d build/$@.d || (mkdir build/$@.d))
+	${clang} ${clang_flags} ${omp_flags} ${tapir_flags} -S -emit-llvm ${opt_flags} -o build/$@.d/$@.ll $<
+	@(cd build/$@.d ; ${opt} -dot-cfg $@.ll)
+	@(cd build/$@.d ; (for fn in *.dot ; do dot -Tpdf -o $$fn.pdf $$fn; done))
+	${clang} ${clang_flags} ${omp_flags} ${tapir_flags} ${opt_flags} -o build/$@ ${ld_flags} $<
 
-%_cilk_kokkos: %.cpp
-	${clang} ${clang_flags} ${kokkos_flags} ${tapir_flags} ${cilk_flags} ${opt_flags} -o $@ $< ${kokkos_ld_flags} ${ld_flags} ${kokkos_libs} 
 
-%.ll: %.cpp
-	${clang} ${clang_flags} -S -emit-llvm ${opt_flags} -o $@ $<
+%_cilk: %.cpp
+	@(test -d build || (mkdir build))
+	@(test -d build/$@.d || (mkdir build/$@.d))
+	${clang} ${clang_flags} ${tapir_flags} -S -emit-llvm ${opt_flags} -o build/$@.d/$@.ll $<
+	@(cd build/$@.d ; ${opt} -dot-cfg $@.ll)
+	@(cd build/$@.d ; (for fn in *.dot ; do dot -Tpdf -o $$fn.pdf $$fn; done))
+	${clang} ${clang_flags} ${tapir_flags} ${opt_flags} -o build/$@ $< ${ld_flags}
 
-# this is a hack that will only work for the main-based routnes in the
-# sandbox codes for now...
-%.dot: %.ll
-	(mkdir .tmp-dots-$@; cd .tmp-dots-$@; ${opt} -dot-cfg ../$<)
-	mv .tmp-dots-$@/cfg.main.dot $@
-	rm -rf .tmp-dots-$@
-
-%.pdf: %.dot
-	dot -Tpdf -o $@ $<
-
+# 
+clean:
+	@rm -rf build
