@@ -288,8 +288,8 @@ namespace {
       //compute_function->removeFromParent();
       // Obviously this is not the best way to do this.
       
-      //gatherF = CloneFunction(compute_copy, vmap);
-      gatherF = CloneFunction(compute_function, vmap);
+      gatherF = CloneFunction(compute_copy, vmap);
+      //gatherF = CloneFunction(compute_function, vmap);
       gatherF->setName("gather");
 
       compute_function->eraseFromParent();
@@ -634,9 +634,16 @@ namespace {
 //
 //              args1.push_back(dyn_cast<Value>(new LoadInst(M.getNamedValue("buffer_size"), "load buff 3", LoopBB->getFirstNonPHI())));
 //              args1.push_back(dyn_cast<Value>(new LoadInst(M.getNamedValue("buffer_size"), "load buff 4", LoopBB->getFirstNonPHI())));
+              
+                      std::vector<Value*> args1;
+
+                      Instruction *lba = Builder.CreateLoad(M.getNamedValue("buffer_size"), "load buff a");
+                      Instruction *lbb = Builder.CreateLoad(M.getNamedValue("buffer_size"), "load buff b");
+              args1.push_back(dyn_cast<Value>(lba ));
+              args1.push_back(dyn_cast<Value>( lbb));
                 
-              //PUT BACK          Instruction *gather_call = Builder.CreateCall( M.getFunction("gather"), ArrayRef<Value*>(args1));         
-                      Instruction *gather_call = Builder.CreateCall( M.getFunction("gather"));
+                      Instruction *gather_call = Builder.CreateCall( M.getFunction("gather"), ArrayRef<Value*>(args1));         
+                      //Instruction *gather_call = Builder.CreateCall( M.getFunction("gather"));
                       
                      
                      /* 
@@ -662,10 +669,6 @@ namespace {
                       Builder.SetInsertPoint(ContinueBlock);
                       Builder.SetInsertPoint(sync_continue);
                      */
-              std::vector<Value*> args1;
-
-              args1.push_back(dyn_cast<Value>(new LoadInst(M.getNamedValue("buffer_size"), "load buff a", gather_call)));
-              args1.push_back(dyn_cast<Value>(new LoadInst(M.getNamedValue("buffer_size"), "load buff b", gather_call)));
                 
 
                       Instruction *compute_call = Builder.CreateCall( M.getFunction("new_comput"), ArrayRef<Value*>(args1));
@@ -673,10 +676,10 @@ namespace {
                       // Instruction *compute_call = Builder.CreateCall( M.getFunction(compute_name));
                       // Builder.CreateCall(compute_copy, ArrayRef<Value*>(args1));
 
-                       // PUT BACK Instruction *scatter_call = Builder.CreateCall( M.getFunction("scatter"), ArrayRef<Value*>(args1));
+                       Instruction *scatter_call = Builder.CreateCall( M.getFunction("scatter"), ArrayRef<Value*>(args1));
 
                       //Instruction *compute_call = Builder.CreateCall( M.getFunction(compute_name));
-                      Instruction *scatter_call = Builder.CreateCall( M.getFunction("scatter"));
+                      //Instruction *scatter_call = Builder.CreateCall( M.getFunction("scatter"));
 
                       Value *addition = Builder.CreateNSWAdd(Builder.CreateLoad(M.getNamedValue("main_tracker"), "main_tracker"),
                                       Builder.CreateLoad(M.getNamedValue("buffer_size"), "buffer_size"));
