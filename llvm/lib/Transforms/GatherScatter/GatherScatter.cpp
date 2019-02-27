@@ -41,20 +41,35 @@ namespace {
     void add_while(Function* f, Module &M, BasicBlock* lp_body){
       IRBuilder<> Builder(M.getContext());
 
+      Function::arg_iterator args = f->arg_begin();
+      Value* vtrack = args++;
+      Value* vloc = args++;
 
       Function *cF = f; //Builder.GetInsertBlock()->getParent(); // Could prob just set it to it, but hey
 
         Builder.SetInsertPoint(&(cF->getEntryBlock()));
+        
         BasicBlock *PreBB = Builder.GetInsertBlock(); //Builder.GetInsertBlock();
 
         BasicBlock *LoopCBB = BasicBlock::Create(M.getContext(), "whilelpcond", cF);
         Instruction *split = PreBB->getFirstNonPHI(); 
+        //Instruction *split = PreBB->getTerminator(); 
+        //llvm::errs() << "split : " << *split << "\n";
         BasicBlock *head = split->getParent();
-        BasicBlock *tail = head->splitBasicBlock(split); 
+        BasicBlock *tail = head->splitBasicBlock(split, "while.body"); 
         head->getTerminator()->eraseFromParent();
         Builder.SetInsertPoint(head);
+
+        AllocaInst *track = Builder.CreateAlloca(Type::getInt32Ty(M.getContext()), nullptr, "track");
+        Builder.CreateStore(vtrack, track);
+        
+        AllocaInst *loc = Builder.CreateAlloca(Type::getInt32Ty(M.getContext()), nullptr, "loc");
+        Builder.CreateStore(vloc, loc);
+        
+
+
         AllocaInst *Alloca = Builder.CreateAlloca(Type::getInt32Ty(M.getContext()), nullptr, "tracker");
-        Builder.CreateStore(Builder.CreateLoad(M.getNamedValue("main_tracker")), Alloca);
+        Builder.CreateStore(vtrack, Alloca);
 
         Builder.CreateBr(LoopCBB);
         // I->eraseFromParent();
@@ -69,30 +84,58 @@ namespace {
 
         Value *trkr = cF->getValueSymbolTable()->lookup("tracker");
 
-        Value *addition = Builder.CreateNSWAdd(Builder.CreateLoad(M.getNamedValue("main_tracker"), "main_tracker"),
-        Builder.CreateLoad(M.getNamedValue("buffer_size"), "buffer_size"));
+        Value *addition = Builder.CreateNSWAdd(vtrack,
+            Builder.CreateLoad(M.getNamedValue("buffer_size"), "buffer_size"));
 
-        Value *endCond = Builder.CreateICmpSLT(Builder.CreateLoad(trkr, "trkr"),
-          addition);
+        Value *endCond = Builder.CreateICmpSLT(Builder.CreateLoad(trkr, "trkr"), addition);
 
-        Builder.CreateCondBr(endCond, tail, LoopBB); // TODO: fix where to go 
+        // PUT BACK?? Builder.CreateCondBr(endCond, tail, LoopBB); // TODO: fix where to go 
+        
+        
+        BasicBlock *land = BasicBlock::Create(M.getContext(), "land.rhs", cF, tail);
+        BasicBlock *landend = BasicBlock::Create(M.getContext(), "land.end", cF, tail);
+        
+        Builder.CreateCondBr(endCond, land, landend);
 
-        // //insert call to gather function before compute. 
+        Builder.SetInsertPoint(land);
+        LoadInst *load_trkr = Builder.CreateLoad(trkr, "trkr");
+        LoadInst *load_lst = Builder.CreateLoad(M.getNamedValue("list_size"), "lst_size");
+        Value *sub = Builder.CreateNSWSub(load_lst, ConstantInt::get(Type::getInt32Ty(M.getContext()), 1), "sub");
+        Value *cmp2 = Builder.CreateICmpSLT(load_trkr, sub); 
+        Builder.CreateBr(landend);
+
+        Builder.SetInsertPoint(landend);
+        PHINode *PN = Builder.CreatePHI(Type::getInt1Ty(M.getContext()), 2, "pn");
+        PN->addIncoming(ConstantInt::get(Type::getInt1Ty(M.getContext()), 0), LoopCBB);
+        PN->addIncoming(cmp2, land);
+        Builder.CreateCondBr(PN, tail, LoopBB);
+
+        //  
         Builder.SetInsertPoint(LoopBB);
         Builder.CreateBr(LoopCBB);
-
-
+        
         for (inst_iterator I = inst_begin(cF), E = inst_end(cF); I != E; ++I){
           if (I->getOpcode() == Instruction::Ret){
+            
             BasicBlock *end_block = I->getParent();
-            BasicBlock *forlpcond = end_block->getSinglePredecessor();
-            Instruction *to_mod = forlpcond->getTerminator();
-            Value *to_end = to_mod->getOperand(1);
-            to_mod->setOperand(1, LoopBB);
-            Builder.SetInsertPoint(LoopBB);
-            Instruction *whileEnd = LoopBB->getTerminator();
-            whileEnd->setOperand(0, to_end);
+           
+            Instruction *new_I = &*I;
+            Instruction *ret_void = new_I->clone();
+            ++I;
+
+           Instruction *whileEnd = LoopBB->getTerminator();
+           Instruction *br_while_cond = whileEnd->clone();
+
+           br_while_cond->insertBefore(new_I);
+           new_I->eraseFromParent();
+
+           ret_void->insertBefore(whileEnd);
+           whileEnd->eraseFromParent();
+            break;
           }
+        }
+
+        for (inst_iterator I = inst_begin(cF), E = inst_end(cF); I != E; ++I){
 
           if (I->getOpcode() == Instruction::ICmp){
             Value *N = I->getOperand(1);
@@ -112,7 +155,6 @@ namespace {
         // if gather and A, replace A[idx[i]] with A[idx[tracker]]
         // if compute, leave g_A[i] and s_A[i]
         // if scatter and A, replace A[idx[i]] with A[idx[tracker]]
-
           if (I->getOpcode() == Instruction::GetElementPtr){ // if it is GEP
             if (I->getOperand(0)->getName() == idx_var){
               Builder.SetInsertPoint(&*I);
@@ -121,6 +163,8 @@ namespace {
             }
           } 
         }
+
+
 
       // BasicBlock *lp_body = GEPg_A->getParent();
       Instruction *lp_bod_term = lp_body->getTerminator();
@@ -185,6 +229,14 @@ namespace {
       } // end func
 
 
+      GlobalVariable* gA_buffs = new GlobalVariable(M, ArrayType::get(Type::getDoublePtrTy(M.getContext()), 2),
+          false, GlobalValue::CommonLinkage, 0, "gAbuffs");
+     
+      gA_buffs->setAlignment(16); 
+      ConstantAggregateZero* const_array_2 = ConstantAggregateZero::get(ArrayType::get(Type::getDoublePtrTy(M.getContext()), 2));
+
+      gA_buffs->setInitializer(const_array_2);
+
       // Make a gather variable for A 
       GlobalVariable* g_A;
       GlobalVariable* s_A;
@@ -234,9 +286,9 @@ namespace {
       CloneFunctionInto(compute_copy, compute_function, vmap3, 0, Returns);
       Function::arg_iterator args = compute_copy->arg_begin();
       Value* x = args++;
-      x->setName("x");
+      x->setName("track");
       Value* y = args++;
-      y->setName("y");
+      y->setName("loc");
 //      llvm::SmallVector<Value*, 2> zero_args;
 //      Value* v = dyn_cast<Value>(new LoadInst(M.getNamedValue("buffer_size"))); 
 //      zero_args.push_back(v);
@@ -442,7 +494,7 @@ namespace {
             inst->eraseFromParent();
           }
 
-          // PUT BACK add_while(compute_copy, M, str_in_s_A->getParent());
+          add_while(compute_copy, M, str_in_s_A->getParent());
          // add_while(compute_function, M, str_in_s_A->getParent());
   
 
@@ -639,8 +691,8 @@ namespace {
 
                       Instruction *lba = Builder.CreateLoad(M.getNamedValue("buffer_size"), "load buff a");
                       Instruction *lbb = Builder.CreateLoad(M.getNamedValue("buffer_size"), "load buff b");
-              args1.push_back(dyn_cast<Value>(lba ));
-              args1.push_back(dyn_cast<Value>( lbb));
+                      args1.push_back(dyn_cast<Value>(lba));
+                      args1.push_back(dyn_cast<Value>(lbb));
                 
                       Instruction *gather_call = Builder.CreateCall( M.getFunction("gather"), ArrayRef<Value*>(args1));         
                       //Instruction *gather_call = Builder.CreateCall( M.getFunction("gather"));
