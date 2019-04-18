@@ -56,7 +56,7 @@ namespace {
 
       Function *cF = f; //Builder.GetInsertBlock()->getParent(); // Could prob just set it to it, but hey
 
-     
+
       // Splitting entry block to surround the whole function with the while loop
       BasicBlock *entryBB = &(cF->getEntryBlock()); //Builder.GetInsertBlock(); //Builder.GetInsertBlock();
       BasicBlock *while_cond = BasicBlock::Create(M.getContext(), "whilelpcond", cF);
@@ -65,7 +65,7 @@ namespace {
       Instruction *entry_term = entryBB->getTerminator(); 
       Builder.SetInsertPoint(entry_term);
 
-      //important for execution of the gather
+      // important while loop vars
       AllocaInst *track = Builder.CreateAlloca(Type::getInt32Ty(M.getContext()), nullptr, "track");
       Builder.CreateStore(track_arg, track);
       AllocaInst *loc = Builder.CreateAlloca(Type::getInt32Ty(M.getContext()), nullptr, "loc");
@@ -73,23 +73,25 @@ namespace {
       AllocaInst *Alloca = Builder.CreateAlloca(Type::getInt32Ty(M.getContext()), nullptr, "tracker");
       Builder.CreateStore(track_arg, Alloca);
 
+      // Fixing structure
       Builder.CreateBr(while_cond);
       entry_term->eraseFromParent();
-
 
       Builder.SetInsertPoint(while_cond);
       BasicBlock *while_end = BasicBlock::Create(M.getContext(), "whilelpend", cF);
 
+      // Values for while loop iterations
       Value *trkr = cF->getValueSymbolTable()->lookup("tracker");
       Value *addition = Builder.CreateNSWAdd(track_arg,
           Builder.CreateLoad(M.getNamedValue("buffer_size"), "buffer_size"));
       Value *endCond = Builder.CreateICmpSLT(Builder.CreateLoad(trkr, "trkr"), addition);
 
+      // Structure
       BasicBlock *land = BasicBlock::Create(M.getContext(), "land.rhs", cF, while_body);
       BasicBlock *landend = BasicBlock::Create(M.getContext(), "land.end", cF, while_body);
-
       Builder.CreateCondBr(endCond, land, landend);
 
+      // Looping conditions
       Builder.SetInsertPoint(land);
       LoadInst *load_trkr = Builder.CreateLoad(trkr, "trkr");
       LoadInst *load_lst = Builder.CreateLoad(M.getNamedValue("list_size"), "lst_size");
@@ -97,19 +99,19 @@ namespace {
       Value *cmp2 = Builder.CreateICmpSLT(load_trkr, sub); 
       Builder.CreateBr(landend);
 
+      // Structure
       Builder.SetInsertPoint(landend);
       PHINode *PN = Builder.CreatePHI(Type::getInt1Ty(M.getContext()), 2, "pn");
       PN->addIncoming(ConstantInt::get(Type::getInt1Ty(M.getContext()), 0), while_cond);
       PN->addIncoming(cmp2, land);
       Builder.CreateCondBr(PN, while_body, while_end);
-
       Builder.SetInsertPoint(while_end);
       Builder.CreateBr(while_cond);
 
-      // ^ above is mostly just setting up the structure and relevant instructions for the while loop logic
+      // Above code is mostly just setting up the structure and relevant instructions for the while loop logic
 
 
-      // TODO: what is this loop doing???
+      // This loop finds the return instruction of the funcion
       Instruction *fn_ret;
       for (inst_iterator I = inst_begin(cF), E = inst_end(cF); I != E; ++I){
         if (I->getOpcode() == Instruction::Ret){
@@ -117,16 +119,17 @@ namespace {
           break;
         }
       }
-          Instruction *ret_void = fn_ret->clone();
 
-          Instruction *whileEnd = while_end->getTerminator();
-          Instruction *br_while_cond = whileEnd->clone();
+      // This is mostly structural and swaps the previous break with the return.       
+      Instruction *ret_void = fn_ret->clone();
+      Instruction *whileEnd = while_end->getTerminator();
+      Instruction *br_while_cond = whileEnd->clone();
 
-          br_while_cond->insertBefore(fn_ret);
-          fn_ret->eraseFromParent();
+      br_while_cond->insertBefore(fn_ret);
+      fn_ret->eraseFromParent();
 
-          ret_void->insertBefore(whileEnd);
-          whileEnd->eraseFromParent();
+      ret_void->insertBefore(whileEnd);
+      whileEnd->eraseFromParent();
 
       // This loop is changing the loop condition so that it iterates buffer_size times
       // instead of list_size times. 
@@ -159,12 +162,12 @@ namespace {
         } 
       }
 
+      // Just incrementing the loop
       Instruction *lp_bod_term = lp_body->getTerminator();
       Builder.SetInsertPoint(lp_bod_term);
-
       Builder.CreateStore(Builder.CreateNSWAdd(Builder.CreateLoad(trkr), 
             ConstantInt::get(Type::getInt32Ty(M.getContext()), 1)), trkr);
-     
+
     }
 
     bool runOnModule(Module &M) override {
@@ -221,8 +224,11 @@ namespace {
       } // end func
 
 
-      //// Create the buffers
-
+      /*
+       * This section creates 2 gather and 2 scatter buffer on (I think) the stack. 
+       * TODO: Should conform to whatever the type is of the thing being gathered/scattered,
+       * but it currently is supporting only doubles. 
+       */
       GlobalVariable* gA_buffs = new GlobalVariable(M, ArrayType::get(Type::getDoublePtrTy(M.getContext()), 2),
           false, GlobalValue::CommonLinkage, 0, "gAbuffs");
 
@@ -270,12 +276,10 @@ namespace {
           sindex_vector);
 
       sbuff_q->setInitializer(sgep_const);
-      //// END Create the buffers
+      /* END buffer creation logic */
+
 
       // Make a gather variable for A 
-      GlobalVariable* g_A;
-      // warning GlobalVariable* s_A;
-      // warning GlobalVariable* A;
       GlobalVariable* buffer_size;
       GlobalVariable* main_tracker;
 
@@ -284,37 +288,24 @@ namespace {
       main_tracker = new GlobalVariable(M, Type::getInt32Ty(M.getContext()), false, GlobalVariable::ExternalLinkage,
           ConstantInt::get(Type::getInt32Ty(M.getContext()), lsize), "main_tracker");
 
-      // PUT THIS BACK???
-      for (auto &globalVar : M.getGlobalList()){
-        if (globalVar.getName() == gather_var){ 
-          // warning A = &globalVar;
-          // TODO: fix the initializers so that the gather and scatter buffs are buffer_size, not list_size. 
-          g_A = new GlobalVariable(M, globalVar.getValueType(), globalVar.isConstant(), globalVar.getLinkage(),
-              globalVar.getInitializer(), "g_" + globalVar.getName(), 
-              (GlobalVariable*) nullptr, globalVar.getThreadLocalMode(), 
-              globalVar.getType()->getAddressSpace());
-          /* warning s_A = new GlobalVariable(M, globalVar.getValueType(), globalVar.isConstant(), globalVar.getLinkage(),
-              globalVar.getInitializer(), "s_" + globalVar.getName(), 
-              (GlobalVariable*) nullptr, globalVar.getThreadLocalMode(), 
-              globalVar.getType()->getAddressSpace());*/
-          continue;
-        }
-      }
+      /* 
+       * Consider using this loop to get types of the gather variables. 
+       */
+      //for (auto &globalVar : M.getGlobalList()){
+      //  if (globalVar.getName() == gather_var){ 
+      //    continue;
+      //  }
+      //}
 
-      llvm::ValueToValueMapTy vmap;
-      Function *gatherF;
-      Function *computeF;
-      Function *scatterF;
-      llvm::ValueToValueMapTy s_vmap; // necessary to have 2?
 
+      /*
+       * In this section, the compute method is modified to take two arguments.
+       * Previous calls to compute are replaced with "new_comput."
+       */
       IRBuilder<> Builder(M.getContext());
 
       std::vector<Type*> new_args(2, Type::getInt32Ty(M.getContext()));
-
-      FunctionType *FT = FunctionType::get(Type::getVoidTy(M.getContext()),
-          new_args, false);
-
-
+      FunctionType *FT = FunctionType::get(Type::getVoidTy(M.getContext()), new_args, false);
       Function *compute_copy = Function::Create(FT, Function::ExternalLinkage, "new_comput", &M);
 
       llvm::ValueToValueMapTy vmap3;
@@ -349,7 +340,12 @@ namespace {
       }
       compute_call_to_delete->eraseFromParent();
 
-      /// buffer init
+      /*
+       * This section initializes the buffers. 
+       * It is placed here because the buffers should be initialized right before
+       * the call to compute. With that said, TODO: buffers should be initalized
+       * only once, and this code may get weird if compute is called multiple times.  
+       */
       Builder.SetInsertPoint(test_c_call);
       FunctionType *ib_ft ;
       Constant *init_buff;
@@ -375,8 +371,14 @@ namespace {
         array_idx = Builder.CreateGEP(Type::getDoublePtrTy(M.getContext()), ld_bq, ld_i, "arrayidx");
         Builder.CreateStore(call, array_idx, false);
       }
+      /* END buffer initialization */
 
-      /// END buffer init
+      Function *gatherF;
+      llvm::ValueToValueMapTy vmap;
+      Function *computeF;
+      Function *scatterF;
+      llvm::ValueToValueMapTy s_vmap; 
+
 
       gatherF = CloneFunction(compute_copy, vmap);
       gatherF->setName("gather");
@@ -390,10 +392,7 @@ namespace {
       Instruction *old_inst;
 
       for (inst_iterator I = inst_begin(gatherF), E = inst_end(gatherF); I != E; ++I){
-
-
         if (I->getOpcode() == Instruction::GetElementPtr){ // if it is GEP
-
           if (I->getOperand(0)->getName() == idx_var){
             lp_i = I->getOperand(2);
           }
@@ -402,9 +401,7 @@ namespace {
             old_inst = &*I;
             GEPg_A = I->clone(); // Cloning GEP for A because we need to add a GEP for g_A
           }
-
         } 
-
       } // end instruction iterator on gatherF
 
       Instruction *gld_buffer_q;
@@ -416,11 +413,6 @@ namespace {
       Function::arg_iterator gargs = gatherF->arg_begin();
       Value* track_arg = gargs++;
       Value* loc_arg = gargs++;
-
-
-      GEPg_A->setOperand(0, g_A); // Fixing operand from A to g_A 
-      //GEPg_A->setOperand(0, ld_gbf_idx); // Fixing operand from A to g_A 
-
 
 
       GEPg_A->setOperand(2, lp_i); // Fixing operand from idx[i] to just i
@@ -462,13 +454,6 @@ namespace {
 
       scatterF = CloneFunction(compute_copy, s_vmap);
       scatterF->setName("scatter");
-/* warning 
-      Instruction *gep_A_idx;
-      Instruction *gep_gA_i;
-      Instruction *ld_gA_i;
-      */
-      // Instruction *str_A_idx;
-      std::vector<Instruction*> s_discards;
 
 
       Instruction *gep_idx_var; // gep for idx var
@@ -610,7 +595,7 @@ namespace {
       sload = Builder.CreateLoad(Type::getDoubleTy(M.getContext()), gep_at_sbf, "sld" );
       store_res->setOperand(1, gep_at_sbf);
 
-      
+
       add_while(computeF, M, store_res->getParent());
 
       verifyFunction(*computeF);
@@ -624,288 +609,298 @@ namespace {
       Instruction *synctoken_s1;
 
       AllocaInst *Alloca_ct; 
+      Function *main;
 
       for (Module::iterator it = M.begin(), end = M.end(); it != end; ++it){
         if (it->getName().find("main") != std::string::npos){
-          for (inst_iterator I = inst_begin(*it), E = inst_end(*it); I != E; ++I){
-
-            // Insert assignment for buffer size
-            if (isa<StoreInst>(&(*I))) {
-              if (I->getOperand(1) == M.getNamedValue("list_size")) {
-
-                llvm::errs() << "creating sync token\n";
-                Builder.SetInsertPoint(&*I);
-                Function *synctok = Intrinsic::getDeclaration(&M, Intrinsic::syncregion_start);
-                synctoken_g0 = Builder.CreateCall(synctok, None, "synctoken_g0");
-                synctoken_g1 = Builder.CreateCall(synctok, None, "synctoken_g1");
-                synctoken_s0 = Builder.CreateCall(synctok, None, "synctoken_s0");
-                synctoken_s1 = Builder.CreateCall(synctok, None, "synctoken_s1");
-
-                Alloca_ct = Builder.CreateAlloca(Type::getInt32Ty(M.getContext()), nullptr, "compute_tracker");
-                /*warning StoreInst *Store_ct =*/ Builder.CreateStore(ConstantInt::get(Type::getInt32Ty(M.getContext()), 0), Alloca_ct);                      
-
-
-                Instruction *str_buff_size = I->clone();
-                Value *buffer_size = ConstantInt::get(Type::getInt32Ty(M.getContext()), 10);
-                str_buff_size->setOperand(0, buffer_size);
-                str_buff_size->setOperand(1, M.getNamedValue("buffer_size"));
-                str_buff_size->insertAfter(&(*I));
-
-                Instruction *str_main_tracker_size = I->clone();
-                Value *main_tracker_size = ConstantInt::get(Type::getInt32Ty(M.getContext()), 0);
-                str_main_tracker_size->setOperand(0, main_tracker_size);
-                str_main_tracker_size->setOperand(1, M.getNamedValue("main_tracker"));
-                str_main_tracker_size->insertAfter(str_buff_size);
-
-              }
-            }
-
-            if (I->getOpcode() == Instruction::Call) {
-
-              // Insert calls to gather and scatter. 
-              CallSite cs(&(*I));
-              if (!cs.getInstruction()){
-                continue;
-              }
-              Value* called = cs.getCalledValue()->stripPointerCasts();
-              if (Function* f = dyn_cast<Function>(called)){
-                if (f == compute_copy){
-
-                  Function *main = &(*it); //Builder.GetInsertBlock()->getParent(); // Could prob just set it to it, but hey
-
-                  BasicBlock *LoopCmpBB = BasicBlock::Create(M.getContext(), "while.cond", main); /// need to change this to come off det.comt
-                  BasicBlock *head = I->getParent(); 
-                  BasicBlock *tail = head->splitBasicBlock(&*I, "while.endy-do"); 
-                  head->getTerminator()->eraseFromParent();
-                  Builder.SetInsertPoint(head);
-
-                  // warning Function *synctok = Intrinsic::getDeclaration(&M, Intrinsic::syncregion_start);
-
-                  // TODO: Insert initial calls to gather here
-
-                  BasicBlock *g0 = BasicBlock::Create(M.getContext(), "g0", main); 
-                  BasicBlock *g0det = BasicBlock::Create(M.getContext(), "g0det", main); 
-                  BasicBlock *g0detc = BasicBlock::Create(M.getContext(), "g0detc", main); 
-
-                  Builder.SetInsertPoint(g0); 
-                  LoadInst *load_main = Builder.CreateLoad(M.getNamedValue("main_tracker"), "main_tracker");
-                  /* warning Instruction *g0det_inst =*/ Builder.CreateDetach(g0det, g0detc, synctoken_g0);
-
-                  Builder.SetInsertPoint(g0det); 
-                  std::vector<Value*> g0args;
-                  g0args.push_back(dyn_cast<Value>(load_main));
-                  g0args.push_back(dyn_cast<Value>(ConstantInt::get(Type::getInt32Ty(M.getContext()), 0)));
-                  /*warning Instruction *g0_call =*/ Builder.CreateCall( M.getFunction("gather"), ArrayRef<Value*>(g0args));         
-                  Builder.CreateReattach(g0detc, synctoken_g0); 
-
-                  // Instead of breaking to while cond, insert the detach. 
-
-                  BasicBlock *g1 = g0detc; 
-                  BasicBlock *g1det = BasicBlock::Create(M.getContext(), "g1det", main); 
-                  BasicBlock *g1detc = BasicBlock::Create(M.getContext(), "g1detc", main); 
-
-                  Builder.SetInsertPoint(g1); 
-                  LoadInst *load_main2 = Builder.CreateLoad(M.getNamedValue("main_tracker"), "main_tracker");
-                  LoadInst *ld_bf = Builder.CreateLoad(M.getNamedValue("buffer_size"), "ld_bf"); 
-                  Value *ad_bf = Builder.CreateNSWAdd(load_main2, ld_bf);
-
-                  /* warning Instruction *g1det_inst =*/ Builder.CreateDetach(g1det, g1detc, synctoken_g1);
-
-                  Builder.SetInsertPoint(g1det); 
-                  std::vector<Value*> g1args;
-                  g1args.push_back(dyn_cast<Value>(ad_bf));
-                  g1args.push_back(dyn_cast<Value>(ConstantInt::get(Type::getInt32Ty(M.getContext()), 1)));
-                  /* warning Instruction *g1_call =*/ Builder.CreateCall( M.getFunction("gather"), ArrayRef<Value*>(g1args));         
-                  Builder.CreateReattach(g1detc, synctoken_g1); 
-
-                  Builder.SetInsertPoint(g1detc); 
-                  Builder.CreateStore(ConstantInt::get(Type::getInt32Ty(M.getContext()), 0), Alloca_ct);
-                  Builder.CreateBr(LoopCmpBB);
-
-                  // load the main tracker, then call gather 0 and gather 1
-
-                  // This is where you need to break to g0
-                  Builder.SetInsertPoint(head);
-                  //Builder.CreateBr(LoopCmpBB);
-                  Builder.CreateBr(g0);
-
-                  I->eraseFromParent();
-                  // Not sure if it is important, but tail's pred is only loopcmp, and no longer includes ref to main 
-
-
-                  Builder.SetInsertPoint(LoopCmpBB);
-                  BasicBlock *LoopBB = BasicBlock::Create(M.getContext(), "while.body", main);
-
-                  Value *endCond = Builder.CreateICmpSLT(Builder.CreateLoad(M.getNamedValue("main_tracker"), "main_tracker"),
-                      Builder.CreateLoad(M.getNamedValue("list_size"), "list_size"));
-
-                  Builder.CreateCondBr(endCond, LoopBB, tail); // TODO: fix where to go 
-
-                  //insert call to gather function before compute. 
-                  Builder.SetInsertPoint(LoopBB);
-
-                  Value *ld_ct = Builder.CreateLoad(Alloca_ct);
-                  Value *rem = Builder.CreateSRem(ld_ct, ConstantInt::get(Type::getInt32Ty(M.getContext()), 2), "rem"); 
-                  Value *cmp = Builder.CreateICmpEQ(rem, ConstantInt::get(Type::getInt32Ty(M.getContext()), 0), "cmp");
-
-                  BasicBlock *if_then = BasicBlock::Create(M.getContext(), "if.then", main); 
-                  BasicBlock *if_else = BasicBlock::Create(M.getContext(), "if.else", main);
-
-                  BasicBlock *if_then_cont = BasicBlock::Create(M.getContext(), "if.then.cont", main); 
-                  BasicBlock *if_else_cont = BasicBlock::Create(M.getContext(), "if.else.cont", main);
-
-                  BasicBlock *it_sync = BasicBlock::Create(M.getContext(), "then.sync.cont", main); 
-                  BasicBlock *ie_sync = BasicBlock::Create(M.getContext(), "else.sync.cont", main);
-
-                  BasicBlock *if_end = BasicBlock::Create(M.getContext(), "if.end", main); 
-
-                  Builder.CreateCondBr(cmp, if_then, if_else);
-
-                  Builder.SetInsertPoint(if_then);
-                  Builder.CreateSync(if_then_cont, synctoken_g0);
-                  Builder.SetInsertPoint(if_then_cont);
-                  Builder.CreateSync(it_sync, synctoken_s0);
-                  Builder.SetInsertPoint(it_sync);
-                  Builder.CreateBr(if_end);
-
-                  Builder.SetInsertPoint(if_else);
-                  Builder.CreateSync(if_else_cont, synctoken_g1);
-                  Builder.SetInsertPoint(if_else_cont);
-                  Builder.CreateSync(ie_sync, synctoken_s1);
-                  Builder.SetInsertPoint(ie_sync);
-                  Builder.CreateBr(if_end);
-
-                  Builder.SetInsertPoint(if_end);
-
-                  Value *ld_mn = Builder.CreateLoad(M.getNamedValue("main_tracker"), "main_tracker"); 
-                  ld_ct = Builder.CreateLoad(Alloca_ct);
-                  rem = Builder.CreateSRem(ld_ct, ConstantInt::get(Type::getInt32Ty(M.getContext()), 2), "rem"); 
-                  cmp = Builder.CreateICmpEQ(rem, ConstantInt::get(Type::getInt32Ty(M.getContext()), 0), "cmp");
-
-                  std::vector<Value*> args1;
-                  args1.push_back(dyn_cast<Value>(ld_mn));
-                  args1.push_back(dyn_cast<Value>(rem));
-                  /* wanring Instruction *compute_call =*/  Builder.CreateCall( M.getFunction("new_comput"), ArrayRef<Value*>(args1));
-
-                  if_then = BasicBlock::Create(M.getContext(), "nu.if.then", main); 
-                  if_else = BasicBlock::Create(M.getContext(), "nu.if.else", main);
-
-                  if_then_cont = BasicBlock::Create(M.getContext(), "nu.if.then.cont", main); 
-                  if_else_cont = BasicBlock::Create(M.getContext(), "nu.if.else.cont", main);
-
-                  it_sync = BasicBlock::Create(M.getContext(), "nu.then.sync.cont", main); 
-                  ie_sync = BasicBlock::Create(M.getContext(), "nu.else.sync.cont", main);
-
-                  BasicBlock *sp_sc = BasicBlock::Create(M.getContext(), "spawn_scatter", main);
-                  BasicBlock *sp_ga = BasicBlock::Create(M.getContext(), "spawn_gather", main);
-
-                  if_end = BasicBlock::Create(M.getContext(), "nu.if.end", main); 
-
-                  Builder.CreateCondBr(cmp, if_then, if_else);
-
-                  Builder.SetInsertPoint(if_then);
-
-                  ld_mn = Builder.CreateLoad(M.getNamedValue("main_tracker"), "main_tracker"); 
-                  ld_bf = Builder.CreateLoad(M.getNamedValue("buffer_size"), "buffer_size"); 
-
-                  Builder.CreateDetach(sp_sc, if_then_cont, synctoken_s0);
-
-                  Builder.SetInsertPoint(sp_sc);
-                  Builder.CreateCall(M.getFunction("scatter"), ArrayRef<Value*>(args1));
-                  Builder.CreateReattach(if_then_cont, synctoken_s0);
-
-                  Builder.SetInsertPoint(if_then_cont);
-                  Value *m_bf = Builder.CreateNSWMul(ConstantInt::get(Type::getInt32Ty(M.getContext()), 2), ld_bf); 
-                  Value *ad_mn_bf = Builder.CreateNSWAdd(ld_mn, m_bf);
-                  Builder.CreateDetach(sp_ga, it_sync, synctoken_g0);
-
-                  Builder.SetInsertPoint(sp_ga);
-
-                  std::vector<Value*> g_args;
-                  g_args.push_back(dyn_cast<Value>(ad_mn_bf));
-                  g_args.push_back(dyn_cast<Value>(rem));
-
-                  Builder.CreateCall(M.getFunction("gather"), ArrayRef<Value*>(g_args));
-                  Builder.CreateReattach(it_sync, synctoken_g0);
-                  Builder.SetInsertPoint(it_sync);
-                  Builder.CreateBr(if_end);
-                  
-                  sp_sc = BasicBlock::Create(M.getContext(), "else_spawn_scatter", main);
-                  sp_ga = BasicBlock::Create(M.getContext(), "else_spawn_gather", main);
-
-                  Builder.SetInsertPoint(if_else);
-                  ld_mn = Builder.CreateLoad(M.getNamedValue("main_tracker"), "main_tracker"); 
-                  ld_bf = Builder.CreateLoad(M.getNamedValue("buffer_size"), "buffer_size"); 
-                  Builder.CreateDetach(sp_sc, if_else_cont, synctoken_s1);
-
-                  Builder.SetInsertPoint(sp_sc);
-                  Builder.CreateCall(M.getFunction("scatter"), ArrayRef<Value*>(args1));
-                  Builder.CreateReattach(if_else_cont, synctoken_s1);
-
-                  Builder.SetInsertPoint(if_else_cont);
-                  m_bf = Builder.CreateNSWMul(ConstantInt::get(Type::getInt32Ty(M.getContext()), 2), ld_bf); 
-                  ad_mn_bf = Builder.CreateNSWAdd(ld_mn, m_bf);
-                  Builder.CreateDetach(sp_ga, ie_sync, synctoken_g1);
-
-                  Builder.SetInsertPoint(sp_ga);
-
-                  std::vector<Value*> g_args2;
-                  g_args2.push_back(dyn_cast<Value>(ad_mn_bf));
-                  g_args2.push_back(dyn_cast<Value>(rem));
-
-                  Builder.CreateCall(M.getFunction("gather"), ArrayRef<Value*>(g_args2));
-                  Builder.CreateReattach(ie_sync, synctoken_g1);
-                  Builder.SetInsertPoint(ie_sync);
-                  Builder.CreateBr(if_end);
-
-                  Builder.SetInsertPoint(if_end);
-
-                  Value *addition = Builder.CreateNSWAdd(Builder.CreateLoad(M.getNamedValue("main_tracker"), "main_tracker"),
-                      Builder.CreateLoad(M.getNamedValue("buffer_size"), "buffer_size"));
-                  Builder.CreateStore(addition, M.getNamedValue("main_tracker"));
-
-                  ld_ct = Builder.CreateLoad(Alloca_ct);
-                  addition = Builder.CreateNSWAdd(ld_ct, ConstantInt::get(Type::getInt32Ty(M.getContext()), 1)); 
-                  Builder.CreateStore(addition, if_end->getParent()->getValueSymbolTable()->lookup("compute_tracker"));
-
-                  Builder.CreateBr(LoopCmpBB);
-
-                  BasicBlock *sync_s0 = BasicBlock::Create(M.getContext(), "sync_s0", main);
-                  BasicBlock *sync_s1 = BasicBlock::Create(M.getContext(), "sync_s1", main);
-
-                  Builder.SetInsertPoint(sync_s0);
-                  Builder.CreateSync(sync_s1, synctoken_s0);
-
-                  Builder.SetInsertPoint(sync_s1);
-                  Builder.CreateSync(tail, synctoken_s1);
-
-                  Instruction *lp_cmp_term = LoopCmpBB->getTerminator();
-                  lp_cmp_term->setOperand(1, sync_s0);
-
-                  // tail is the "while.end" with the store double 0 thing
-
-                  break;
-                } 
-              }
-            }
-          }
-
-          verifyFunction(*it);
-          verifyModule(M);
-
-
-          // errs() << *computeF;
-          // errs() << *gatherF;
-          // errs() << *scatterF;
+          main = &(*it);
         }
-
       }
+
+      // Get assignment for list size.
+      // TODO: Better way to do this.
+      Instruction *str_lst_sz;
+      for (inst_iterator I = inst_begin(main), E = inst_end(main); I != E; ++I){
+        if (isa<StoreInst>(&(*I))) {
+          if (I->getOperand(1) == M.getNamedValue("list_size")) {
+            str_lst_sz = &*I;
+          }
+        }
+      }
+
+      // Make all the sync tokens.
+      Builder.SetInsertPoint(str_lst_sz);
+      Function *synctok = Intrinsic::getDeclaration(&M, Intrinsic::syncregion_start);
+      synctoken_g0 = Builder.CreateCall(synctok, None, "synctoken_g0");
+      synctoken_g1 = Builder.CreateCall(synctok, None, "synctoken_g1");
+      synctoken_s0 = Builder.CreateCall(synctok, None, "synctoken_s0");
+      synctoken_s1 = Builder.CreateCall(synctok, None, "synctoken_s1");
+
+      Alloca_ct = Builder.CreateAlloca(Type::getInt32Ty(M.getContext()), nullptr, "compute_tracker");
+      Builder.CreateStore(ConstantInt::get(Type::getInt32Ty(M.getContext()), 0), Alloca_ct);                      
+
+      // Insert buffer size store.
+      Instruction *str_buff_size = str_lst_sz->clone();
+      Value *buffer_size2 = ConstantInt::get(Type::getInt32Ty(M.getContext()), 10);
+      str_buff_size->setOperand(0, buffer_size2);
+      str_buff_size->setOperand(1, M.getNamedValue("buffer_size"));
+      str_buff_size->insertAfter(&(*str_lst_sz));
+
+      // Insert main tracker store.
+      Instruction *str_main_tracker_size = str_lst_sz->clone();
+      Value *main_tracker_size = ConstantInt::get(Type::getInt32Ty(M.getContext()), 0);
+      str_main_tracker_size->setOperand(0, main_tracker_size);
+      str_main_tracker_size->setOperand(1, M.getNamedValue("main_tracker"));
+      str_main_tracker_size->insertAfter(str_buff_size);
+
+
+      Instruction *call_to_cmp;
+      for (inst_iterator I = inst_begin(main), E = inst_end(main); I != E; ++I){
+        if (I->getOpcode() == Instruction::Call) {
+
+          // Insert calls to gather and scatter. 
+          CallSite cs(&(*I));
+          if (!cs.getInstruction()){
+            continue;
+          }
+          Value* called = cs.getCalledValue()->stripPointerCasts();
+          if (Function* f = dyn_cast<Function>(called)){
+            if (f == compute_copy){
+              call_to_cmp = &*I;
+              // tail is the "while.end" with the store double 0 thing
+
+              break;
+            } 
+          }
+        }
+      }
+
+
+      /*
+       * This section inserts a while loop in main and handles a crazy amount of restructuring
+       * so that the detaches, reattaches, and syncs can be added. 
+       * Many new basic blocks are inserted, and this section is very complicated.
+       * It should be possible to generalize at least some of this section, which ought to 
+       * make it look a lot less ugly.
+       */
+      BasicBlock *LoopCmpBB = BasicBlock::Create(M.getContext(), "while.cond", main); /// need to change this to come off det.comt
+      BasicBlock *head = call_to_cmp->getParent(); 
+      BasicBlock *tail = head->splitBasicBlock(call_to_cmp, "while.endy-do"); 
+      head->getTerminator()->eraseFromParent();
+      Builder.SetInsertPoint(head);
+
+      BasicBlock *g0 = BasicBlock::Create(M.getContext(), "g0", main); 
+      BasicBlock *g0det = BasicBlock::Create(M.getContext(), "g0det", main); 
+      BasicBlock *g0detc = BasicBlock::Create(M.getContext(), "g0detc", main); 
+
+      Builder.SetInsertPoint(g0); 
+      LoadInst *load_main = Builder.CreateLoad(M.getNamedValue("main_tracker"), "main_tracker");
+      /* warning Instruction *g0det_inst =*/ Builder.CreateDetach(g0det, g0detc, synctoken_g0);
+
+      Builder.SetInsertPoint(g0det); 
+      std::vector<Value*> g0args;
+      g0args.push_back(dyn_cast<Value>(load_main));
+      g0args.push_back(dyn_cast<Value>(ConstantInt::get(Type::getInt32Ty(M.getContext()), 0)));
+      /*warning Instruction *g0_call =*/ Builder.CreateCall( M.getFunction("gather"), ArrayRef<Value*>(g0args));         
+      Builder.CreateReattach(g0detc, synctoken_g0); 
+
+      // Instead of breaking to while cond, insert the detach. 
+
+      BasicBlock *g1 = g0detc; 
+      BasicBlock *g1det = BasicBlock::Create(M.getContext(), "g1det", main); 
+      BasicBlock *g1detc = BasicBlock::Create(M.getContext(), "g1detc", main); 
+
+      Builder.SetInsertPoint(g1); 
+      LoadInst *load_main2 = Builder.CreateLoad(M.getNamedValue("main_tracker"), "main_tracker");
+      LoadInst *ld_bf = Builder.CreateLoad(M.getNamedValue("buffer_size"), "ld_bf"); 
+      Value *ad_bf = Builder.CreateNSWAdd(load_main2, ld_bf);
+
+      /* warning Instruction *g1det_inst =*/ Builder.CreateDetach(g1det, g1detc, synctoken_g1);
+
+      Builder.SetInsertPoint(g1det); 
+      std::vector<Value*> g1args;
+      g1args.push_back(dyn_cast<Value>(ad_bf));
+      g1args.push_back(dyn_cast<Value>(ConstantInt::get(Type::getInt32Ty(M.getContext()), 1)));
+      /* warning Instruction *g1_call =*/ Builder.CreateCall( M.getFunction("gather"), ArrayRef<Value*>(g1args));         
+      Builder.CreateReattach(g1detc, synctoken_g1); 
+
+      Builder.SetInsertPoint(g1detc); 
+      Builder.CreateStore(ConstantInt::get(Type::getInt32Ty(M.getContext()), 0), Alloca_ct);
+      Builder.CreateBr(LoopCmpBB);
+
+      // load the main tracker, then call gather 0 and gather 1
+
+      // This is where you need to break to g0
+      Builder.SetInsertPoint(head);
+      //Builder.CreateBr(LoopCmpBB);
+      Builder.CreateBr(g0);
+
+      call_to_cmp->eraseFromParent();
+      // Not sure if it is important, but tail's pred is only loopcmp, and no longer includes ref to main 
+
+
+      Builder.SetInsertPoint(LoopCmpBB);
+      BasicBlock *LoopBB = BasicBlock::Create(M.getContext(), "while.body", main);
+
+      Value *endCond = Builder.CreateICmpSLT(Builder.CreateLoad(M.getNamedValue("main_tracker"), "main_tracker"),
+          Builder.CreateLoad(M.getNamedValue("list_size"), "list_size"));
+
+      Builder.CreateCondBr(endCond, LoopBB, tail); // TODO: fix where to go 
+
+      //insert call to gather function before compute. 
+      Builder.SetInsertPoint(LoopBB);
+
+      Value *ld_ct = Builder.CreateLoad(Alloca_ct);
+      Value *rem2 = Builder.CreateSRem(ld_ct, ConstantInt::get(Type::getInt32Ty(M.getContext()), 2), "rem"); 
+      Value *cmp = Builder.CreateICmpEQ(rem2, ConstantInt::get(Type::getInt32Ty(M.getContext()), 0), "cmp");
+
+      BasicBlock *if_then = BasicBlock::Create(M.getContext(), "if.then", main); 
+      BasicBlock *if_else = BasicBlock::Create(M.getContext(), "if.else", main);
+
+      BasicBlock *if_then_cont = BasicBlock::Create(M.getContext(), "if.then.cont", main); 
+      BasicBlock *if_else_cont = BasicBlock::Create(M.getContext(), "if.else.cont", main);
+
+      BasicBlock *it_sync = BasicBlock::Create(M.getContext(), "then.sync.cont", main); 
+      BasicBlock *ie_sync = BasicBlock::Create(M.getContext(), "else.sync.cont", main);
+
+      BasicBlock *if_end = BasicBlock::Create(M.getContext(), "if.end", main); 
+
+      Builder.CreateCondBr(cmp, if_then, if_else);
+
+      Builder.SetInsertPoint(if_then);
+      Builder.CreateSync(if_then_cont, synctoken_g0);
+      Builder.SetInsertPoint(if_then_cont);
+      Builder.CreateSync(it_sync, synctoken_s0);
+      Builder.SetInsertPoint(it_sync);
+      Builder.CreateBr(if_end);
+
+      Builder.SetInsertPoint(if_else);
+      Builder.CreateSync(if_else_cont, synctoken_g1);
+      Builder.SetInsertPoint(if_else_cont);
+      Builder.CreateSync(ie_sync, synctoken_s1);
+      Builder.SetInsertPoint(ie_sync);
+      Builder.CreateBr(if_end);
+
+      Builder.SetInsertPoint(if_end);
+
+      Value *ld_mn = Builder.CreateLoad(M.getNamedValue("main_tracker"), "main_tracker"); 
+      ld_ct = Builder.CreateLoad(Alloca_ct);
+      rem2 = Builder.CreateSRem(ld_ct, ConstantInt::get(Type::getInt32Ty(M.getContext()), 2), "rem"); 
+      cmp = Builder.CreateICmpEQ(rem2, ConstantInt::get(Type::getInt32Ty(M.getContext()), 0), "cmp");
+
+      std::vector<Value*> args1;
+      args1.push_back(dyn_cast<Value>(ld_mn));
+      args1.push_back(dyn_cast<Value>(rem2));
+      /* warning unused Instruction *compute_call =*/  Builder.CreateCall( M.getFunction("new_comput"), ArrayRef<Value*>(args1));
+
+      if_then = BasicBlock::Create(M.getContext(), "nu.if.then", main); 
+      if_else = BasicBlock::Create(M.getContext(), "nu.if.else", main);
+
+      if_then_cont = BasicBlock::Create(M.getContext(), "nu.if.then.cont", main); 
+      if_else_cont = BasicBlock::Create(M.getContext(), "nu.if.else.cont", main);
+
+      it_sync = BasicBlock::Create(M.getContext(), "nu.then.sync.cont", main); 
+      ie_sync = BasicBlock::Create(M.getContext(), "nu.else.sync.cont", main);
+
+      BasicBlock *sp_sc = BasicBlock::Create(M.getContext(), "spawn_scatter", main);
+      BasicBlock *sp_ga = BasicBlock::Create(M.getContext(), "spawn_gather", main);
+
+      if_end = BasicBlock::Create(M.getContext(), "nu.if.end", main); 
+
+      Builder.CreateCondBr(cmp, if_then, if_else);
+
+      Builder.SetInsertPoint(if_then);
+
+      ld_mn = Builder.CreateLoad(M.getNamedValue("main_tracker"), "main_tracker"); 
+      ld_bf = Builder.CreateLoad(M.getNamedValue("buffer_size"), "buffer_size"); 
+
+      Builder.CreateDetach(sp_sc, if_then_cont, synctoken_s0);
+
+      Builder.SetInsertPoint(sp_sc);
+      Builder.CreateCall(M.getFunction("scatter"), ArrayRef<Value*>(args1));
+      Builder.CreateReattach(if_then_cont, synctoken_s0);
+
+      Builder.SetInsertPoint(if_then_cont);
+      Value *m_bf = Builder.CreateNSWMul(ConstantInt::get(Type::getInt32Ty(M.getContext()), 2), ld_bf); 
+      Value *ad_mn_bf = Builder.CreateNSWAdd(ld_mn, m_bf);
+      Builder.CreateDetach(sp_ga, it_sync, synctoken_g0);
+
+      Builder.SetInsertPoint(sp_ga);
+
+      std::vector<Value*> g_args;
+      g_args.push_back(dyn_cast<Value>(ad_mn_bf));
+      g_args.push_back(dyn_cast<Value>(rem2));
+
+      Builder.CreateCall(M.getFunction("gather"), ArrayRef<Value*>(g_args));
+      Builder.CreateReattach(it_sync, synctoken_g0);
+      Builder.SetInsertPoint(it_sync);
+      Builder.CreateBr(if_end);
+
+      sp_sc = BasicBlock::Create(M.getContext(), "else_spawn_scatter", main);
+      sp_ga = BasicBlock::Create(M.getContext(), "else_spawn_gather", main);
+
+      Builder.SetInsertPoint(if_else);
+      ld_mn = Builder.CreateLoad(M.getNamedValue("main_tracker"), "main_tracker"); 
+      ld_bf = Builder.CreateLoad(M.getNamedValue("buffer_size"), "buffer_size"); 
+      Builder.CreateDetach(sp_sc, if_else_cont, synctoken_s1);
+
+      Builder.SetInsertPoint(sp_sc);
+      Builder.CreateCall(M.getFunction("scatter"), ArrayRef<Value*>(args1));
+      Builder.CreateReattach(if_else_cont, synctoken_s1);
+
+      Builder.SetInsertPoint(if_else_cont);
+      m_bf = Builder.CreateNSWMul(ConstantInt::get(Type::getInt32Ty(M.getContext()), 2), ld_bf); 
+      ad_mn_bf = Builder.CreateNSWAdd(ld_mn, m_bf);
+      Builder.CreateDetach(sp_ga, ie_sync, synctoken_g1);
+
+      Builder.SetInsertPoint(sp_ga);
+
+      std::vector<Value*> g_args2;
+      g_args2.push_back(dyn_cast<Value>(ad_mn_bf));
+      g_args2.push_back(dyn_cast<Value>(rem2));
+
+      Builder.CreateCall(M.getFunction("gather"), ArrayRef<Value*>(g_args2));
+      Builder.CreateReattach(ie_sync, synctoken_g1);
+      Builder.SetInsertPoint(ie_sync);
+      Builder.CreateBr(if_end);
+
+      Builder.SetInsertPoint(if_end);
+
+      Value *addition = Builder.CreateNSWAdd(Builder.CreateLoad(M.getNamedValue("main_tracker"), "main_tracker"),
+          Builder.CreateLoad(M.getNamedValue("buffer_size"), "buffer_size"));
+      Builder.CreateStore(addition, M.getNamedValue("main_tracker"));
+
+      ld_ct = Builder.CreateLoad(Alloca_ct);
+      addition = Builder.CreateNSWAdd(ld_ct, ConstantInt::get(Type::getInt32Ty(M.getContext()), 1)); 
+      Builder.CreateStore(addition, if_end->getParent()->getValueSymbolTable()->lookup("compute_tracker"));
+
+      Builder.CreateBr(LoopCmpBB);
+
+      BasicBlock *sync_s0 = BasicBlock::Create(M.getContext(), "sync_s0", main);
+      BasicBlock *sync_s1 = BasicBlock::Create(M.getContext(), "sync_s1", main);
+
+      Builder.SetInsertPoint(sync_s0);
+      Builder.CreateSync(sync_s1, synctoken_s0);
+
+      Builder.SetInsertPoint(sync_s1);
+      Builder.CreateSync(tail, synctoken_s1);
+
+      Instruction *lp_cmp_term = LoopCmpBB->getTerminator();
+      lp_cmp_term->setOperand(1, sync_s0);
+      /* END adding while loop in main and major restructuring for parallelism*/
+
+      verifyFunction(*main);
+
+
+      // errs() << *computeF;
+      // errs() << *gatherF;
+      // errs() << *scatterF;
 
       verifyModule(M);
 
       //errs() << M;
 
-      // debugging on local
+      // debugging, this is obv not a general solution. 
       errs() << "writing result to file\n";
 
       std::error_code EC;
@@ -919,14 +914,9 @@ namespace {
     void getAnalysisUsage(AnalysisUsage &AU) const override{
       AU.addRequired<LoopInfoWrapperPass>();
     }
-
   };
-
 }
-
-
 
 char GatherScatter::ID = 0;
 static RegisterPass<GatherScatter> Z("gather", "Gather Pass attempt");
-
 
