@@ -1,0 +1,4 @@
+- Currently cannot have variable size data stucture, and the transformation has hard coded 100 element size list
+- Have someone test this transformation
+- Double type is currently hard coded for the data structure and the buffers, fix this
+- 
