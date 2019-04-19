@@ -33,6 +33,7 @@ using namespace llvm;
 namespace {
 
   std::string idx_var;
+      unsigned lsize = 1;
 
   struct GatherScatter : public ModulePass {
     static char ID; // Pass identification, replacement for typeid
@@ -140,7 +141,7 @@ namespace {
           // This only works when a constant is used is the for loop. TODO: fix to use vars
           ConstantInt *lstsz = dyn_cast<llvm::ConstantInt>(N);
           if (lstsz){
-            if (lstsz->equalsInt(100)){
+            if (lstsz->equalsInt(lsize)){
               Builder.SetInsertPoint(&*I);
               Instruction *ld_bsize = Builder.CreateLoad(M.getNamedValue("buffer_size"));
               I->setOperand(1, ld_bsize);
@@ -176,7 +177,6 @@ namespace {
       std::string gather_var = "";
       idx_var = "";
       unsigned bsize = 1;
-      unsigned lsize = 1;
 
       MDNode *meta_data; 
       bool PragmaEnablePv = false;
@@ -211,6 +211,8 @@ namespace {
 
                 bsize = mdconst::extract<ConstantInt>(MD->getOperand(3))->getZExtValue();
                 lsize = mdconst::extract<ConstantInt>(MD->getOperand(4))->getZExtValue();
+            //    llvm::errs() << "bsize " << bsize << "\n";
+            //    llvm::errs() << "lsize " << lsize << "\n";
               }
 
               meta_data = GetUnrollMetadata(LoopID, "llvm.loop.pv.enable");
@@ -281,8 +283,11 @@ namespace {
 
       // Make a gather variable for A 
       GlobalVariable* buffer_size;
+      GlobalVariable* L_size;
       GlobalVariable* main_tracker;
 
+      L_size = new GlobalVariable(M, Type::getInt32Ty(M.getContext()), false, GlobalVariable::ExternalLinkage,
+          ConstantInt::get(Type::getInt32Ty(M.getContext()), lsize), "L_size");
       buffer_size = new GlobalVariable(M, Type::getInt32Ty(M.getContext()), false, GlobalVariable::ExternalLinkage,
           ConstantInt::get(Type::getInt32Ty(M.getContext()), bsize), "buffer_size");
       main_tracker = new GlobalVariable(M, Type::getInt32Ty(M.getContext()), false, GlobalVariable::ExternalLinkage,

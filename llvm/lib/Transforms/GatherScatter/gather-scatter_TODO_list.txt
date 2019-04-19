@@ -1,4 +1,8 @@
-- Currently cannot have variable size data stucture, and the transformation has hard coded 100 element size list
+TODO:
 - Have someone test this transformation
 - Double type is currently hard coded for the data structure and the buffers, fix this
 - 
+
+
+Notes:
+- Buffers are allocated on the stack, and could possibly cause a stack overflow. 
