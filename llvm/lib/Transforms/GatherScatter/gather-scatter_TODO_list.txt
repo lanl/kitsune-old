@@ -1,8 +1,15 @@
 TODO:
 - Have someone test this transformation
 - Double type is currently hard coded for the data structure and the buffers, fix this
-- 
-
+- The current transformation works for a very specific source code structure: 
+  - ! There must be a compute method (which may or may not need to be named compute) => *check this*
+  - The loop of interest inside the compute method must be annotated with the custom pragma
+  - ! It may or may not be true that there must be global variables names buffer_size and list_size => *check this*
+  - The compute method must be called within the main method
+  - Pretty sure there must be only one operation on the gather variable => *check this*
 
 Notes:
 - Buffers are allocated on the stack, and could possibly cause a stack overflow. 
+
+Building on this work:
+- 
