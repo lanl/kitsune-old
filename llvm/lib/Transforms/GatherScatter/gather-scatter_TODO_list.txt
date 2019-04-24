@@ -1,15 +1,17 @@
 TODO:
 - Have someone test this transformation
 - Double type is currently hard coded for the data structure and the buffers, fix this
-- The current transformation works for a very specific source code structure: 
-  - ! There must be a compute method (which may or may not need to be named compute) => *check this*
-  - The loop of interest inside the compute method must be annotated with the custom pragma
-  - ! It may or may not be true that there must be global variables names buffer_size and list_size => *check this*
-  - The compute method must be called within the main method
-  - Pretty sure there must be only one operation on the gather variable => *check this*
+- Remove the requirement that be global variables named buffer_size and list_size
+- Remove the requirement that only one operation can be performed on that gather variable
 
 Notes:
 - Buffers are allocated on the stack, and could possibly cause a stack overflow. 
+- The current transformation works for a very specific source code structure: 
+  - There must be a compute method, which needn't be named "compute," that has the indirect accesses
+  - The loop of interest inside the compute method must be annotated with the custom pragma
+  - There must be global variables names buffer_size and list_size 
+  - The compute method must be called within the main method
+  - There must be only one operation on the gather variable
 
 Building on this work:
-- 
+- This might make a good use case for a custom backend that syncs on memory instead of tokens
