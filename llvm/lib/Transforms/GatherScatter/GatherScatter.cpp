@@ -215,7 +215,6 @@ namespace {
 
       MDNode *meta_data; 
       Function *compute_function;
-      int num_pragma_args = 5;
 
       // This loop is looking for a loop in the code with the pipevec metadata.  
       // There may be a better way to get this loop. 
@@ -441,13 +440,12 @@ namespace {
       } // end instruction iterator on gatherF
 
       Instruction *gld_buffer_q;
-      Value *gq_location;
       Value *grem ;
       Value *gbuff_idx;
       Instruction *ld_gbf_idx;
 
       Function::arg_iterator gargs = gatherF->arg_begin();
-      Value* track_arg = gargs++;
+      gargs++;
       Value* loc_arg = gargs++;
 
 
@@ -483,7 +481,7 @@ namespace {
       ld_gbf_idx = Builder.CreateLoad(Type::getDoublePtrTy(M.getContext()), gbuff_idx, "load_buff_idx"); 
 
       Value *gep_at_bf = Builder.CreateGEP(Type::getDoubleTy(M.getContext()) , ld_gbf_idx, lp_i, "gep_at_bf");
-      Instruction *str_A_gbf = Builder.CreateStore(ld_idx_A, gep_at_bf, "store_A_new_buff");
+      Builder.CreateStore(ld_idx_A, gep_at_bf, "store_A_new_buff");
 
 
       add_while(gatherF, M, GEPg_A->getParent());
@@ -532,7 +530,7 @@ namespace {
 
 
       Function::arg_iterator sargs = scatterF->arg_begin();
-      track_arg = sargs++;
+      sargs++;
       loc_arg = sargs++;
 
 
@@ -546,7 +544,7 @@ namespace {
       Value *sload = Builder.CreateLoad(Type::getDoubleTy(M.getContext()), gep_at_bf, "sld" );
 
       Builder.SetInsertPoint(gep_idx_var->getParent()->getTerminator());
-      str_A_gbf = Builder.CreateStore(sload, gep_gather_var, "sstore_A_new_buff");
+      Builder.CreateStore(sload, gep_gather_var, "sstore_A_new_buff");
 
       add_while(scatterF, M, gep_idx_var->getParent());
 
@@ -564,7 +562,7 @@ namespace {
       // warning Value *buff_idx;
 
       Function::arg_iterator cargs = computeF->arg_begin();
-      track_arg = cargs++;
+      cargs++;
       loc_arg = cargs++;
 
       Instruction *idx_gep_inst;
@@ -730,13 +728,13 @@ namespace {
       LoadInst *ld_bf = Builder.CreateLoad(buffer_size, "ld_bf"); 
       Value *ad_bf = Builder.CreateNSWAdd(load_main2, ld_bf);
 
-      /* warning Instruction *g1det_inst =*/ Builder.CreateDetach(g1det, g1detc, synctoken_g1);
+      Builder.CreateDetach(g1det, g1detc, synctoken_g1);
 
       Builder.SetInsertPoint(g1det); 
       std::vector<Value*> g1args;
       g1args.push_back(dyn_cast<Value>(ad_bf));
       g1args.push_back(dyn_cast<Value>(ConstantInt::get(Type::getInt32Ty(M.getContext()), 1)));
-      /* warning Instruction *g1_call =*/ Builder.CreateCall( M.getFunction("gather"), ArrayRef<Value*>(g1args));         
+      Builder.CreateCall( M.getFunction("gather"), ArrayRef<Value*>(g1args));         
       Builder.CreateReattach(g1detc, synctoken_g1); 
 
       Builder.SetInsertPoint(g1detc); 
@@ -760,7 +758,7 @@ namespace {
       Value *endCond = Builder.CreateICmpSLT(Builder.CreateLoad(main_tracker, "main_tracker"),
           Builder.CreateLoad(L_size, "list_size"));
 
-      Builder.CreateCondBr(endCond, LoopBB, tail); // TODO: fix where to go 
+      Builder.CreateCondBr(endCond, LoopBB, tail); 
 
       //insert call to gather function before compute. 
       Builder.SetInsertPoint(LoopBB);
