@@ -2,6 +2,27 @@
 //
 //                     The LLVM Compiler Infrastructure
 //
+// 
+// This file looks for an annotated loop and generates a gather and scatter
+// method based on the function that the annotated loop is found in. 
+// Calls to gather and scatter are generated and rely on Tapir constructs
+// to synchronize the gathering, scattering, and compute. 
+// While loops are added in the functions (including main) in order to 
+// facilitate more complex data access in the future. The original algorithm 
+// used such while loops to account for conditionals.
+// Current prototype is pretty limited and a bit kludgey, but lays the 
+// foundation for a transformation that might do somehting like an auto-
+// parallelized gather-scatter code targeting some parallel IR.
+//
+// It is likely that there are better ways to achieve some of what is done
+// in this transformation, and there is certainly need to remove current 
+// hard-coded things (e.g. buffer count, double type), which were 
+// short-cutted for the sake of completing the prototype in a timely fashion. 
+//
+// In the event that another person is reading this code and has questions, 
+// my permanent email is gmail: amaleewilson. 
+//
+//
 // This file is distributed under the University of Illinois Open Source
 // License. See LICENSE.TXT for details.
 
@@ -33,34 +54,42 @@ using namespace llvm;
 namespace {
 
   std::string idx_var;
-      unsigned lsize = 1;
+  unsigned lsize = 1;
 
   struct GatherScatter : public ModulePass {
     static char ID; // Pass identification, replacement for typeid
     GatherScatter() : ModulePass(ID) {}
 
     /*
-     * The while loops ofund in the gather, scatter and compute are currently redundant.
+     * The while loops found in the gather, scatter and compute are currently redundant.
      * However, they become useful later for sparse access, e.g. if there is a conditional 
      * that affects which things are gathered, we want to only gather if that conditional
      * is satisfied. In other words, we may iterate over 50 elements and gather only 10. 
      *
      * This sort of logic is not currently supported, but the current implemenetation  
      * is designed to be extensible should this be pursued further. 
+     * 
+     * f: Function in which we want to add a while loop.
+     * M: Module that contains the function.
+     * lp_body: The loops that we want to surround with a while loop.
+     *
+     * Note that this has been tested only for a lp_body that is a for loop and the only
+     * thing inside the function f. 
      */
     void add_while(Function* f, Module &M, BasicBlock* lp_body){
       IRBuilder<> Builder(M.getContext());
 
+      // Get the function arguments, which describe where you are in the original data 
+      // structure and which buffer to collect into. 
       Function::arg_iterator args = f->arg_begin();
-      Value* track_arg = args++;
+      // track_arg is where you are in og data structure
+      Value* track_arg = args++; 
+      // loc_arg is the buffer into which you gather data
       Value* loc_arg = args++;
 
-      Function *cF = f; //Builder.GetInsertBlock()->getParent(); // Could prob just set it to it, but hey
-
-
       // Splitting entry block to surround the whole function with the while loop
-      BasicBlock *entryBB = &(cF->getEntryBlock()); //Builder.GetInsertBlock(); //Builder.GetInsertBlock();
-      BasicBlock *while_cond = BasicBlock::Create(M.getContext(), "whilelpcond", cF);
+      BasicBlock *entryBB = &(f->getEntryBlock()); 
+      BasicBlock *while_cond = BasicBlock::Create(M.getContext(), "whilelpcond", f);
       BasicBlock *while_body = entryBB->splitBasicBlock(entryBB->getFirstNonPHI(), "while.body"); 
 
       Instruction *entry_term = entryBB->getTerminator(); 
@@ -79,17 +108,17 @@ namespace {
       entry_term->eraseFromParent();
 
       Builder.SetInsertPoint(while_cond);
-      BasicBlock *while_end = BasicBlock::Create(M.getContext(), "whilelpend", cF);
+      BasicBlock *while_end = BasicBlock::Create(M.getContext(), "whilelpend", f);
 
       // Values for while loop iterations
-      Value *trkr = cF->getValueSymbolTable()->lookup("tracker");
+      Value *trkr = f->getValueSymbolTable()->lookup("tracker");
       Value *addition = Builder.CreateNSWAdd(track_arg,
           Builder.CreateLoad(M.getNamedValue("buffer_size"), "buffer_size"));
       Value *endCond = Builder.CreateICmpSLT(Builder.CreateLoad(trkr, "trkr"), addition);
 
       // Structure
-      BasicBlock *land = BasicBlock::Create(M.getContext(), "land.rhs", cF, while_body);
-      BasicBlock *landend = BasicBlock::Create(M.getContext(), "land.end", cF, while_body);
+      BasicBlock *land = BasicBlock::Create(M.getContext(), "land.rhs", f, while_body);
+      BasicBlock *landend = BasicBlock::Create(M.getContext(), "land.end", f, while_body);
       Builder.CreateCondBr(endCond, land, landend);
 
       // Looping conditions
@@ -114,7 +143,7 @@ namespace {
 
       // This loop finds the return instruction of the funcion
       Instruction *fn_ret;
-      for (inst_iterator I = inst_begin(cF), E = inst_end(cF); I != E; ++I){
+      for (inst_iterator I = inst_begin(f), E = inst_end(f); I != E; ++I){
         if (I->getOpcode() == Instruction::Ret){
           fn_ret = &*I;
           break;
@@ -134,11 +163,12 @@ namespace {
 
       // This loop is changing the loop condition so that it iterates buffer_size times
       // instead of list_size times. 
-      // Must be a better way to change the loop condition
-      for (inst_iterator I = inst_begin(cF), E = inst_end(cF); I != E; ++I){
+      // There must be a better way to change the loop condition
+      for (inst_iterator I = inst_begin(f), E = inst_end(f); I != E; ++I){
         if (I->getOpcode() == Instruction::ICmp){
           Value *N = I->getOperand(1);
-          // This only works when a constant is used is the for loop. TODO: fix to use vars
+          // This only works when a constant known at compile time is used at the term for the for loop. 
+          // TODO: fix this to be able to use a variable 
           ConstantInt *lstsz = dyn_cast<llvm::ConstantInt>(N);
           if (lstsz){
             if (lstsz->equalsInt(lsize)){
@@ -153,7 +183,7 @@ namespace {
       // if gather and A, replace A[idx[i]] with A[idx[tracker]]
       // if compute, leave g_A[i] and s_A[i]
       // if scatter and A, replace A[idx[i]] with A[idx[tracker]]
-      for (inst_iterator I = inst_begin(cF), E = inst_end(cF); I != E; ++I){
+      for (inst_iterator I = inst_begin(f), E = inst_end(f); I != E; ++I){
         if (I->getOpcode() == Instruction::GetElementPtr){ // if it is GEP
           if (I->getOperand(0)->getName() == idx_var){
             Builder.SetInsertPoint(&*I);
@@ -163,7 +193,7 @@ namespace {
         } 
       }
 
-      // Just incrementing the loop
+      // Just incrementing the while loop
       Instruction *lp_bod_term = lp_body->getTerminator();
       Builder.SetInsertPoint(lp_bod_term);
       Builder.CreateStore(Builder.CreateNSWAdd(Builder.CreateLoad(trkr), 
@@ -179,57 +209,61 @@ namespace {
       unsigned bsize = 1;
 
       MDNode *meta_data; 
-      bool PragmaEnablePv = false;
       Function *compute_function;
+      int num_pragma_args = 5;
 
-
+      // This loop is looking for a loop in the code with the pipevec metadata.  
+      // There may be a better way to get this loop. 
+      // Also, this basically enforces that there be exactly one pipevec loop in the module,
+      // which is not necessarily something we want to do. 
       for (auto F = M.getFunctionList().begin(), 
           eF = M.getFunctionList().end(); 
           F != eF; ++F) {
 
         if ((*F).size() == 0) continue;
-        LoopInfo &li = getAnalysis<LoopInfoWrapperPass>(*F).getLoopInfo();
 
         for (Function::iterator b = F->begin(), be = F->end(); b != be; ++b) {
+          LoopInfo &li = getAnalysis<LoopInfoWrapperPass>(*F).getLoopInfo();
           BasicBlock *BB = &*b;
           Loop *lp = li.getLoopFor(BB);
 
           if (lp){
-            // errs() << *lp << '\n';
             MDNode *LoopID = lp->getLoopID();
             if (LoopID){
-              MDNode *MD = dyn_cast<MDNode>(LoopID->getOperand(1));
-              if (MD->getNumOperands() == 5){
-                MDString *S = dyn_cast<MDString>(MD->getOperand(1));
-                if (S){
-                  gather_var = S->getString();
-                }
-                MDString *S2 = dyn_cast<MDString>(MD->getOperand(2));
-                if (S2){
-                  idx_var = S2->getString();
-                }
-
-                bsize = mdconst::extract<ConstantInt>(MD->getOperand(3))->getZExtValue();
-                lsize = mdconst::extract<ConstantInt>(MD->getOperand(4))->getZExtValue();
-            //    llvm::errs() << "bsize " << bsize << "\n";
-            //    llvm::errs() << "lsize " << lsize << "\n";
-              }
-
               meta_data = GetUnrollMetadata(LoopID, "llvm.loop.pv.enable");
               if (meta_data){
-                PragmaEnablePv = true;
+                MDNode *MD = dyn_cast<MDNode>(LoopID->getOperand(1));
                 compute_function = BB->getParent();
+
+                MDString *gather_var_name = dyn_cast<MDString>(MD->getOperand(1));
+                if (gather_var_name){
+                  gather_var = gather_var_name->getString();
+                }
+                MDString *idx_var_name = dyn_cast<MDString>(MD->getOperand(2));
+                if (idx_var_name){
+                  idx_var = idx_var_name->getString();
+                }
+                
+                // This assumes that buffer size always comes before list size, which
+                // may not be an good assumption. 
+                bsize = mdconst::extract<ConstantInt>(MD->getOperand(3))->getZExtValue();
+                lsize = mdconst::extract<ConstantInt>(MD->getOperand(4))->getZExtValue();
+                break;
+                //    llvm::errs() << "bsize " << bsize << "\n";
+                //    llvm::errs() << "lsize " << lsize << "\n";
               }
-            }
+            } //end if(LoopID)
           } // end if(lp)
-        } // end funct iter
-      } // end func
+        } // end bb iter
+      } // end func iter
 
 
       /*
-       * This section creates 2 gather and 2 scatter buffer on (I think) the stack. 
+       * BEGIN buffer creation
+       * This section creates 2 gather and 2 scatter buffer on the stack. 
        * TODO: Should conform to whatever the type is of the thing being gathered/scattered,
        * but it currently is supporting only doubles. 
+       * Setting the alignment to 8 or 16 only because the original version did so. May not be optimal or portable. 
        */
       GlobalVariable* gA_buffs = new GlobalVariable(M, ArrayType::get(Type::getDoublePtrTy(M.getContext()), 2),
           false, GlobalValue::CommonLinkage, 0, "gAbuffs");
@@ -248,10 +282,8 @@ namespace {
       index_vector.push_back((Value*)ConstantInt::get(Type::getInt32Ty(M.getContext()), 0));
       index_vector.push_back((Value*)ConstantInt::get(Type::getInt32Ty(M.getContext()), 0));
 
-      Constant *gep_const = ConstantExpr::getGetElementPtr(
-          ArrayType::get(Type::getDoublePtrTy(M.getContext()), 2), 
-          gA_buffs,
-          index_vector);
+      Constant *gep_const = ConstantExpr::getGetElementPtr(ArrayType::get(Type::getDoublePtrTy(M.getContext()), 2), 
+          gA_buffs, index_vector);
 
       buff_q->setInitializer(gep_const);
 
@@ -264,7 +296,7 @@ namespace {
       sA_buffs->setInitializer(sconst_array_2);
 
       GlobalVariable* sbuff_q = new GlobalVariable(M, PointerType::get(Type::getDoublePtrTy(M.getContext()), 0),
-          false, GlobalValue::ExternalLinkage, 0, "sbuff_q"); // common or gloabal linkage here? 
+          false, GlobalValue::ExternalLinkage, 0, "sbuff_q"); // correct linkage here?  
 
       sbuff_q->setAlignment(8); 
 
@@ -278,10 +310,9 @@ namespace {
           sindex_vector);
 
       sbuff_q->setInitializer(sgep_const);
-      /* END buffer creation logic */
+      /* END buffer creation */
 
 
-      // Make a gather variable for A 
       GlobalVariable* buffer_size;
       GlobalVariable* L_size;
       GlobalVariable* main_tracker;
