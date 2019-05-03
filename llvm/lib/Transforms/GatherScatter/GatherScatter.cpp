@@ -316,6 +316,7 @@ namespace {
       sbuff_q->setInitializer(sgep_const);
       /* END buffer creation */
 
+      // Global variables to store list size, buffer size, and the main_tracker, which tracks location in og data. 
       L_size = new GlobalVariable(M, Type::getInt32Ty(M.getContext()), false, GlobalVariable::ExternalLinkage,
           ConstantInt::get(Type::getInt32Ty(M.getContext()), lsize), "L_size");
       buffer_size = new GlobalVariable(M, Type::getInt32Ty(M.getContext()), false, GlobalVariable::ExternalLinkage,
@@ -391,17 +392,24 @@ namespace {
       Value *array_idx ;
 
       for (int i = 0; i < 2; ++i){
-        ib_ft = FunctionType::get(Type::getDoublePtrTy(M.getContext()), false);
+
+        std::vector<Type*> nu_args(1, Type::getInt32Ty(M.getContext()));
+        ib_ft = FunctionType::get(Type::getDoublePtrTy(M.getContext()), nu_args, false);
+
+        std::vector<Value*> args1;
+
+        args1.push_back(dyn_cast<Value>(new LoadInst(buffer_size, "load buff 1", test_c_call)));
+
         init_buff = M.getOrInsertFunction("init_double_buffer", ib_ft);
         ib_func = dyn_cast<Function>(init_buff);
 
-        call = Builder.CreateCall(ib_func, llvm::NoneType::None, "call");
+        call = Builder.CreateCall(ib_func, ArrayRef<Value*>(args1));
         ld_bq = Builder.CreateLoad(PointerType::get(Type::getDoublePtrTy(M.getContext()), 0), buff_q, "ld_bq" );
         ld_i = ConstantInt::get(Type::getInt32Ty(M.getContext()), i);
         array_idx = Builder.CreateGEP(Type::getDoublePtrTy(M.getContext()), ld_bq, ld_i, "arrayidx");
         Builder.CreateStore(call, array_idx, false);
 
-        call = Builder.CreateCall(ib_func, llvm::NoneType::None, "call");
+        call = Builder.CreateCall(ib_func, ArrayRef<Value*>(args1));
         ld_bq = Builder.CreateLoad(PointerType::get(Type::getDoublePtrTy(M.getContext()), 0), sbuff_q, "ld_sbq" );
         array_idx = Builder.CreateGEP(Type::getDoublePtrTy(M.getContext()), ld_bq, ld_i, "arrayidx");
         Builder.CreateStore(call, array_idx, false);
