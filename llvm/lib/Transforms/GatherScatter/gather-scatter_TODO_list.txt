@@ -7,6 +7,7 @@ TODO:
 - Remove the requirement that only one operation can be performed on that gather variable
 - Test this transforamtion for interoperability with other transformations
 - Two buffers is currently hard coded, should be generalize to support n buffers
+- Currently the gather variable and index variable must be global. Change this?
 
 Notes:
 - Buffers are allocated on the stack, and could possibly cause a stack overflow. 

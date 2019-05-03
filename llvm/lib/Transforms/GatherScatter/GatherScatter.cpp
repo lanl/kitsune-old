@@ -336,7 +336,7 @@ namespace {
 
       /*
        * In this section, the compute method is modified to take two arguments.
-       * Previous calls to compute are replaced with "new_comput."
+       * Previous calls to compute are replaced with "new_comput" which takes two args.
        */
       IRBuilder<> Builder(M.getContext());
 
@@ -360,15 +360,13 @@ namespace {
           for (Use &U2 : Inst->operands()) {
             Value *v = U2.get();
             if (v == compute_function){
-              llvm::errs() << "found compute\n";
 
               std::vector<Value*> args1;
-
-              args1.push_back(dyn_cast<Value>(new LoadInst(buffer_size, "load buff 1", Inst)));
-              args1.push_back(dyn_cast<Value>(new LoadInst(buffer_size, "load buff 2", Inst)));
+              // TODO: use correct arguments here. 
+              args1.push_back(dyn_cast<Value>(ConstantInt::get(Type::getInt32Ty(M.getContext()), lsize)));
+              args1.push_back(dyn_cast<Value>(new LoadInst(main_tracker, "load main tracker", Inst)));
               Builder.SetInsertPoint(Inst);
               test_c_call = Builder.CreateCall(compute_copy, ArrayRef<Value*>(args1));
-              llvm::errs() << *Inst << "\n";
               compute_call_to_delete = Inst;
             }
           }        
@@ -381,6 +379,10 @@ namespace {
        * It is placed here because the buffers should be initialized right before
        * the call to compute. With that said, TODO: buffers should be initalized
        * only once, and this code may get weird if compute is called multiple times.  
+       *
+       * Also, another unfortunate thing about this is that it relies on the file
+       * having some init_buffer function with the given signature. 
+       * Maybe it's possible to generate this init_buffer function?
        */
       Builder.SetInsertPoint(test_c_call);
       FunctionType *ib_ft ;
@@ -393,23 +395,23 @@ namespace {
 
       for (int i = 0; i < 2; ++i){
 
-        std::vector<Type*> nu_args(1, Type::getInt32Ty(M.getContext()));
-        ib_ft = FunctionType::get(Type::getDoublePtrTy(M.getContext()), nu_args, false);
+        std::vector<Type*> init_buffer_arg_types(1, Type::getInt32Ty(M.getContext()));
+        ib_ft = FunctionType::get(Type::getDoublePtrTy(M.getContext()), init_buffer_arg_types, false);
 
-        std::vector<Value*> args1;
+        std::vector<Value*> init_buffer_args;
 
-        args1.push_back(dyn_cast<Value>(new LoadInst(buffer_size, "load buff 1", test_c_call)));
+        init_buffer_args.push_back(dyn_cast<Value>(new LoadInst(buffer_size, "load buff 1", test_c_call)));
 
         init_buff = M.getOrInsertFunction("init_double_buffer", ib_ft);
         ib_func = dyn_cast<Function>(init_buff);
 
-        call = Builder.CreateCall(ib_func, ArrayRef<Value*>(args1));
+        call = Builder.CreateCall(ib_func, ArrayRef<Value*>(init_buffer_args));
         ld_bq = Builder.CreateLoad(PointerType::get(Type::getDoublePtrTy(M.getContext()), 0), buff_q, "ld_bq" );
         ld_i = ConstantInt::get(Type::getInt32Ty(M.getContext()), i);
         array_idx = Builder.CreateGEP(Type::getDoublePtrTy(M.getContext()), ld_bq, ld_i, "arrayidx");
         Builder.CreateStore(call, array_idx, false);
 
-        call = Builder.CreateCall(ib_func, ArrayRef<Value*>(args1));
+        call = Builder.CreateCall(ib_func, ArrayRef<Value*>(init_buffer_args));
         ld_bq = Builder.CreateLoad(PointerType::get(Type::getDoublePtrTy(M.getContext()), 0), sbuff_q, "ld_sbq" );
         array_idx = Builder.CreateGEP(Type::getDoublePtrTy(M.getContext()), ld_bq, ld_i, "arrayidx");
         Builder.CreateStore(call, array_idx, false);
