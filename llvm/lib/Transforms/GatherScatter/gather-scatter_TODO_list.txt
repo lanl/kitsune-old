@@ -4,16 +4,15 @@ TODO:
 - Double check that you can have another GEP instruction in th compute method
 - Have someone test this transformation
 - Double type is currently hard coded for the data structure and the buffers, fix this
-- Remove the requirement that be global variables named buffer_size and list_size
 - Remove the requirement that only one operation can be performed on that gather variable
 - Test this transforamtion for interoperability with other transformations
+- Two buffers is currently hard coded, should be generalize to support n buffers
 
 Notes:
 - Buffers are allocated on the stack, and could possibly cause a stack overflow. 
 - The current transformation works for a very specific source code structure: 
   - There must be a compute method, which needn't be named "compute," that has the indirect accesses
   - The loop of interest inside the compute method must be annotated with the custom pragma
-  - There must be global variables names buffer_size and list_size 
   - The compute method must be called within the main method
   - There must be only one operation on the gather variable
 
