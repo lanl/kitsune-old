@@ -20,7 +20,7 @@
 // short-cutted for the sake of completing the prototype in a timely fashion. 
 //
 // In the event that another person is reading this code and has questions, 
-// my permanent email is gmail: amaleewilson. 
+// my permanent email is at gmail: amaleewilson. 
 //
 //
 // This file is distributed under the University of Illinois Open Source
@@ -210,6 +210,7 @@ namespace {
       errs() << "running on module\n";
 
       std::string gather_var = "";
+      std::string scatter_var = "";
       idx_var = "";
       unsigned bsize = 1;
 
@@ -243,15 +244,19 @@ namespace {
                 if (gather_var_name){
                   gather_var = gather_var_name->getString();
                 }
-                MDString *idx_var_name = dyn_cast<MDString>(MD->getOperand(2));
+                MDString *scatter_var_name = dyn_cast<MDString>(MD->getOperand(2));
+                if (scatter_var_name){
+                  scatter_var = scatter_var_name->getString();
+                }
+                MDString *idx_var_name = dyn_cast<MDString>(MD->getOperand(3));
                 if (idx_var_name){
                   idx_var = idx_var_name->getString();
                 }
 
                 // This assumes that buffer size always comes before list size, which
                 // may not be an good assumption. 
-                bsize = mdconst::extract<ConstantInt>(MD->getOperand(3))->getZExtValue();
-                lsize = mdconst::extract<ConstantInt>(MD->getOperand(4))->getZExtValue();
+                bsize = mdconst::extract<ConstantInt>(MD->getOperand(4))->getZExtValue();
+                lsize = mdconst::extract<ConstantInt>(MD->getOperand(5))->getZExtValue();
                 break;
                 //    llvm::errs() << "bsize " << bsize << "\n";
                 //    llvm::errs() << "lsize " << lsize << "\n";
@@ -438,12 +443,15 @@ namespace {
 
       for (inst_iterator I = inst_begin(gatherF), E = inst_end(gatherF); I != E; ++I){
         if (I->getOpcode() == Instruction::GetElementPtr){ // if it is GEP
-          if (I->getOperand(0)->getName() == idx_var){
-            lp_i = I->getOperand(2);
+          if (I->getOperand(0)->getName() == idx_var){ // if it is operating on idx var
+            //llvm::errs() << "inst using idx var " << *I << "\n";
+            lp_i = I->getOperand(2); // get the operand, i.e. loop index var
+            //llvm::errs() << "lp_i " << *lp_i << "\n";
           }
 
-          if (I->getOperand(0)->getName() == gather_var){
+          if (I->getOperand(0)->getName() == gather_var){ // if it is operating on gather var
             old_inst = &*I;
+            //llvm::errs() << "old_inst " << *old_inst << "\n";
             GEPg_A = I->clone(); // Cloning GEP for A because we need to add a GEP for g_A
           }
         } 
@@ -458,31 +466,44 @@ namespace {
       gargs++;
       Value* loc_arg = gargs++;
 
+      //llvm::errs() << *gatherF;
 
+      // consider putting this back. 
+      //old_inst->setOperand(2, lp_i); 
+
+      //llvm::errs() << "GEPg_A pre setOp " << *GEPg_A << "\n";
       GEPg_A->setOperand(2, lp_i); // Fixing operand from idx[i] to just i
+      //llvm::errs() << "GEPg_A post setOp " << *GEPg_A << "\n";
       // TODO: make this better  
       for (User *U : old_inst->users()) {
         if (Instruction *Inst = dyn_cast<Instruction>(U)) {
           if (isa<LoadInst>(Inst)) {
             // grab the load for the operand for g_A's store. 
             ld_idx_A = Inst;
+            //llvm::errs() << "ld_idx_A " << *ld_idx_A << "\n";
 
             // delete everything that uses the load
             for (User *LU : ld_idx_A->users()) {
               if (Instruction *LInst = dyn_cast<Instruction>(LU)) {
+                //llvm::errs() << "LInst to erase " << *LInst << "\n";
                 LInst->eraseFromParent();
               }
             }
           }
           // delete stores to A
           else if (isa<StoreInst>(Inst)){
+            //llvm::errs() << "Store Inst to erase " << *Inst << "\n";
             Inst->eraseFromParent();
           }
         }
       }
 
+      //llvm::errs() << *gatherF;
+
       // TODO: use the builder to insert instructions instead!!!! 
       GEPg_A->insertAfter(ld_idx_A); // insert after load
+
+      //llvm::errs() << "before buffer logic \n" << *gatherF;
 
       Builder.SetInsertPoint(ld_idx_A->getNextNode());
       gld_buffer_q = Builder.CreateLoad(PointerType::get(Type::getDoublePtrTy(M.getContext()), 0), buff_q, "ld_bq" );
@@ -493,8 +514,9 @@ namespace {
       Value *gep_at_bf = Builder.CreateGEP(Type::getDoubleTy(M.getContext()) , ld_gbf_idx, lp_i, "gep_at_bf");
       Builder.CreateStore(ld_idx_A, gep_at_bf, "store_A_new_buff");
 
-
+      //llvm::errs() << "before add while \n" << *gatherF;
       add_while(gatherF, M, GEPg_A->getParent());
+      //llvm::errs() << "after add while \n" << *gatherF;
 
       scatterF = CloneFunction(compute_copy, s_vmap);
       scatterF->setName("scatter");

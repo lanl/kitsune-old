@@ -1,6 +1,7 @@
 This transforamtion is a very fragile prototype. 
 
 TODO:
+- There probably needs to be some sort of gather A, scatter B syntax
 - Double check that you can have another GEP instruction in th compute method
 - Have someone test this transformation
 - Double type is currently hard coded for the data structure and the buffers, fix this
