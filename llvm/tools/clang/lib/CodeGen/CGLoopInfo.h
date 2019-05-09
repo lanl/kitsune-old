@@ -65,6 +65,7 @@ struct LoopAttributes {
 
   struct PipeVecHints{
     std::string GatherVar;
+    std::string ScatterVar;
 
     std::string IndexVar;
   
@@ -165,10 +166,11 @@ public:
   }
 
   /// \brief Set the next pushed loop pv state.
-  void setPvState(const LoopAttributes::LVEnableState &State, std::string gath, std::string id_var, 
+  void setPvState(const LoopAttributes::LVEnableState &State, std::string gath, std::string scat, std::string id_var, 
                   unsigned bsize, unsigned lsize) {
     StagedAttrs.PvEnable = State;
     StagedAttrs.pvhints.GatherVar = gath; 
+    StagedAttrs.pvhints.ScatterVar = scat; 
     StagedAttrs.pvhints.IndexVar = id_var; 
     StagedAttrs.pvhints.BufferSize = bsize; 
     StagedAttrs.pvhints.ListSize = lsize; 

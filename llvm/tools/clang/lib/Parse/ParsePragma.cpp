@@ -981,6 +981,10 @@ bool Parser::HandlePragmaPvHint(PvHint &Hint) {
       Hint.GatherVal = IdentifierLoc::create(Actions.Context, Tok.getLocation() , Tok.getIdentifierInfo());
       ConsumeToken(); // eat A
 
+        Hint.ScatterVal = IdentifierLoc::create(Actions.Context, Tok.getLocation() , Tok.getIdentifierInfo());
+        ConsumeToken(); // eat the scatter val
+
+
       if (Tok.is(tok::identifier)) {
         Hint.IndexVal = IdentifierLoc::create(Actions.Context, Tok.getLocation() , Tok.getIdentifierInfo());
         ConsumeToken(); // eat the index val
@@ -2834,6 +2838,7 @@ static bool ParsePvHintValue(Preprocessor &PP, Token &Tok, Token PragmaName,
       OptionInfo = Tok.getIdentifierInfo();
       OptionValid = llvm::StringSwitch<bool>(OptionInfo->getName())
                            .Case("index", true)
+                           .Case("scatter", true)
                            .Case("buffer_size", true)
                            .Case("list_size", true)
                            .Default(false);

@@ -1263,7 +1263,7 @@ TemplateInstantiator::TransformPvHintAttr(const PvHintAttr *LH) {
   // non-type template parameter.
   return PvHintAttr::CreateImplicit(
       getSema().Context, LH->getSemanticSpelling(), LH->getOption(),
-      LH->getState(), LH->getGatherVal(), LH->getIndexVal(), TransformedExpr/*LH->getBufferSize()*/,
+      LH->getState(), LH->getGatherVal(), LH->getScatterVal(), LH->getIndexVal(), TransformedExpr/*LH->getBufferSize()*/,
       TransformedExpr2, LH->getRange());
 }
 

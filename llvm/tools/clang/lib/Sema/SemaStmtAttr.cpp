@@ -270,9 +270,10 @@ static Attr *handlePvHintAttr(Sema &S, Stmt *St, const AttributeList &A,
   IdentifierLoc *OptionLoc = A.getArgAsIdent(1);
   IdentifierLoc *StateLoc = A.getArgAsIdent(2);
   IdentifierLoc *GatherValue = A.getArgAsIdent(3);
-  IdentifierLoc *IndexValue = A.getArgAsIdent(4);
-  Expr *BufferValue = A.getArgAsExpr(5);
-  Expr *ListValue = A.getArgAsExpr(6);
+  IdentifierLoc *ScatterValue = A.getArgAsIdent(4);
+  IdentifierLoc *IndexValue = A.getArgAsIdent(5);
+  Expr *BufferValue = A.getArgAsExpr(6);
+  Expr *ListValue = A.getArgAsExpr(7);
 
   bool PragmaPv = PragmaNameLoc->Ident->getName() == "pipevec";
   if (St->getStmtClass() != Stmt::DoStmtClass &&
@@ -303,7 +304,7 @@ static Attr *handlePvHintAttr(Sema &S, Stmt *St, const AttributeList &A,
 
     // TODO: fix this for the index val arg!
     return PvHintAttr::CreateImplicit(S.Context, Spelling, Option, State,
-                                       GatherValue->Ident, IndexValue->Ident, BufferValue, ListValue, A.getRange());
+                                       GatherValue->Ident, ScatterValue->Ident, IndexValue->Ident, BufferValue, ListValue, A.getRange());
 }
 
 

@@ -2666,7 +2666,7 @@ def LoopHint : Attr {
 def PvHint : Attr {
   
   /// TODO: better documentation
-  /// #pragma pipevec gather(arg0) indirect(arg1) buffer_size(arg2) list_size(arg3)
+  /// #pragma pipevec gather(arg0) scatter(arg1) indirect(arg2) buffer_size(arg3) list_size(arg4)
   /// TODO: better pragma keywords
 
   /// for some reason it requires the two things????
@@ -2681,6 +2681,7 @@ def PvHint : Attr {
                            ["argument"],
                            ["Argument"]>,
               IdentifierArgument<"GatherVal">,
+              IdentifierArgument<"ScatterVal">,
               IdentifierArgument<"IndexVal">,
               ExprArgument<"BufferSize">,
               ExprArgument<"ListSize">]; // Is there a way to make this a list?

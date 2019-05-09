@@ -34,14 +34,15 @@ struct PvHint {
   IdentifierLoc *StateLoc;
 
   IdentifierLoc *GatherVal;
+  IdentifierLoc *ScatterVal;
   IdentifierLoc *IndexVal;
 
   Expr *BufferSize;
   Expr *ListSize;
 
   PvHint()
-      : PragmaNameLoc(nullptr), OptionLoc(nullptr), StateLoc(nullptr),
-        GatherVal(nullptr), IndexVal(nullptr), BufferSize(nullptr), ListSize(nullptr) {}
+      : PragmaNameLoc(nullptr), OptionLoc(nullptr), StateLoc(nullptr), GatherVal(nullptr),  
+        ScatterVal(nullptr), IndexVal(nullptr), BufferSize(nullptr), ListSize(nullptr) {}
 };
 
 } // end namespace clang

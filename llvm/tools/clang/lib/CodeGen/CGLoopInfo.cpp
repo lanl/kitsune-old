@@ -95,7 +95,7 @@ static MDNode *createMetadata(LLVMContext &Ctx, const LoopAttributes &Attrs,
 
   if (Attrs.PvEnable != LoopAttributes::Unspecified) {
     std::string Name = "llvm.loop.pv.enable";
-    Metadata *Vals[] = {MDString::get(Ctx, Name), MDString::get(Ctx, Attrs.pvhints.GatherVar), MDString::get(Ctx, Attrs.pvhints.IndexVar),
+    Metadata *Vals[] = {MDString::get(Ctx, Name), MDString::get(Ctx, Attrs.pvhints.GatherVar), MDString::get(Ctx, Attrs.pvhints.ScatterVar), MDString::get(Ctx, Attrs.pvhints.IndexVar),
     ConstantAsMetadata::get(ConstantInt::get(
                             Type::getInt32Ty(Ctx), Attrs.pvhints.BufferSize)),
     ConstantAsMetadata::get(ConstantInt::get(
@@ -198,7 +198,8 @@ void LoopInfoStack::push(BasicBlock *Header, clang::ASTContext &Ctx,
         ListInt = ValueAPS.getSExtValue();
       }
 
-      setPvState(LoopAttributes::Enable, PH->getGatherVal()->getName(), 
+      setPvState(LoopAttributes::Enable, PH->getGatherVal()->getName(),
+          PH->getScatterVal()->getName(), 
                 PH->getIndexVal()->getName(), BufferInt, ListInt);
 
       continue;
