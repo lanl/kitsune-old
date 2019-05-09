@@ -289,21 +289,21 @@ static Attr *handlePvHintAttr(Sema &S, Stmt *St, const AttributeList &A,
     return nullptr;
   }
 
-  PvHintAttr::Spelling Spelling;
-  PvHintAttr::OptionType Option;
-  PvHintAttr::PvHintState State;
+  //PvHintAttr::Spelling Spelling;
+  //PvHintAttr::OptionType Option;
+  //PvHintAttr::PvHintState State;
   // PvHintAttr::GatherVar Test;
   // if (PragmaPv) {
-    Spelling = PvHintAttr::Pragma_pipevec;
+  //  Spelling = PvHintAttr::Pragma_pipevec;
     // #pragma pv
-    Option = PvHintAttr::Gather;
+  //  Option = PvHintAttr::Gather;
     // State = PvHintAttr::Enable;
-    State = PvHintAttr::Argument;
+   // State = PvHintAttr::Argument;
    
   // }
 
     // TODO: fix this for the index val arg!
-    return PvHintAttr::CreateImplicit(S.Context, Spelling, Option, State,
+    return PvHintAttr::CreateImplicit(S.Context, 
                                        GatherValue->Ident, ScatterValue->Ident, IndexValue->Ident, BufferValue, ListValue, A.getRange());
 }
 

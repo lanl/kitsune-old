@@ -1262,8 +1262,7 @@ TemplateInstantiator::TransformPvHintAttr(const PvHintAttr *LH) {
   // Create new LoopHintValueAttr with integral expression in place of the
   // non-type template parameter.
   return PvHintAttr::CreateImplicit(
-      getSema().Context, LH->getSemanticSpelling(), LH->getOption(),
-      LH->getState(), LH->getGatherVal(), LH->getScatterVal(), LH->getIndexVal(), TransformedExpr/*LH->getBufferSize()*/,
+      getSema().Context, LH->getGatherVal(), LH->getScatterVal(), LH->getIndexVal(), TransformedExpr/*LH->getBufferSize()*/,
       TransformedExpr2, LH->getRange());
 }
 

@@ -2664,6 +2664,9 @@ def LoopHint : Attr {
 
 /// TODO: better understand how this works. 
 def PvHint : Attr {
+
+
+  ///let SemaHandler = 0;
   
   /// TODO: better documentation
   /// #pragma pipevec gather(arg0) scatter(arg1) indirect(arg2) buffer_size(arg3) list_size(arg4)
@@ -2671,63 +2674,20 @@ def PvHint : Attr {
 
   /// for some reason it requires the two things????
   /// TODO: figure out what is up with spellings and fix them
-  let Spellings = [Pragma<"pipe", "vec">, Pragma<"", "pipevec">];
+  //let Spellings = [Pragma<"pipe", "vec">, Pragma<"", "pipevec">];
+  let Spellings = [Pragma<"", "pipevec">];
 
   /// TODO: cleanup these args, esp state, give them better names, too. 
-  let Args = [EnumArgument<"Option", "OptionType",
-                          ["gather"],
-                          ["Gather"]>,
-              EnumArgument<"State", "PvHintState",
-                           ["argument"],
-                           ["Argument"]>,
-              IdentifierArgument<"GatherVal">,
+  let Args = [IdentifierArgument<"GatherVal">,
               IdentifierArgument<"ScatterVal">,
               IdentifierArgument<"IndexVal">,
               ExprArgument<"BufferSize">,
               ExprArgument<"ListSize">]; // Is there a way to make this a list?
 
   let AdditionalMembers = [{
-  static const char *getOptionName(int Option) {
-    switch(Option) {
-    case Gather: return "gather";
+    void printPrettyPragma(raw_ostream &OS, const PrintingPolicy &Policy) const {
+      OS << '(' << getGatherVal() << ',' << getScatterVal() << ',' << getIndexVal() << ',' << getBufferSize() << ',' << getListSize() << ')';
     }
-    llvm_unreachable("Unhandled PvHint option.");
-  }
-
-  void printPrettyPragma(raw_ostream &OS, const PrintingPolicy &Policy) const {
-    unsigned SpellingIndex = getSpellingListIndex();
-    // For "#pragma unroll" and "#pragma nounroll" the string "unroll" or
-    // "nounroll" is already emitted as the pragma name.
-    if (SpellingIndex == Pragma_pipevec){
-      OS << getOptionName(option) << getValueString(Policy);
-      return;
-    }
-
-    ///assert(SpellingIndex == Pragma_pipevec && "Unexpected spelling");
-    OS << getOptionName(option) << getValueString(Policy);
-  }
-
-  // Return a string containing the loop hint argument including the
-  // enclosing parentheses.
-  std::string getValueString(const PrintingPolicy &Policy) const {
-    std::string ValueName;
-    llvm::raw_string_ostream OS(ValueName);
-    OS << "(";
-    if (state == Argument){
-      OS << gatherVal->getName() << ")";
-    }
-    return OS.str();
-  }
-
-  // Return a string suitable for identifying this attribute in diagnostics.
-  std::string getDiagnosticName(const PrintingPolicy &Policy) const {
-    unsigned SpellingIndex = getSpellingListIndex();
-    if (SpellingIndex == Pragma_pipevec)
-      return "#pragma pipevec" + (option == Gather ? getValueString(Policy) : "");
-
-    ///assert(SpellingIndex == Pragma_pipevec && "Unexpected spelling");
-    return getOptionName(option) + getValueString(Policy);
-  }
   }];
 
   let Documentation = [Undocumented];
