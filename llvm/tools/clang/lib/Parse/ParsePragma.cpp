@@ -904,6 +904,10 @@ struct PragmaPvHintInfo {
 };
 } // end anonymous namespace
 
+/*
+ * This goes through and parses all the arguments for the PvHint. 
+ * It needs more checking and better errors.
+ */
 static std::string PragmaPvHintString(Token PragmaName, Token Option) {
   std::string PragmaString;
   if (PragmaName.getIdentifierInfo()->getName() == "pipevec") {
@@ -916,114 +920,62 @@ static std::string PragmaPvHintString(Token PragmaName, Token Option) {
 bool Parser::HandlePragmaPvHint(PvHint &Hint) {
   assert(Tok.is(tok::annot_pragma_pv_hint));
   PragmaPvHintInfo *Info =
-      static_cast<PragmaPvHintInfo *>(Tok.getAnnotationValue());
+    static_cast<PragmaPvHintInfo *>(Tok.getAnnotationValue());
 
   IdentifierInfo *PragmaNameInfo = Info->PragmaName.getIdentifierInfo();
   Hint.PragmaNameLoc = IdentifierLoc::create(
       Actions.Context, Info->PragmaName.getLocation(), PragmaNameInfo);
 
-  // It is possible that the loop hint has no option identifier, such as
-  // #pragma unroll(4).
-  IdentifierInfo *OptionInfo = Info->Option.is(tok::identifier)
-                                   ? Info->Option.getIdentifierInfo()
-                                   : nullptr;
-  Hint.OptionLoc = IdentifierLoc::create(
-      Actions.Context, Info->Option.getLocation(), OptionInfo);
-
   llvm::ArrayRef<Token> Toks = Info->Toks;
 
-  // Return a valid hint if pragma unroll or nounroll were specified
-  // without an argument.
-  bool PragmaPv = PragmaNameInfo->getName() == "pipevec";
-  if (Toks.empty() && (PragmaPv)) {
-
-    ConsumeAnnotationToken();
-
-    Hint.Range = Info->PragmaName.getLocation();
-
-    return true;
-  }
-
-
-  // The constant expression is always followed by an eof token, which increases
-  // the TokSize by 1.pvhint
   assert(!Toks.empty() &&
-         "PragmaLoopHintInfo::Toks must contain at least one token.");
-
- 
-  // If no option is specified the argument is assumed to be a constant expr.
-  bool OptionPv = false;
-  bool OptionPvGather = false;
-  bool StateOption = false;
-  if (OptionInfo) { // Pragma Unroll does not specify an option.
-    OptionPv = OptionInfo->isStr("pipevec");
-    OptionPvGather = OptionInfo->isStr("gather");
-    StateOption = false;
-  }
+      "PragmaLoopHintInfo::Toks must contain at least one token.");
 
 
-  // bool AssumeSafetyArg = !OptionUnroll && !OptionDistribute && !OptionPv;
-  // Verify loop hint has an argument.
-  // Not sure if this needs pv stuff
-  if (Toks[0].is(tok::eof)) {
-    ConsumeAnnotationToken();
-    Diag(Toks[0].getLocation(), diag::err_pragma_loop_missing_argument)
-        << OptionPvGather;
+  // Enter constant expression including eof terminator into token stream.
+  PP.EnterTokenStream(Toks, /*DisableMacroExpansion=*/false);
+  ConsumeAnnotationToken();
+
+  Hint.GatherVal = IdentifierLoc::create(Actions.Context, Tok.getLocation() , Tok.getIdentifierInfo());
+  ConsumeToken(); // eat the gather val
+
+  Hint.ScatterVal = IdentifierLoc::create(Actions.Context, Tok.getLocation() , Tok.getIdentifierInfo());
+  ConsumeToken(); // eat the scatter val
+
+  Hint.IndexVal = IdentifierLoc::create(Actions.Context, Tok.getLocation() , Tok.getIdentifierInfo());
+  ConsumeToken(); // eat the index val
+
+  ExprResult bsize = ParseConstantExpression();
+
+  if (bsize.isInvalid() ||
+      Actions.CheckLoopHintExpr(bsize.get(), Toks[0].getLocation()))
     return false;
+
+  // Argument is a constant expression with an integer type.
+  Hint.BufferSize = bsize.get();
+
+  ExprResult lsize = ParseConstantExpression();
+
+  if (lsize.isInvalid() ||
+      Actions.CheckLoopHintExpr(lsize.get(), Toks[0].getLocation()))
+    return false;
+
+  Hint.ListSize = lsize.get();
+
+
+  // Tokens following an error in an ill-formed constant expression will
+  // remain in the token stream and must be removed.
+  if (Tok.isNot(tok::eof)) {
+    Diag(Tok.getLocation(), diag::warn_pragma_extra_tokens_at_eol)
+      << PragmaPvHintString(Info->PragmaName, Info->Option);
+    while (Tok.isNot(tok::eof))
+      ConsumeAnyToken();
   }
 
-    // Enter constant expression including eof terminator into token stream.
-    PP.EnterTokenStream(Toks, /*DisableMacroExpansion=*/false);
-    ConsumeAnnotationToken();
-
-
-    if (OptionPvGather){
-      Hint.GatherVal = IdentifierLoc::create(Actions.Context, Tok.getLocation() , Tok.getIdentifierInfo());
-      ConsumeToken(); // eat A
-
-        Hint.ScatterVal = IdentifierLoc::create(Actions.Context, Tok.getLocation() , Tok.getIdentifierInfo());
-        ConsumeToken(); // eat the scatter val
-
-
-      if (Tok.is(tok::identifier)) {
-        Hint.IndexVal = IdentifierLoc::create(Actions.Context, Tok.getLocation() , Tok.getIdentifierInfo());
-        ConsumeToken(); // eat the index val
-
-      }
-
-      ExprResult bsize = ParseConstantExpression();
-   
-    if (bsize.isInvalid() ||
-        Actions.CheckLoopHintExpr(bsize.get(), Toks[0].getLocation()))
-      return false;
-
-    // Argument is a constant expression with an integer type.
-    Hint.BufferSize = bsize.get();
-
-    ExprResult lsize = ParseConstantExpression();
-
-    if (lsize.isInvalid() ||
-        Actions.CheckLoopHintExpr(lsize.get(), Toks[0].getLocation()))
-      return false;
-
-    Hint.ListSize = lsize.get();
-
-
-    // Tokens following an error in an ill-formed constant expression will
-    // remain in the token stream and must be removed.
-    if (Tok.isNot(tok::eof)) {
-      Diag(Tok.getLocation(), diag::warn_pragma_extra_tokens_at_eol)
-          << PragmaPvHintString(Info->PragmaName, Info->Option);
-      while (Tok.isNot(tok::eof))
-        ConsumeAnyToken();
-    }
-
-    ConsumeToken(); // Consume the constant expression eof terminator.
-
-    }
+  ConsumeToken(); // Consume the constant expression eof terminator.
 
   Hint.Range = SourceRange(Info->PragmaName.getLocation(),
-                           Info->Toks.back().getLocation());
+      Info->Toks.back().getLocation());
   return true;
 }
 //pvhint

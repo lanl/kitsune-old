@@ -2003,11 +2003,11 @@ StmtResult Parser::ParsePragmaPvHint(StmtVector &Stmts,
     if (!HandlePragmaPvHint(Hint))
      continue;
 
-   ArgsUnion ArgHints[] = {Hint.PragmaNameLoc, Hint.OptionLoc, Hint.StateLoc,
+   ArgsUnion ArgHints[] = {Hint.PragmaNameLoc, /*Hint.OptionLoc, Hint.StateLoc,*/
      Hint.GatherVal, Hint.ScatterVal, Hint.IndexVal, ArgsUnion(Hint.BufferSize), ArgsUnion(Hint.ListSize)};
 
      TempAttrs.addNew(Hint.PragmaNameLoc->Ident, Hint.Range, nullptr,
-       Hint.PragmaNameLoc->Loc, ArgHints, 8,
+       Hint.PragmaNameLoc->Loc, ArgHints, 6,
        AttributeList::AS_Pragma);
 
    }

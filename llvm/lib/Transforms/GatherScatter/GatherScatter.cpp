@@ -58,12 +58,24 @@ namespace {
   GlobalVariable* main_tracker;
 
 
-  std::string idx_var;
+  std::string idx_var = "";
+  std::string gather_var = "";
+  std::string scatter_var = "";
+  unsigned bsize = 1;
   unsigned lsize = 1;
+
+  GlobalVariable* buff_q;
+
+  Instruction *gld_buffer_q;
+  Value *grem ;
+  Value *gbuff_idx;
+  Instruction *ld_gbf_idx;
+  Value *gep_at_bf;
 
   struct GatherScatter : public ModulePass {
     static char ID; // Pass identification, replacement for typeid
     GatherScatter() : ModulePass(ID) {}
+
 
     /*
      * The while loops found in the gather, scatter and compute are currently redundant.
@@ -206,13 +218,92 @@ namespace {
 
     }
 
+
+    void make_gather(Function* gatherF, Module &M){
+      IRBuilder<> Builder(M.getContext());
+      Instruction *GEPg_A; //GEP for g_A[i] = ... 
+      Instruction *ld_idx_A; // ... = A[idx[i]];
+      Value *lp_i; // i in g_A[i]
+
+      Instruction *old_inst;
+
+      for (inst_iterator I = inst_begin(gatherF), E = inst_end(gatherF); I != E; ++I){
+        if (I->getOpcode() == Instruction::GetElementPtr){ // if it is GEP
+          if (I->getOperand(0)->getName() == idx_var){ // if it is operating on idx var
+            //llvm::errs() << "inst using idx var " << *I << "\n";
+            lp_i = I->getOperand(2); // get the operand, i.e. loop index var
+            //llvm::errs() << "lp_i " << *lp_i << "\n";
+          }
+
+          if (I->getOperand(0)->getName() == gather_var){ // if it is operating on gather var
+            old_inst = &*I;
+            //llvm::errs() << "old_inst " << *old_inst << "\n";
+            GEPg_A = I->clone(); // Cloning GEP for A because we need to add a GEP for g_A
+          }
+        } 
+      } // end instruction iterator on gatherF
+
+      Function::arg_iterator gargs = gatherF->arg_begin();
+      gargs++;
+      Value* loc_arg = gargs++;
+
+      //llvm::errs() << *gatherF;
+
+      // consider putting this back. 
+      //old_inst->setOperand(2, lp_i); 
+
+      //llvm::errs() << "GEPg_A pre setOp " << *GEPg_A << "\n";
+      GEPg_A->setOperand(2, lp_i); // Fixing operand from idx[i] to just i
+      //llvm::errs() << "GEPg_A post setOp " << *GEPg_A << "\n";
+      // TODO: make this better  
+      for (User *U : old_inst->users()) {
+        if (Instruction *Inst = dyn_cast<Instruction>(U)) {
+          if (isa<LoadInst>(Inst)) {
+            // grab the load for the operand for g_A's store. 
+            ld_idx_A = Inst;
+            //llvm::errs() << "ld_idx_A " << *ld_idx_A << "\n";
+
+            // delete everything that uses the load
+            for (User *LU : ld_idx_A->users()) {
+              if (Instruction *LInst = dyn_cast<Instruction>(LU)) {
+                //llvm::errs() << "LInst to erase " << *LInst << "\n";
+                LInst->eraseFromParent();
+              }
+            }
+          }
+          // delete stores to A
+          else if (isa<StoreInst>(Inst)){
+            //llvm::errs() << "Store Inst to erase " << *Inst << "\n";
+            Inst->eraseFromParent();
+          }
+        }
+      }
+
+      //llvm::errs() << *gatherF;
+
+      // TODO: use the builder to insert instructions instead!!!! 
+      GEPg_A->insertAfter(ld_idx_A); // insert after load
+
+      //llvm::errs() << "before buffer logic \n" << *gatherF;
+
+      Builder.SetInsertPoint(ld_idx_A->getNextNode());
+      gld_buffer_q = Builder.CreateLoad(PointerType::get(Type::getDoublePtrTy(M.getContext()), 0), buff_q, "ld_bq" );
+      grem = Builder.CreateSRem(loc_arg, ConstantInt::get(Type::getInt32Ty(M.getContext()), 2), "rem"); 
+      gbuff_idx = Builder.CreateGEP(Type::getDoublePtrTy(M.getContext()), gld_buffer_q, grem, "buff_idx"); 
+      ld_gbf_idx = Builder.CreateLoad(Type::getDoublePtrTy(M.getContext()), gbuff_idx, "load_buff_idx"); 
+
+      gep_at_bf = Builder.CreateGEP(Type::getDoubleTy(M.getContext()) , ld_gbf_idx, lp_i, "gep_at_bf");
+      Builder.CreateStore(ld_idx_A, gep_at_bf, "store_A_new_buff");
+
+      //llvm::errs() << "before add while \n" << *gatherF;
+      add_while(gatherF, M, GEPg_A->getParent());
+      //llvm::errs() << "after add while \n" << *gatherF;
+
+
+    }
+
     bool runOnModule(Module &M) override {
       errs() << "running on module\n";
-
-      std::string gather_var = "";
-      std::string scatter_var = "";
-      idx_var = "";
-      unsigned bsize = 1;
 
       MDNode *meta_data; 
       Function *compute_function;
@@ -282,7 +373,7 @@ namespace {
 
       gA_buffs->setInitializer(const_array_2);
 
-      GlobalVariable* buff_q = new GlobalVariable(M, PointerType::get(Type::getDoublePtrTy(M.getContext()), 0),
+      buff_q = new GlobalVariable(M, PointerType::get(Type::getDoublePtrTy(M.getContext()), 0),
           false, GlobalValue::ExternalLinkage, 0, "buff_q"); // common or gloabal linkage here? 
 
       buff_q->setAlignment(8); 
@@ -435,88 +526,11 @@ namespace {
 
       compute_function->eraseFromParent();
 
-      Instruction *GEPg_A; //GEP for g_A[i] = ... 
+      make_gather(gatherF, M); 
+
+
+
       Instruction *ld_idx_A; // ... = A[idx[i]];
-      Value *lp_i; // i in g_A[i]
-
-      Instruction *old_inst;
-
-      for (inst_iterator I = inst_begin(gatherF), E = inst_end(gatherF); I != E; ++I){
-        if (I->getOpcode() == Instruction::GetElementPtr){ // if it is GEP
-          if (I->getOperand(0)->getName() == idx_var){ // if it is operating on idx var
-            //llvm::errs() << "inst using idx var " << *I << "\n";
-            lp_i = I->getOperand(2); // get the operand, i.e. loop index var
-            //llvm::errs() << "lp_i " << *lp_i << "\n";
-          }
-
-          if (I->getOperand(0)->getName() == gather_var){ // if it is operating on gather var
-            old_inst = &*I;
-            //llvm::errs() << "old_inst " << *old_inst << "\n";
-            GEPg_A = I->clone(); // Cloning GEP for A because we need to add a GEP for g_A
-          }
-        } 
-      } // end instruction iterator on gatherF
-
-      Instruction *gld_buffer_q;
-      Value *grem ;
-      Value *gbuff_idx;
-      Instruction *ld_gbf_idx;
-
-      Function::arg_iterator gargs = gatherF->arg_begin();
-      gargs++;
-      Value* loc_arg = gargs++;
-
-      //llvm::errs() << *gatherF;
-
-      // consider putting this back. 
-      //old_inst->setOperand(2, lp_i); 
-
-      //llvm::errs() << "GEPg_A pre setOp " << *GEPg_A << "\n";
-      GEPg_A->setOperand(2, lp_i); // Fixing operand from idx[i] to just i
-      //llvm::errs() << "GEPg_A post setOp " << *GEPg_A << "\n";
-      // TODO: make this better  
-      for (User *U : old_inst->users()) {
-        if (Instruction *Inst = dyn_cast<Instruction>(U)) {
-          if (isa<LoadInst>(Inst)) {
-            // grab the load for the operand for g_A's store. 
-            ld_idx_A = Inst;
-            //llvm::errs() << "ld_idx_A " << *ld_idx_A << "\n";
-
-            // delete everything that uses the load
-            for (User *LU : ld_idx_A->users()) {
-              if (Instruction *LInst = dyn_cast<Instruction>(LU)) {
-                //llvm::errs() << "LInst to erase " << *LInst << "\n";
-                LInst->eraseFromParent();
-              }
-            }
-          }
-          // delete stores to A
-          else if (isa<StoreInst>(Inst)){
-            //llvm::errs() << "Store Inst to erase " << *Inst << "\n";
-            Inst->eraseFromParent();
-          }
-        }
-      }
-
-      //llvm::errs() << *gatherF;
-
-      // TODO: use the builder to insert instructions instead!!!! 
-      GEPg_A->insertAfter(ld_idx_A); // insert after load
-
-      //llvm::errs() << "before buffer logic \n" << *gatherF;
-
-      Builder.SetInsertPoint(ld_idx_A->getNextNode());
-      gld_buffer_q = Builder.CreateLoad(PointerType::get(Type::getDoublePtrTy(M.getContext()), 0), buff_q, "ld_bq" );
-      grem = Builder.CreateSRem(loc_arg, ConstantInt::get(Type::getInt32Ty(M.getContext()), 2), "rem"); 
-      gbuff_idx = Builder.CreateGEP(Type::getDoublePtrTy(M.getContext()), gld_buffer_q, grem, "buff_idx"); 
-      ld_gbf_idx = Builder.CreateLoad(Type::getDoublePtrTy(M.getContext()), gbuff_idx, "load_buff_idx"); 
-
-      Value *gep_at_bf = Builder.CreateGEP(Type::getDoubleTy(M.getContext()) , ld_gbf_idx, lp_i, "gep_at_bf");
-      Builder.CreateStore(ld_idx_A, gep_at_bf, "store_A_new_buff");
-
-      //llvm::errs() << "before add while \n" << *gatherF;
-      add_while(gatherF, M, GEPg_A->getParent());
-      //llvm::errs() << "after add while \n" << *gatherF;
 
       scatterF = CloneFunction(compute_copy, s_vmap);
       scatterF->setName("scatter");
@@ -563,7 +577,7 @@ namespace {
 
       Function::arg_iterator sargs = scatterF->arg_begin();
       sargs++;
-      loc_arg = sargs++;
+      Value *loc_arg = sargs++;
 
 
       Builder.SetInsertPoint(gep_idx_var);
