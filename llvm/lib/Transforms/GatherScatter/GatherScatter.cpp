@@ -65,6 +65,7 @@ namespace {
   unsigned lsize = 1;
 
   GlobalVariable* buff_q;
+  GlobalVariable* sbuff_q;
 
   Instruction *gld_buffer_q;
   Value *grem ;
@@ -218,7 +219,13 @@ namespace {
 
     }
 
-
+    /*
+     * This function modifies the gather function to gather from correct variables
+     * and contains the logic to add a while loop. Previously, adding the while loop 
+     * was separate from this logic, but when adding the option to specify both 
+     * gather and scatter variables, which may be different, it was easier to implement 
+     * this change within a make_gather function that contains extra information. 
+     */
     void make_gather(Function* gatherF, Module &M){
       IRBuilder<> Builder(M.getContext());
       Instruction *GEPg_A; //GEP for g_A[i] = ... 
@@ -243,8 +250,13 @@ namespace {
         } 
       } // end instruction iterator on gatherF
 
+      // Get the function arguments, which describe where you are in the original data 
+      // structure and which buffer to collect into. 
+      // track_arg is where you are in og data structure
+      // loc_arg is the buffer into which you gather data
+
       Function::arg_iterator gargs = gatherF->arg_begin();
-      gargs++;
+      Value* track_arg = gargs++;
       Value* loc_arg = gargs++;
 
       //llvm::errs() << *gatherF;
@@ -296,11 +308,534 @@ namespace {
       Builder.CreateStore(ld_idx_A, gep_at_bf, "store_A_new_buff");
 
       //llvm::errs() << "before add while \n" << *gatherF;
-      add_while(gatherF, M, GEPg_A->getParent());
+//      add_while(gatherF, M, GEPg_A->getParent());
+
+      BasicBlock *lp_body = GEPg_A->getParent(); 
+
+      // Splitting entry block to surround the whole function with the while loop
+      BasicBlock *entryBB = &(gatherF->getEntryBlock()); 
+      BasicBlock *while_cond = BasicBlock::Create(M.getContext(), "whilelpcond", gatherF);
+      BasicBlock *while_body = entryBB->splitBasicBlock(entryBB->getFirstNonPHI(), "while.body"); 
+
+      Instruction *entry_term = entryBB->getTerminator(); 
+      Builder.SetInsertPoint(entry_term);
+
+      // important while loop vars
+      AllocaInst *track = Builder.CreateAlloca(Type::getInt32Ty(M.getContext()), nullptr, "track");
+      Builder.CreateStore(track_arg, track);
+      AllocaInst *loc = Builder.CreateAlloca(Type::getInt32Ty(M.getContext()), nullptr, "loc");
+      Builder.CreateStore(loc_arg, loc);
+      AllocaInst *Alloca = Builder.CreateAlloca(Type::getInt32Ty(M.getContext()), nullptr, "tracker");
+      Builder.CreateStore(track_arg, Alloca);
+
+      // Fixing structure
+      Builder.CreateBr(while_cond);
+      entry_term->eraseFromParent();
+
+      Builder.SetInsertPoint(while_cond);
+      BasicBlock *while_end = BasicBlock::Create(M.getContext(), "whilelpend", gatherF);
+
+      // Values for while loop iterations
+      Value *trkr = gatherF->getValueSymbolTable()->lookup("tracker");
+      Value *addition = Builder.CreateNSWAdd(track_arg,
+          Builder.CreateLoad(buffer_size, "buffer_size"));
+      Value *endCond = Builder.CreateICmpSLT(Builder.CreateLoad(trkr, "trkr"), addition);
+
+      // Structure
+      BasicBlock *land = BasicBlock::Create(M.getContext(), "land.rhs", gatherF, while_body);
+      BasicBlock *landend = BasicBlock::Create(M.getContext(), "land.end", gatherF, while_body);
+      Builder.CreateCondBr(endCond, land, landend);
+
+      // Looping conditions
+      Builder.SetInsertPoint(land);
+      LoadInst *load_trkr = Builder.CreateLoad(trkr, "trkr");
+      LoadInst *load_lst = Builder.CreateLoad(L_size, "lst_size");
+      Value *sub = Builder.CreateNSWSub(load_lst, ConstantInt::get(Type::getInt32Ty(M.getContext()), 1), "sub");
+      Value *cmp2 = Builder.CreateICmpSLT(load_trkr, sub); 
+      Builder.CreateBr(landend);
+
+      // Structure
+      Builder.SetInsertPoint(landend);
+      PHINode *PN = Builder.CreatePHI(Type::getInt1Ty(M.getContext()), 2, "pn");
+      PN->addIncoming(ConstantInt::get(Type::getInt1Ty(M.getContext()), 0), while_cond);
+      PN->addIncoming(cmp2, land);
+      Builder.CreateCondBr(PN, while_body, while_end);
+      Builder.SetInsertPoint(while_end);
+      Builder.CreateBr(while_cond);
+
+      // Above code is mostly just setting up the structure and relevant instructions for the while loop logic
+
+
+      // This loop finds the return instruction of the funcion
+      Instruction *fn_ret;
+      for (inst_iterator I = inst_begin(gatherF), E = inst_end(gatherF); I != E; ++I){
+        if (I->getOpcode() == Instruction::Ret){
+          fn_ret = &*I;
+          break;
+        }
+      }
+
+      // This is mostly structural and swaps the previous break with the return.       
+      Instruction *ret_void = fn_ret->clone();
+      Instruction *whileEnd = while_end->getTerminator();
+      Instruction *br_while_cond = whileEnd->clone();
+
+      br_while_cond->insertBefore(fn_ret);
+      fn_ret->eraseFromParent();
+
+      ret_void->insertBefore(whileEnd);
+      whileEnd->eraseFromParent();
+
+      // This loop is changing the loop condition so that it iterates buffer_size times
+      // instead of list_size times. 
+      // There must be a better way to change the loop condition
+      for (inst_iterator I = inst_begin(gatherF), E = inst_end(gatherF); I != E; ++I){
+        if (I->getOpcode() == Instruction::ICmp){
+          Value *N = I->getOperand(1);
+          // This only works when a constant known at compile time is used at the term for the for loop. 
+          // TODO: fix this to be able to use a variable 
+          ConstantInt *lstsz = dyn_cast<llvm::ConstantInt>(N);
+          if (lstsz){
+            if (lstsz->equalsInt(lsize)){
+              Builder.SetInsertPoint(&*I);
+              Instruction *ld_bsize = Builder.CreateLoad(buffer_size);
+              I->setOperand(1, ld_bsize);
+            }
+          }
+        }
+      }
+
+      // if gather and A, replace A[idx[i]] with A[idx[tracker]]
+      // if compute, leave g_A[i] and s_A[i]
+      // if scatter and A, replace A[idx[i]] with A[idx[tracker]]
+      for (inst_iterator I = inst_begin(gatherF), E = inst_end(gatherF); I != E; ++I){
+        if (I->getOpcode() == Instruction::GetElementPtr){ // if it is GEP
+          if (I->getOperand(0)->getName() == idx_var){
+            Builder.SetInsertPoint(&*I);
+            Value *t_load = Builder.CreateLoad(trkr, "trkr");
+            I->setOperand(2, t_load);
+          }
+        } 
+      }
+
+      // Just incrementing the while loop
+      Instruction *lp_bod_term = lp_body->getTerminator();
+      Builder.SetInsertPoint(lp_bod_term);
+      Builder.CreateStore(Builder.CreateNSWAdd(Builder.CreateLoad(trkr), 
+            ConstantInt::get(Type::getInt32Ty(M.getContext()), 1)), trkr);
+
+
+
+
+
+
+
+
+
+
       //llvm::errs() << "after add while \n" << *gatherF;
 
 
     }
+
+    /*
+     * Similar to above, this function creates the scatter method.
+     */
+    void make_scatter(Function* scatterF, Module &M){
+    
+      IRBuilder<> Builder(M.getContext());
+    
+      Instruction *ld_idx_A; // ... = A[idx[i]];
+
+      Instruction *gep_idx_var; // gep for idx var
+      Instruction *gep_gather_var; // gep for A var
+
+      for (inst_iterator I = inst_begin(scatterF), E = inst_end(scatterF); I != E; ++I){
+
+        if (I->getOpcode() == Instruction::GetElementPtr){ // if it is GEP
+
+          if (I->getOperand(0)->getName() == gather_var){
+            gep_gather_var = &*I; 
+          }
+          if (I->getOperand(0)->getName() == idx_var){
+            gep_idx_var = &*I; 
+          }
+
+        } // end if GEP 
+      } // end inst_iterator I = inst_begin(scatterF)
+
+      for (User *U : gep_gather_var->users()) {
+        if (Instruction *Inst = dyn_cast<Instruction>(U)) {
+          if (isa<LoadInst>(Inst)) {
+            // grab the load for the operand for g_A's store. 
+            ld_idx_A = Inst;
+
+            // delete everything that uses the load
+            for (User *LU : ld_idx_A->users()) {
+              if (Instruction *LInst = dyn_cast<Instruction>(LU)) {
+                LInst->eraseFromParent();
+              }
+            }
+          }
+          // delete stores to A
+          else if (isa<StoreInst>(Inst)){
+            Inst->eraseFromParent();
+          }
+        }
+      }
+      ld_idx_A->eraseFromParent();
+
+
+      // Get the function arguments, which describe where you are in the original data 
+      // structure and which buffer to collect into. 
+      // track_arg is where you are in og data structure
+      // loc_arg is the buffer into which you gather data
+
+      Function::arg_iterator sargs = scatterF->arg_begin();
+      Value *track_arg = sargs++;
+      Value *loc_arg = sargs++;
+
+
+      Builder.SetInsertPoint(gep_idx_var);
+      gld_buffer_q = Builder.CreateLoad(PointerType::get(Type::getDoublePtrTy(M.getContext()), 0), sbuff_q, "sld_bq" );
+      grem = Builder.CreateSRem(loc_arg, ConstantInt::get(Type::getInt32Ty(M.getContext()), 2), "srem"); 
+      gbuff_idx = Builder.CreateGEP(Type::getDoublePtrTy(M.getContext()), gld_buffer_q, grem, "sbuff_idx"); 
+      ld_gbf_idx = Builder.CreateLoad(Type::getDoublePtrTy(M.getContext()), gbuff_idx, "sload_buff_idx"); 
+
+      gep_at_bf = Builder.CreateGEP(Type::getDoubleTy(M.getContext()) , ld_gbf_idx, gep_idx_var->getOperand(2), "sgep_at_bf");
+      Value *sload = Builder.CreateLoad(Type::getDoubleTy(M.getContext()), gep_at_bf, "sld" );
+
+      Builder.SetInsertPoint(gep_idx_var->getParent()->getTerminator());
+      Builder.CreateStore(sload, gep_gather_var, "sstore_A_new_buff");
+
+//      add_while(scatterF, M, gep_idx_var->getParent());
+
+      BasicBlock *lp_body = gep_idx_var->getParent();
+      // Splitting entry block to surround the whole function with the while loop
+      BasicBlock *entryBB = &(scatterF->getEntryBlock()); 
+      BasicBlock *while_cond = BasicBlock::Create(M.getContext(), "whilelpcond", scatterF);
+      BasicBlock *while_body = entryBB->splitBasicBlock(entryBB->getFirstNonPHI(), "while.body"); 
+
+      Instruction *entry_term = entryBB->getTerminator(); 
+      Builder.SetInsertPoint(entry_term);
+
+      // important while loop vars
+      AllocaInst *track = Builder.CreateAlloca(Type::getInt32Ty(M.getContext()), nullptr, "track");
+      Builder.CreateStore(track_arg, track);
+      AllocaInst *loc = Builder.CreateAlloca(Type::getInt32Ty(M.getContext()), nullptr, "loc");
+      Builder.CreateStore(loc_arg, loc);
+      AllocaInst *Alloca = Builder.CreateAlloca(Type::getInt32Ty(M.getContext()), nullptr, "tracker");
+      Builder.CreateStore(track_arg, Alloca);
+
+      // Fixing structure
+      Builder.CreateBr(while_cond);
+      entry_term->eraseFromParent();
+
+      Builder.SetInsertPoint(while_cond);
+      BasicBlock *while_end = BasicBlock::Create(M.getContext(), "whilelpend", scatterF);
+
+      // Values for while loop iterations
+      Value *trkr = scatterF->getValueSymbolTable()->lookup("tracker");
+      Value *addition = Builder.CreateNSWAdd(track_arg,
+          Builder.CreateLoad(buffer_size, "buffer_size"));
+      Value *endCond = Builder.CreateICmpSLT(Builder.CreateLoad(trkr, "trkr"), addition);
+
+      // Structure
+      BasicBlock *land = BasicBlock::Create(M.getContext(), "land.rhs", scatterF, while_body);
+      BasicBlock *landend = BasicBlock::Create(M.getContext(), "land.end", scatterF, while_body);
+      Builder.CreateCondBr(endCond, land, landend);
+
+      // Looping conditions
+      Builder.SetInsertPoint(land);
+      LoadInst *load_trkr = Builder.CreateLoad(trkr, "trkr");
+      LoadInst *load_lst = Builder.CreateLoad(L_size, "lst_size");
+      Value *sub = Builder.CreateNSWSub(load_lst, ConstantInt::get(Type::getInt32Ty(M.getContext()), 1), "sub");
+      Value *cmp2 = Builder.CreateICmpSLT(load_trkr, sub); 
+      Builder.CreateBr(landend);
+
+      // Structure
+      Builder.SetInsertPoint(landend);
+      PHINode *PN = Builder.CreatePHI(Type::getInt1Ty(M.getContext()), 2, "pn");
+      PN->addIncoming(ConstantInt::get(Type::getInt1Ty(M.getContext()), 0), while_cond);
+      PN->addIncoming(cmp2, land);
+      Builder.CreateCondBr(PN, while_body, while_end);
+      Builder.SetInsertPoint(while_end);
+      Builder.CreateBr(while_cond);
+
+      // Above code is mostly just setting up the structure and relevant instructions for the while loop logic
+
+
+      // This loop finds the return instruction of the funcion
+      Instruction *fn_ret;
+      for (inst_iterator I = inst_begin(scatterF), E = inst_end(scatterF); I != E; ++I){
+        if (I->getOpcode() == Instruction::Ret){
+          fn_ret = &*I;
+          break;
+        }
+      }
+
+      // This is mostly structural and swaps the previous break with the return.       
+      Instruction *ret_void = fn_ret->clone();
+      Instruction *whileEnd = while_end->getTerminator();
+      Instruction *br_while_cond = whileEnd->clone();
+
+      br_while_cond->insertBefore(fn_ret);
+      fn_ret->eraseFromParent();
+
+      ret_void->insertBefore(whileEnd);
+      whileEnd->eraseFromParent();
+
+      // This loop is changing the loop condition so that it iterates buffer_size times
+      // instead of list_size times. 
+      // There must be a better way to change the loop condition
+      for (inst_iterator I = inst_begin(scatterF), E = inst_end(scatterF); I != E; ++I){
+        if (I->getOpcode() == Instruction::ICmp){
+          Value *N = I->getOperand(1);
+          // This only works when a constant known at compile time is used at the term for the for loop. 
+          // TODO: fix this to be able to use a variable 
+          ConstantInt *lstsz = dyn_cast<llvm::ConstantInt>(N);
+          if (lstsz){
+            if (lstsz->equalsInt(lsize)){
+              Builder.SetInsertPoint(&*I);
+              Instruction *ld_bsize = Builder.CreateLoad(buffer_size);
+              I->setOperand(1, ld_bsize);
+            }
+          }
+        }
+      }
+
+      // if gather and A, replace A[idx[i]] with A[idx[tracker]]
+      // if compute, leave g_A[i] and s_A[i]
+      // if scatter and A, replace A[idx[i]] with A[idx[tracker]]
+      for (inst_iterator I = inst_begin(scatterF), E = inst_end(scatterF); I != E; ++I){
+        if (I->getOpcode() == Instruction::GetElementPtr){ // if it is GEP
+          if (I->getOperand(0)->getName() == idx_var){
+            Builder.SetInsertPoint(&*I);
+            Value *t_load = Builder.CreateLoad(trkr, "trkr");
+            I->setOperand(2, t_load);
+          }
+        } 
+      }
+
+      // Just incrementing the while loop
+      Instruction *lp_bod_term = lp_body->getTerminator();
+      Builder.SetInsertPoint(lp_bod_term);
+      Builder.CreateStore(Builder.CreateNSWAdd(Builder.CreateLoad(trkr), 
+            ConstantInt::get(Type::getInt32Ty(M.getContext()), 1)), trkr);
+
+    
+    
+    }
+
+    /*
+     *
+     *
+     *
+     */
+    void make_compute(Function* computeF, Module &M){
+
+      IRBuilder<> Builder(M.getContext());
+      // warning Instruction *str_in_s_A;
+      // warning Value *val_for_store;
+      std::vector<Instruction*> to_delete; 
+
+      // warning Instruction *ld_buffer_q;
+      // warning Value *q_location;
+      Value *rem ;
+      // warning Value *buff_idx;
+
+      // Get the function arguments, which describe where you are in the original data 
+      // structure and which buffer to collect into. 
+      // track_arg is where you are in og data structure
+      // loc_arg is the buffer into which you gather data
+      Function::arg_iterator cargs = computeF->arg_begin();
+      Value *track_arg = cargs++;
+      Value *loc_arg = cargs++;
+
+      Instruction *idx_gep_inst;
+      Instruction *gat_gep_inst;
+      Instruction *store_res;
+
+      Instruction *sld_buffer_q;
+      Value *sbuff_idx;
+      Value *gep_at_sbf;
+      Instruction *ld_sbf_idx;
+      // warning Value *srem;
+      Instruction *ld_frm_A;
+      Instruction *icmp;
+
+      for (inst_iterator I = inst_begin(computeF), E = inst_end(computeF); I != E; ++I){
+        // Okay now replace A[idx[i]] += 1; to be g_A[i] += 1;
+        // Now this needs to be s_A[i] = g_A[i] + 1; 
+
+        if (I->getOpcode() == Instruction::GetElementPtr){
+          if (I->getOperand(0)->getName() == idx_var){ 
+            idx_gep_inst = &*I;
+          }
+          if (I->getOperand(0)->getName() == gather_var){ 
+            gat_gep_inst = &*I; 
+          }
+        } 
+
+        if (isa<StoreInst>(dyn_cast<Instruction>(&*I))){
+          if(I->getOperand(1) == gat_gep_inst){
+            store_res = &*I;
+          }
+        }
+        if (isa<LoadInst>(dyn_cast<Instruction>(&*I))){
+          if(I->getOperand(0) == gat_gep_inst){
+            ld_frm_A = &*I;
+          }
+        }
+        if (isa<ICmpInst>(dyn_cast<Instruction>(&*I))){
+          icmp = &*I;
+        }
+      }
+
+      Builder.SetInsertPoint(&*(inst_begin(computeF)));
+      Value *ld_bsize_icmp = Builder.CreateLoad(Type::getInt32Ty(M.getContext()), buffer_size, "icmp_bsize");
+
+      icmp->setOperand(1, ld_bsize_icmp);      
+
+      Builder.SetInsertPoint(idx_gep_inst); 
+      rem = Builder.CreateSRem(loc_arg, ConstantInt::get(Type::getInt32Ty(M.getContext()), 2), "rem"); 
+
+      // gather stuff
+      gld_buffer_q = Builder.CreateLoad(PointerType::get(Type::getDoublePtrTy(M.getContext()), 0), buff_q, "ld_bq" );
+      gbuff_idx = Builder.CreateGEP(Type::getDoublePtrTy(M.getContext()), gld_buffer_q, rem, "buff_idx"); 
+      ld_gbf_idx = Builder.CreateLoad(Type::getDoublePtrTy(M.getContext()), gbuff_idx, "load_buff_idx"); 
+      gep_at_bf = Builder.CreateGEP(Type::getDoubleTy(M.getContext()) , ld_gbf_idx, idx_gep_inst->getOperand(2), "gep_at_bf");
+      ld_frm_A->setOperand(0, gep_at_bf);
+
+      //scatter stuff
+      sld_buffer_q = Builder.CreateLoad(PointerType::get(Type::getDoublePtrTy(M.getContext()), 0), sbuff_q, "sld_bq" );
+      sbuff_idx = Builder.CreateGEP(Type::getDoublePtrTy(M.getContext()), sld_buffer_q, rem, "sbuff_idx"); 
+      ld_sbf_idx = Builder.CreateLoad(Type::getDoublePtrTy(M.getContext()), sbuff_idx, "sload_buff_idx"); 
+
+      gep_at_sbf = Builder.CreateGEP(Type::getDoubleTy(M.getContext()), ld_sbf_idx, idx_gep_inst->getOperand(2), "sgep_at_bf");
+      /*Instruction *sload =*/ Builder.CreateLoad(Type::getDoubleTy(M.getContext()), gep_at_sbf, "sld" );
+      store_res->setOperand(1, gep_at_sbf);
+
+
+      //add_while(computeF, M, store_res->getParent());
+      BasicBlock *lp_body = store_res->getParent();
+
+      // Splitting entry block to surround the whole function with the while loop
+      BasicBlock *entryBB = &(computeF->getEntryBlock()); 
+      BasicBlock *while_cond = BasicBlock::Create(M.getContext(), "whilelpcond", computeF);
+      BasicBlock *while_body = entryBB->splitBasicBlock(entryBB->getFirstNonPHI(), "while.body"); 
+
+      Instruction *entry_term = entryBB->getTerminator(); 
+      Builder.SetInsertPoint(entry_term);
+
+      // important while loop vars
+      AllocaInst *track = Builder.CreateAlloca(Type::getInt32Ty(M.getContext()), nullptr, "track");
+      Builder.CreateStore(track_arg, track);
+      AllocaInst *loc = Builder.CreateAlloca(Type::getInt32Ty(M.getContext()), nullptr, "loc");
+      Builder.CreateStore(loc_arg, loc);
+      AllocaInst *Alloca = Builder.CreateAlloca(Type::getInt32Ty(M.getContext()), nullptr, "tracker");
+      Builder.CreateStore(track_arg, Alloca);
+
+      // Fixing structure
+      Builder.CreateBr(while_cond);
+      entry_term->eraseFromParent();
+
+      Builder.SetInsertPoint(while_cond);
+      BasicBlock *while_end = BasicBlock::Create(M.getContext(), "whilelpend", computeF);
+
+      // Values for while loop iterations
+      Value *trkr = computeF->getValueSymbolTable()->lookup("tracker");
+      Value *addition = Builder.CreateNSWAdd(track_arg,
+          Builder.CreateLoad(buffer_size, "buffer_size"));
+      Value *endCond = Builder.CreateICmpSLT(Builder.CreateLoad(trkr, "trkr"), addition);
+
+      // Structure
+      BasicBlock *land = BasicBlock::Create(M.getContext(), "land.rhs", computeF, while_body);
+      BasicBlock *landend = BasicBlock::Create(M.getContext(), "land.end", computeF, while_body);
+      Builder.CreateCondBr(endCond, land, landend);
+
+      // Looping conditions
+      Builder.SetInsertPoint(land);
+      LoadInst *load_trkr = Builder.CreateLoad(trkr, "trkr");
+      LoadInst *load_lst = Builder.CreateLoad(L_size, "lst_size");
+      Value *sub = Builder.CreateNSWSub(load_lst, ConstantInt::get(Type::getInt32Ty(M.getContext()), 1), "sub");
+      Value *cmp2 = Builder.CreateICmpSLT(load_trkr, sub); 
+      Builder.CreateBr(landend);
+
+      // Structure
+      Builder.SetInsertPoint(landend);
+      PHINode *PN = Builder.CreatePHI(Type::getInt1Ty(M.getContext()), 2, "pn");
+      PN->addIncoming(ConstantInt::get(Type::getInt1Ty(M.getContext()), 0), while_cond);
+      PN->addIncoming(cmp2, land);
+      Builder.CreateCondBr(PN, while_body, while_end);
+      Builder.SetInsertPoint(while_end);
+      Builder.CreateBr(while_cond);
+
+      // Above code is mostly just setting up the structure and relevant instructions for the while loop logic
+
+
+      // This loop finds the return instruction of the funcion
+      Instruction *fn_ret;
+      for (inst_iterator I = inst_begin(computeF), E = inst_end(computeF); I != E; ++I){
+        if (I->getOpcode() == Instruction::Ret){
+          fn_ret = &*I;
+          break;
+        }
+      }
+
+      // This is mostly structural and swaps the previous break with the return.       
+      Instruction *ret_void = fn_ret->clone();
+      Instruction *whileEnd = while_end->getTerminator();
+      Instruction *br_while_cond = whileEnd->clone();
+
+      br_while_cond->insertBefore(fn_ret);
+      fn_ret->eraseFromParent();
+
+      ret_void->insertBefore(whileEnd);
+      whileEnd->eraseFromParent();
+
+      // This loop is changing the loop condition so that it iterates buffer_size times
+      // instead of list_size times. 
+      // There must be a better way to change the loop condition
+      for (inst_iterator I = inst_begin(computeF), E = inst_end(computeF); I != E; ++I){
+        if (I->getOpcode() == Instruction::ICmp){
+          Value *N = I->getOperand(1);
+          // This only works when a constant known at compile time is used at the term for the for loop. 
+          // TODO: fix this to be able to use a variable 
+          ConstantInt *lstsz = dyn_cast<llvm::ConstantInt>(N);
+          if (lstsz){
+            if (lstsz->equalsInt(lsize)){
+              Builder.SetInsertPoint(&*I);
+              Instruction *ld_bsize = Builder.CreateLoad(buffer_size);
+              I->setOperand(1, ld_bsize);
+            }
+          }
+        }
+      }
+
+      // if gather and A, replace A[idx[i]] with A[idx[tracker]]
+      // if compute, leave g_A[i] and s_A[i]
+      // if scatter and A, replace A[idx[i]] with A[idx[tracker]]
+      for (inst_iterator I = inst_begin(computeF), E = inst_end(computeF); I != E; ++I){
+        if (I->getOpcode() == Instruction::GetElementPtr){ // if it is GEP
+          if (I->getOperand(0)->getName() == idx_var){
+            Builder.SetInsertPoint(&*I);
+            Value *t_load = Builder.CreateLoad(trkr, "trkr");
+            I->setOperand(2, t_load);
+          }
+        } 
+      }
+
+      // Just incrementing the while loop
+      Instruction *lp_bod_term = lp_body->getTerminator();
+      Builder.SetInsertPoint(lp_bod_term);
+      Builder.CreateStore(Builder.CreateNSWAdd(Builder.CreateLoad(trkr), 
+            ConstantInt::get(Type::getInt32Ty(M.getContext()), 1)), trkr);
+
+
+    }
+
+
 
     bool runOnModule(Module &M) override {
       errs() << "running on module\n";
@@ -395,7 +930,7 @@ namespace {
 
       sA_buffs->setInitializer(sconst_array_2);
 
-      GlobalVariable* sbuff_q = new GlobalVariable(M, PointerType::get(Type::getDoublePtrTy(M.getContext()), 0),
+      sbuff_q = new GlobalVariable(M, PointerType::get(Type::getDoublePtrTy(M.getContext()), 0),
           false, GlobalValue::ExternalLinkage, 0, "sbuff_q"); // correct linkage here?  
 
       sbuff_q->setAlignment(8); 
@@ -528,155 +1063,93 @@ namespace {
 
       make_gather(gatherF, M); 
 
-
-
-      Instruction *ld_idx_A; // ... = A[idx[i]];
-
       scatterF = CloneFunction(compute_copy, s_vmap);
       scatterF->setName("scatter");
-
-
-      Instruction *gep_idx_var; // gep for idx var
-      Instruction *gep_gather_var; // gep for A var
-
-      for (inst_iterator I = inst_begin(scatterF), E = inst_end(scatterF); I != E; ++I){
-
-        if (I->getOpcode() == Instruction::GetElementPtr){ // if it is GEP
-
-          if (I->getOperand(0)->getName() == gather_var){
-            gep_gather_var = &*I; 
-          }
-          if (I->getOperand(0)->getName() == idx_var){
-            gep_idx_var = &*I; 
-          }
-
-        } // end if GEP 
-      } // end inst_iterator I = inst_begin(scatterF)
-
-      for (User *U : gep_gather_var->users()) {
-        if (Instruction *Inst = dyn_cast<Instruction>(U)) {
-          if (isa<LoadInst>(Inst)) {
-            // grab the load for the operand for g_A's store. 
-            ld_idx_A = Inst;
-
-            // delete everything that uses the load
-            for (User *LU : ld_idx_A->users()) {
-              if (Instruction *LInst = dyn_cast<Instruction>(LU)) {
-                LInst->eraseFromParent();
-              }
-            }
-          }
-          // delete stores to A
-          else if (isa<StoreInst>(Inst)){
-            Inst->eraseFromParent();
-          }
-        }
-      }
-      ld_idx_A->eraseFromParent();
-
-
-      Function::arg_iterator sargs = scatterF->arg_begin();
-      sargs++;
-      Value *loc_arg = sargs++;
-
-
-      Builder.SetInsertPoint(gep_idx_var);
-      gld_buffer_q = Builder.CreateLoad(PointerType::get(Type::getDoublePtrTy(M.getContext()), 0), sbuff_q, "sld_bq" );
-      grem = Builder.CreateSRem(loc_arg, ConstantInt::get(Type::getInt32Ty(M.getContext()), 2), "srem"); 
-      gbuff_idx = Builder.CreateGEP(Type::getDoublePtrTy(M.getContext()), gld_buffer_q, grem, "sbuff_idx"); 
-      ld_gbf_idx = Builder.CreateLoad(Type::getDoublePtrTy(M.getContext()), gbuff_idx, "sload_buff_idx"); 
-
-      gep_at_bf = Builder.CreateGEP(Type::getDoubleTy(M.getContext()) , ld_gbf_idx, gep_idx_var->getOperand(2), "sgep_at_bf");
-      Value *sload = Builder.CreateLoad(Type::getDoubleTy(M.getContext()), gep_at_bf, "sld" );
-
-      Builder.SetInsertPoint(gep_idx_var->getParent()->getTerminator());
-      Builder.CreateStore(sload, gep_gather_var, "sstore_A_new_buff");
-
-      add_while(scatterF, M, gep_idx_var->getParent());
-
+      make_scatter(scatterF, M);
 
       // warning Value *lp_i2; // i in g_A[i]
       computeF = compute_copy;
+      make_compute(computeF, M);
 
-      // warning Instruction *str_in_s_A;
-      // warning Value *val_for_store;
-      std::vector<Instruction*> to_delete; 
-
-      // warning Instruction *ld_buffer_q;
-      // warning Value *q_location;
-      Value *rem ;
-      // warning Value *buff_idx;
-
-      Function::arg_iterator cargs = computeF->arg_begin();
-      cargs++;
-      loc_arg = cargs++;
-
-      Instruction *idx_gep_inst;
-      Instruction *gat_gep_inst;
-      Instruction *store_res;
-
-      Instruction *sld_buffer_q;
-      Value *sbuff_idx;
-      Value *gep_at_sbf;
-      Instruction *ld_sbf_idx;
-      // warning Value *srem;
-      Instruction *ld_frm_A;
-      Instruction *icmp;
-
-      for (inst_iterator I = inst_begin(computeF), E = inst_end(computeF); I != E; ++I){
-        // Okay now replace A[idx[i]] += 1; to be g_A[i] += 1;
-        // Now this needs to be s_A[i] = g_A[i] + 1; 
-
-        if (I->getOpcode() == Instruction::GetElementPtr){
-          if (I->getOperand(0)->getName() == idx_var){ 
-            idx_gep_inst = &*I;
-          }
-          if (I->getOperand(0)->getName() == gather_var){ 
-            gat_gep_inst = &*I; 
-          }
-        } 
-
-        if (isa<StoreInst>(dyn_cast<Instruction>(&*I))){
-          if(I->getOperand(1) == gat_gep_inst){
-            store_res = &*I;
-          }
-        }
-        if (isa<LoadInst>(dyn_cast<Instruction>(&*I))){
-          if(I->getOperand(0) == gat_gep_inst){
-            ld_frm_A = &*I;
-          }
-        }
-        if (isa<ICmpInst>(dyn_cast<Instruction>(&*I))){
-          icmp = &*I;
-        }
-      }
-
-      Builder.SetInsertPoint(&*(inst_begin(computeF)));
-      Value *ld_bsize_icmp = Builder.CreateLoad(Type::getInt32Ty(M.getContext()), buffer_size, "icmp_bsize");
-
-      icmp->setOperand(1, ld_bsize_icmp);      
-
-      Builder.SetInsertPoint(idx_gep_inst); 
-      rem = Builder.CreateSRem(loc_arg, ConstantInt::get(Type::getInt32Ty(M.getContext()), 2), "rem"); 
-
-      // gather stuff
-      gld_buffer_q = Builder.CreateLoad(PointerType::get(Type::getDoublePtrTy(M.getContext()), 0), buff_q, "ld_bq" );
-      gbuff_idx = Builder.CreateGEP(Type::getDoublePtrTy(M.getContext()), gld_buffer_q, rem, "buff_idx"); 
-      ld_gbf_idx = Builder.CreateLoad(Type::getDoublePtrTy(M.getContext()), gbuff_idx, "load_buff_idx"); 
-      gep_at_bf = Builder.CreateGEP(Type::getDoubleTy(M.getContext()) , ld_gbf_idx, idx_gep_inst->getOperand(2), "gep_at_bf");
-      ld_frm_A->setOperand(0, gep_at_bf);
-
-      //scatter stuff
-      sld_buffer_q = Builder.CreateLoad(PointerType::get(Type::getDoublePtrTy(M.getContext()), 0), sbuff_q, "sld_bq" );
-      sbuff_idx = Builder.CreateGEP(Type::getDoublePtrTy(M.getContext()), sld_buffer_q, rem, "sbuff_idx"); 
-      ld_sbf_idx = Builder.CreateLoad(Type::getDoublePtrTy(M.getContext()), sbuff_idx, "sload_buff_idx"); 
-
-      gep_at_sbf = Builder.CreateGEP(Type::getDoubleTy(M.getContext()), ld_sbf_idx, idx_gep_inst->getOperand(2), "sgep_at_bf");
-      sload = Builder.CreateLoad(Type::getDoubleTy(M.getContext()), gep_at_sbf, "sld" );
-      store_res->setOperand(1, gep_at_sbf);
-
-
-      add_while(computeF, M, store_res->getParent());
+//      // warning Instruction *str_in_s_A;
+//      // warning Value *val_for_store;
+//      std::vector<Instruction*> to_delete; 
+//
+//      // warning Instruction *ld_buffer_q;
+//      // warning Value *q_location;
+//      Value *rem ;
+//      // warning Value *buff_idx;
+//
+//      Function::arg_iterator cargs = computeF->arg_begin();
+//      cargs++;
+//      Value *loc_arg = cargs++;
+//
+//      Instruction *idx_gep_inst;
+//      Instruction *gat_gep_inst;
+//      Instruction *store_res;
+//
+//      Instruction *sld_buffer_q;
+//      Value *sbuff_idx;
+//      Value *gep_at_sbf;
+//      Instruction *ld_sbf_idx;
+//      // warning Value *srem;
+//      Instruction *ld_frm_A;
+//      Instruction *icmp;
+//
+//      for (inst_iterator I = inst_begin(computeF), E = inst_end(computeF); I != E; ++I){
+//        // Okay now replace A[idx[i]] += 1; to be g_A[i] += 1;
+//        // Now this needs to be s_A[i] = g_A[i] + 1; 
+//
+//        if (I->getOpcode() == Instruction::GetElementPtr){
+//          if (I->getOperand(0)->getName() == idx_var){ 
+//            idx_gep_inst = &*I;
+//          }
+//          if (I->getOperand(0)->getName() == gather_var){ 
+//            gat_gep_inst = &*I; 
+//          }
+//        } 
+//
+//        if (isa<StoreInst>(dyn_cast<Instruction>(&*I))){
+//          if(I->getOperand(1) == gat_gep_inst){
+//            store_res = &*I;
+//          }
+//        }
+//        if (isa<LoadInst>(dyn_cast<Instruction>(&*I))){
+//          if(I->getOperand(0) == gat_gep_inst){
+//            ld_frm_A = &*I;
+//          }
+//        }
+//        if (isa<ICmpInst>(dyn_cast<Instruction>(&*I))){
+//          icmp = &*I;
+//        }
+//      }
+//
+//      Builder.SetInsertPoint(&*(inst_begin(computeF)));
+//      Value *ld_bsize_icmp = Builder.CreateLoad(Type::getInt32Ty(M.getContext()), buffer_size, "icmp_bsize");
+//
+//      icmp->setOperand(1, ld_bsize_icmp);      
+//
+//      Builder.SetInsertPoint(idx_gep_inst); 
+//      rem = Builder.CreateSRem(loc_arg, ConstantInt::get(Type::getInt32Ty(M.getContext()), 2), "rem"); 
+//
+//      // gather stuff
+//      gld_buffer_q = Builder.CreateLoad(PointerType::get(Type::getDoublePtrTy(M.getContext()), 0), buff_q, "ld_bq" );
+//      gbuff_idx = Builder.CreateGEP(Type::getDoublePtrTy(M.getContext()), gld_buffer_q, rem, "buff_idx"); 
+//      ld_gbf_idx = Builder.CreateLoad(Type::getDoublePtrTy(M.getContext()), gbuff_idx, "load_buff_idx"); 
+//      gep_at_bf = Builder.CreateGEP(Type::getDoubleTy(M.getContext()) , ld_gbf_idx, idx_gep_inst->getOperand(2), "gep_at_bf");
+//      ld_frm_A->setOperand(0, gep_at_bf);
+//
+//      //scatter stuff
+//      sld_buffer_q = Builder.CreateLoad(PointerType::get(Type::getDoublePtrTy(M.getContext()), 0), sbuff_q, "sld_bq" );
+//      sbuff_idx = Builder.CreateGEP(Type::getDoublePtrTy(M.getContext()), sld_buffer_q, rem, "sbuff_idx"); 
+//      ld_sbf_idx = Builder.CreateLoad(Type::getDoublePtrTy(M.getContext()), sbuff_idx, "sload_buff_idx"); 
+//
+//      gep_at_sbf = Builder.CreateGEP(Type::getDoubleTy(M.getContext()), ld_sbf_idx, idx_gep_inst->getOperand(2), "sgep_at_bf");
+//      /*Instruction *sload =*/ Builder.CreateLoad(Type::getDoubleTy(M.getContext()), gep_at_sbf, "sld" );
+//      store_res->setOperand(1, gep_at_sbf);
+//
+//
+//      add_while(computeF, M, store_res->getParent());
 
       verifyFunction(*computeF);
       verifyFunction(*gatherF);
