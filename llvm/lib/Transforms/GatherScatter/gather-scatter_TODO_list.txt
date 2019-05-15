@@ -1,12 +1,13 @@
 This transforamtion is a very fragile prototype. 
 
 TODO:
-- There probably needs to be some sort of gather A, scatter B syntax
-- Double check that you can have another GEP instruction in th compute method
+- Do things smarter/better: 
+  - Remove the useless instructions left over in the various methods
+  - Modify based more on the def-use/use-def chains instead of looking for instructions
 - Have someone test this transformation
 - Double type is currently hard coded for the data structure and the buffers, fix this
-- Remove the requirement that only one operation can be performed on that gather variable
-- Test this transforamtion for interoperability with other transformations
+- Remove the requirement that only one operation can be performed on the gather/scatter variable
+- Test this transformation for interoperability with other transformations
 - Two buffers is currently hard coded, should be generalize to support n buffers
 - Currently the gather variable and index variable must be global. Change this?
 
