@@ -109,7 +109,7 @@ namespace {
       IRBuilder<> Builder(M.getContext());
 
       // Here we are finding the store to the scatter variable and then walking up 
-      // the chain until we get to the initial load of i as such:
+      // the chain until we get to the initial load of i as such (but in reverse:
       //  %4 = load i32, i32* %i, align 4
       //  %idxprom3 = sext i32 %4 to i64
       //  %arrayidx4 = getelementptr inbounds [100 x i32], [100 x i32]* @idx2, i64 0, i64 %idxprom3
@@ -117,6 +117,8 @@ namespace {
       //  %idxprom5 = sext i32 %5 to i64
       //  %arrayidx6 = getelementptr inbounds [100 x double], [100 x double]* @A, i64 0, i64 %idxprom5
       //  store double %mul, double* %arrayidx6, align 8
+      //  TODO: not every indirect access will follow this exact pattern, so it is 
+      //  better to do something more general. 
       BasicBlock *loop_body;
       std::vector<Instruction*> insts_to_erase;
       Instruction *Inst;
@@ -130,7 +132,6 @@ namespace {
         insts_to_erase.push_back(Inst); 
         if (!(Inst->getOperand(0)->getName() == scatter_var))
           continue;
-        loop_body = Inst->getParent();
         if (!(Inst = dyn_cast<SExtInst>(Inst->getOperand(2))))
           continue;
         insts_to_erase.push_back(Inst);
@@ -157,9 +158,10 @@ namespace {
       }
 
       // Here we are finding the load from the gather variable
-      // and changing its index car from idx[i] to just i
       // all while deleting unneccesary instructions.
+      // TODO: again, better to have something more general here. 
       Instruction *GEP_gather_var;
+      Instruction *GEP_index_var;
       Instruction *load_gather_val;
       Instruction *loop_index;
       for (inst_iterator I = inst_begin(gatherF), E = inst_end(gatherF); I != E; ++I){
@@ -173,34 +175,38 @@ namespace {
         GEP_gather_var = Inst;
         if (!(Inst = dyn_cast<SExtInst>(Inst->getOperand(2))))
           continue;
-        insts_to_erase.clear();
-        insts_to_erase.push_back(Inst);
+        //insts_to_erase.clear();
+        //insts_to_erase.push_back(Inst);
         if (!(Inst = dyn_cast<LoadInst>(Inst->getOperand(0))))
           continue;
-        insts_to_erase.push_back(Inst);
+        //insts_to_erase.push_back(Inst);
         if (!(Inst = dyn_cast<GetElementPtrInst>(Inst->getOperand(0))))
           continue;
         if (!(Inst->getOperand(0)->getName() == idx_var))
           continue;
-        insts_to_erase.push_back(Inst);
+        GEP_index_var = Inst;
+        //insts_to_erase.push_back(Inst);
         if (!(Inst = dyn_cast<SExtInst>(Inst->getOperand(2))))
           continue;
         loop_index = Inst; 
         load_gather_val = candidate_load_gather_val;
+        loop_body = Inst->getParent();
         break;
 
       } // end instruction iterator on gatherF
 
+      insts_to_erase.clear();
       // Delete users of the load of the gather variable, since this task should
       // be *only* gathering the values and not operating on them. 
       for (User *U : load_gather_val->users()) {
         if (!(Inst = dyn_cast<Instruction>(U))) 
           continue;
+        llvm::errs() << "to erase " << *Inst << "\n";
         insts_to_erase.push_back(Inst);
       }
 
 
-      GEP_gather_var->setOperand(2, loop_index);
+      //GEP_gather_var->setOperand(2, loop_index);
 
       for (Instruction *si : insts_to_erase){
         si->eraseFromParent(); 
@@ -327,9 +333,9 @@ namespace {
       }
 
       // This updates gather_var[i] to be gather_var[trkr] 
-      Builder.SetInsertPoint(GEP_gather_var);
+      Builder.SetInsertPoint(GEP_index_var);
       Value *t_load = Builder.CreateLoad(trkr, "trkr");
-      GEP_gather_var->setOperand(2, t_load);
+      GEP_index_var->setOperand(2, t_load);
 
 
       // Just incrementing the while loop
@@ -338,12 +344,357 @@ namespace {
       Builder.CreateStore(Builder.CreateNSWAdd(Builder.CreateLoad(trkr), 
             ConstantInt::get(Type::getInt32Ty(M.getContext()), 1)), trkr);
 
-      llvm::errs() << *gatherF;
+      //llvm::errs() << *gatherF;
 
       //test :) 
 //      llvm::errs() << "exiting\n";
 //      exit (EXIT_FAILURE);
     }
+
+    /*
+     * Similar to above, this function creates the scatter method.
+     */
+    void make_scatter2(Function* scatterF, Module &M){
+    
+      // TODO:
+      // Need to fix this such that it removes all the gather var stuff
+      // and does not mess up the while loop and buffer stuff later.
+      // Or maybe it is better to just rethink this function completely. 
+      //llvm::errs() << "\nmaking scatter, bless us\n";
+      IRBuilder<> Builder(M.getContext());
+    
+      //llvm::errs() << "before transformation \n"  << *scatterF;
+
+      // Here we are finding the load from the gather variable and then walking up 
+      // the chain until we get to the initial load of i as such (but in reverse:
+      //  %4 = load i32, i32* %i, align 4
+      //  %idxprom3 = sext i32 %4 to i64
+      //  %arrayidx4 = getelementptr inbounds [100 x i32], [100 x i32]* @idx2, i64 0, i64 %idxprom3
+      //  %5 = load i32, i32* %arrayidx4, align 4
+      //  %idxprom5 = sext i32 %5 to i64
+      //  %arrayidx6 = getelementptr inbounds [100 x double], [100 x double]* @A, i64 0, i64 %idxprom5
+      //  store double %mul, double* %arrayidx6, align 8
+      //  TODO: not every indirect access will follow this exact pattern, so it is 
+      //  better to do something more general. 
+      BasicBlock *loop_body;
+      std::vector<Instruction*> insts_to_erase;
+      Instruction *Inst;
+
+      // Here we are finding the load from the gather variable
+      // and changing its index var from idx[i] to just i
+      // all while deleting unneccesary instructions.
+      // TODO: again, better to have something more general here. 
+      Instruction *GEP_gather_var;
+      Instruction *load_gather_val;
+      Instruction *loop_index;
+      for (inst_iterator I = inst_begin(scatterF), E = inst_end(scatterF); I != E; ++I){
+        if (!(Inst = dyn_cast<LoadInst>(&*I))) 
+          continue;
+        Instruction *candidate_load_gather_val = Inst;
+        insts_to_erase.clear();
+        insts_to_erase.push_back(Inst);
+        if (!(Inst = dyn_cast<GetElementPtrInst>(Inst->getOperand(0))))
+          continue;
+        if (!(Inst->getOperand(0)->getName() == gather_var))
+          continue;
+        GEP_gather_var = Inst;
+        insts_to_erase.push_back(Inst);
+        if (!(Inst = dyn_cast<SExtInst>(Inst->getOperand(2))))
+          continue;
+        insts_to_erase.push_back(Inst);
+        if (!(Inst = dyn_cast<LoadInst>(Inst->getOperand(0))))
+          continue;
+        insts_to_erase.push_back(Inst);
+        if (!(Inst = dyn_cast<GetElementPtrInst>(Inst->getOperand(0))))
+          continue;
+        if (!(Inst->getOperand(0)->getName() == idx_var))
+          continue;
+        insts_to_erase.push_back(Inst);
+        if (!(Inst = dyn_cast<SExtInst>(Inst->getOperand(2))))
+          continue;
+        insts_to_erase.push_back(Inst);
+        if (!(Inst = dyn_cast<LoadInst>(Inst->getOperand(0))))
+          continue;
+        insts_to_erase.push_back(Inst);
+        load_gather_val = candidate_load_gather_val;
+        loop_body = Inst->getParent();
+        break;
+
+      } // end instruction iterator on gatherF
+
+      // Delete users of the load of the gather variable, since this task should
+      // be *only* gathering the values and not operating on them. 
+      for (User *U : load_gather_val->users()) {
+        if (!(Inst = dyn_cast<Instruction>(U))) 
+          continue;
+        //insts_to_erase.push_back(Inst);
+        insts_to_erase.insert(insts_to_erase.begin(), Inst);
+      }
+
+      Instruction *store_to_scatter_var;  
+      Instruction *GEP_scatter_var;
+      Instruction *GEP_index_var;
+
+      for (inst_iterator I = inst_begin(scatterF), E = inst_end(scatterF); I != E; ++I){
+        if (!(Inst = dyn_cast<StoreInst>(&*I))) 
+          continue;
+//        insts_to_erase.clear();
+        Instruction *candidate_store_to_scatter_var = Inst;
+        if (!(Inst = dyn_cast<GetElementPtrInst>(Inst->getOperand(1))))
+          continue;
+        //insts_to_erase.push_back(Inst); 
+        if (!(Inst->getOperand(0)->getName() == scatter_var))
+          continue;
+        GEP_scatter_var = Inst;
+        if (!(Inst = dyn_cast<SExtInst>(Inst->getOperand(2))))
+          continue;
+        //insts_to_erase.push_back(Inst);
+        if (!(Inst = dyn_cast<LoadInst>(Inst->getOperand(0))))
+          continue;
+        //insts_to_erase.push_back(Inst);
+        if (!(Inst = dyn_cast<GetElementPtrInst>(Inst->getOperand(0))))
+          continue;
+        if (!(Inst->getOperand(0)->getName() == idx_var))
+          continue;
+        GEP_index_var = Inst;
+        //insts_to_erase.push_back(Inst);
+        if (!(Inst = dyn_cast<SExtInst>(Inst->getOperand(2))))
+          continue;
+        //insts_to_erase.push_back(Inst);
+        loop_index = Inst; 
+        if (!(Inst = dyn_cast<LoadInst>(Inst->getOperand(0))))
+          continue;
+        //insts_to_erase.push_back(Inst);
+        //insts_to_erase.push_back(candidate_store_to_scatter_var); 
+        store_to_scatter_var = candidate_store_to_scatter_var;
+        break;
+
+      } // end instruction iterator on gatherF
+
+      //GEP_scatter_var->setOperand(2, loop_index);
+
+
+      insts_to_erase.insert(insts_to_erase.begin(), store_to_scatter_var);
+
+      for (Instruction *si : insts_to_erase){
+        si->eraseFromParent(); 
+      }
+
+
+
+
+
+
+
+
+//
+//
+//      llvm::errs() << "exiting\n";
+//      exit (EXIT_FAILURE);
+//
+//
+//
+//
+//
+//
+//
+//      Instruction *ld_idx_A; // ... = A[idx[i]];
+//
+//      Instruction *gep_idx_var; // gep for idx var
+//      //Instruction *gep_gather_var; // gep for A var
+//      Instruction *gep_scatter_var; // gep for A var
+//
+//      for (inst_iterator I = inst_begin(scatterF), E = inst_end(scatterF); I != E; ++I){
+//
+//        if (I->getOpcode() == Instruction::GetElementPtr){ // if it is GEP
+//
+//          if (I->getOperand(0)->getName() == scatter_var){
+//            llvm::errs() << "gep_scatter_var " << *I << "\n";
+//            gep_scatter_var = &*I; 
+//          }
+//          if (I->getOperand(0)->getName() == idx_var){
+//            llvm::errs() << "gep_idx_var " << *I << "\n";
+//            gep_idx_var = &*I; 
+//          }
+//
+//        } // end if GEP 
+//      } // end inst_iterator I = inst_begin(scatterF)
+//
+//
+//
+//      // !!! TODO TODO TODO
+//      // Need to clean this section up so much....
+//
+//      for (User *U : gep_scatter_var->users()) {
+//        if (Instruction *Inst = dyn_cast<Instruction>(U)) {
+//          if (isa<LoadInst>(Inst)) {
+//            // grab the load for the operand for g_A's store. 
+//            llvm::errs() << "to be ld_idx_A " << *Inst << "\n";
+//            ld_idx_A = Inst;
+//
+//            // delete everything that uses the load
+//            for (User *LU : ld_idx_A->users()) {
+//              if (Instruction *LInst = dyn_cast<Instruction>(LU)) {
+//                llvm::errs() << "to erase:  " << *LInst << "\n";
+//                LInst->eraseFromParent();
+//              }
+//            }
+//          }
+//          // delete stores to A
+//          else if (isa<StoreInst>(Inst)){
+//            llvm::errs() << " store to erase:  " << *Inst << "\n";
+//            Inst->eraseFromParent();
+//          }
+//        }
+//      }
+//      ld_idx_A->eraseFromParent();
+
+
+      // Get the function arguments, which describe where you are in the original data 
+      // structure and which buffer to collect into. 
+      // track_arg is where you are in og data structure
+      // loc_arg is the buffer into which you gather data
+
+      Function::arg_iterator sargs = scatterF->arg_begin();
+      Value *track_arg = sargs++;
+      Value *loc_arg = sargs++;
+
+
+      Builder.SetInsertPoint(GEP_scatter_var->getNextNode());
+      gld_buffer_q = Builder.CreateLoad(PointerType::get(Type::getDoublePtrTy(M.getContext()), 0), sbuff_q, "sld_bq" );
+      grem = Builder.CreateSRem(loc_arg, ConstantInt::get(Type::getInt32Ty(M.getContext()), 2), "srem"); 
+      gbuff_idx = Builder.CreateGEP(Type::getDoublePtrTy(M.getContext()), gld_buffer_q, grem, "sbuff_idx"); 
+      ld_gbf_idx = Builder.CreateLoad(Type::getDoublePtrTy(M.getContext()), gbuff_idx, "sload_buff_idx"); 
+
+      gep_at_bf = Builder.CreateGEP(Type::getDoubleTy(M.getContext()) , ld_gbf_idx, loop_index, "sgep_at_bf");
+      Value *sload = Builder.CreateLoad(Type::getDoubleTy(M.getContext()), gep_at_bf, "sld" );
+
+      Builder.SetInsertPoint(loop_body->getTerminator());
+      Builder.CreateStore(sload, GEP_scatter_var, "sstore_A_new_buff");
+      // TODO Builder.CreateStore(sload, GEP_scatter_var, "sstore_A_new_buff");
+
+      //llvm::errs() << "\nAFTER transformation \n"  << *scatterF;
+//      add_while(scatterF, M, gep_idx_var->getParent());
+
+      BasicBlock *lp_body = loop_body;
+      // Splitting entry block to surround the whole function with the while loop
+      BasicBlock *entryBB = &(scatterF->getEntryBlock()); 
+      BasicBlock *while_cond = BasicBlock::Create(M.getContext(), "whilelpcond", scatterF);
+      BasicBlock *while_body = entryBB->splitBasicBlock(entryBB->getFirstNonPHI(), "while.body"); 
+
+      Instruction *entry_term = entryBB->getTerminator(); 
+      Builder.SetInsertPoint(entry_term);
+
+      // important while loop vars
+      AllocaInst *track = Builder.CreateAlloca(Type::getInt32Ty(M.getContext()), nullptr, "track");
+      Builder.CreateStore(track_arg, track);
+      AllocaInst *loc = Builder.CreateAlloca(Type::getInt32Ty(M.getContext()), nullptr, "loc");
+      Builder.CreateStore(loc_arg, loc);
+      AllocaInst *Alloca = Builder.CreateAlloca(Type::getInt32Ty(M.getContext()), nullptr, "tracker");
+      Builder.CreateStore(track_arg, Alloca);
+
+      // Fixing structure
+      Builder.CreateBr(while_cond);
+      entry_term->eraseFromParent();
+
+      Builder.SetInsertPoint(while_cond);
+      BasicBlock *while_end = BasicBlock::Create(M.getContext(), "whilelpend", scatterF);
+
+      // Values for while loop iterations
+      Value *trkr = scatterF->getValueSymbolTable()->lookup("tracker");
+      Value *addition = Builder.CreateNSWAdd(track_arg,
+          Builder.CreateLoad(buffer_size, "buffer_size"));
+      Value *endCond = Builder.CreateICmpSLT(Builder.CreateLoad(trkr, "trkr"), addition);
+
+      // Structure
+      BasicBlock *land = BasicBlock::Create(M.getContext(), "land.rhs", scatterF, while_body);
+      BasicBlock *landend = BasicBlock::Create(M.getContext(), "land.end", scatterF, while_body);
+      Builder.CreateCondBr(endCond, land, landend);
+
+      // Looping conditions
+      Builder.SetInsertPoint(land);
+      LoadInst *load_trkr = Builder.CreateLoad(trkr, "trkr");
+      LoadInst *load_lst = Builder.CreateLoad(L_size, "lst_size");
+      Value *sub = Builder.CreateNSWSub(load_lst, ConstantInt::get(Type::getInt32Ty(M.getContext()), 1), "sub");
+      Value *cmp2 = Builder.CreateICmpSLT(load_trkr, sub); 
+      Builder.CreateBr(landend);
+
+      // Structure
+      Builder.SetInsertPoint(landend);
+      PHINode *PN = Builder.CreatePHI(Type::getInt1Ty(M.getContext()), 2, "pn");
+      PN->addIncoming(ConstantInt::get(Type::getInt1Ty(M.getContext()), 0), while_cond);
+      PN->addIncoming(cmp2, land);
+      Builder.CreateCondBr(PN, while_body, while_end);
+      Builder.SetInsertPoint(while_end);
+      Builder.CreateBr(while_cond);
+
+      // Above code is mostly just setting up the structure and relevant instructions for the while loop logic
+
+
+      // This loop finds the return instruction of the funcion
+      Instruction *fn_ret;
+      for (inst_iterator I = inst_begin(scatterF), E = inst_end(scatterF); I != E; ++I){
+        if (I->getOpcode() == Instruction::Ret){
+          fn_ret = &*I;
+          break;
+        }
+      }
+
+      // This is mostly structural and swaps the previous break with the return.       
+      Instruction *ret_void = fn_ret->clone();
+      Instruction *whileEnd = while_end->getTerminator();
+      Instruction *br_while_cond = whileEnd->clone();
+
+      br_while_cond->insertBefore(fn_ret);
+      fn_ret->eraseFromParent();
+
+      ret_void->insertBefore(whileEnd);
+      whileEnd->eraseFromParent();
+
+      // This loop is changing the loop condition so that it iterates buffer_size times
+      // instead of list_size times. 
+      // There must be a better way to change the loop condition
+      for (inst_iterator I = inst_begin(scatterF), E = inst_end(scatterF); I != E; ++I){
+        if (I->getOpcode() == Instruction::ICmp){
+          Value *N = I->getOperand(1);
+          // This only works when a constant known at compile time is used at the term for the for loop. 
+          // TODO: fix this to be able to use a variable 
+          ConstantInt *lstsz = dyn_cast<llvm::ConstantInt>(N);
+          if (lstsz){
+            if (lstsz->equalsInt(lsize)){
+              Builder.SetInsertPoint(&*I);
+              Instruction *ld_bsize = Builder.CreateLoad(buffer_size);
+              I->setOperand(1, ld_bsize);
+            }
+          }
+        }
+      }
+
+      // if gather and A, replace A[idx[i]] with A[idx[tracker]]
+      // if compute, leave g_A[i] and s_A[i]
+      // if scatter and A, replace A[idx[i]] with A[idx[tracker]]
+      for (inst_iterator I = inst_begin(scatterF), E = inst_end(scatterF); I != E; ++I){
+        if (I->getOpcode() == Instruction::GetElementPtr){ // if it is GEP
+          if (I->getOperand(0)->getName() == idx_var){
+            Builder.SetInsertPoint(&*I);
+            Value *t_load = Builder.CreateLoad(trkr, "trkr");
+            I->setOperand(2, t_load);
+          }
+        } 
+      }
+
+      // Just incrementing the while loop
+      Instruction *lp_bod_term = lp_body->getTerminator();
+      Builder.SetInsertPoint(lp_bod_term);
+      Builder.CreateStore(Builder.CreateNSWAdd(Builder.CreateLoad(trkr), 
+            ConstantInt::get(Type::getInt32Ty(M.getContext()), 1)), trkr);
+
+      //llvm::errs() << *scatterF;
+      //llvm::errs() << "\nAFTER addition of while loop \n"  << *scatterF;
+    
+    
+    }
+
     void make_gather(Function* gatherF, Module &M){
       IRBuilder<> Builder(M.getContext());
       Instruction *GEPg_A; //GEP for g_A[i] = ... 
@@ -572,9 +923,6 @@ namespace {
       //llvm::errs() << *gatherF;
     }
 
-    /*
-     * Similar to above, this function creates the scatter method.
-     */
     void make_scatter(Function* scatterF, Module &M){
     
       // TODO:
@@ -635,6 +983,7 @@ namespace {
       }
 //      ld_idx_A->eraseFromParent();
 
+      llvm::errs() << "\nAFTER transformation (o.g. scatter)\n"  << *scatterF;
 
       // Get the function arguments, which describe where you are in the original data 
       // structure and which buffer to collect into. 
@@ -1248,7 +1597,8 @@ namespace {
 
       scatterF = CloneFunction(compute_copy, s_vmap);
       scatterF->setName("scatter");
-      make_scatter(scatterF, M);
+      //make_scatter(scatterF, M);
+      make_scatter2(scatterF, M);
 
       // warning Value *lp_i2; // i in g_A[i]
       computeF = compute_copy;
