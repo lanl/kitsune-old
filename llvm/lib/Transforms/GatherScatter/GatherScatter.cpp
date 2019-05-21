@@ -160,7 +160,6 @@ namespace {
       // Here we are finding the load from the gather variable
       // all while deleting unneccesary instructions.
       // TODO: again, better to have something more general here. 
-      Instruction *GEP_gather_var;
       Instruction *GEP_index_var;
       Instruction *load_gather_val;
       Instruction *loop_index;
@@ -172,7 +171,6 @@ namespace {
           continue;
         if (!(Inst->getOperand(0)->getName() == gather_var))
           continue;
-        GEP_gather_var = Inst;
         if (!(Inst = dyn_cast<SExtInst>(Inst->getOperand(2))))
           continue;
         if (!(Inst = dyn_cast<LoadInst>(Inst->getOperand(0))))
@@ -197,12 +195,8 @@ namespace {
       for (User *U : load_gather_val->users()) {
         if (!(Inst = dyn_cast<Instruction>(U))) 
           continue;
-        llvm::errs() << "to erase " << *Inst << "\n";
         insts_to_erase.push_back(Inst);
       }
-
-
-      //GEP_gather_var->setOperand(2, loop_index);
 
       for (Instruction *si : insts_to_erase){
         si->eraseFromParent(); 
@@ -220,7 +214,6 @@ namespace {
       Value* track_arg = gargs++;
       Value* loc_arg = gargs++;
 
-
       BasicBlock *lp_body = loop_body;
 
       Builder.SetInsertPoint(load_gather_val->getNextNode());
@@ -231,9 +224,6 @@ namespace {
 
       gep_at_bf = Builder.CreateGEP(Type::getDoubleTy(M.getContext()) , ld_gbf_idx, loop_index, "gep_at_bf");
       Builder.CreateStore(load_gather_val, gep_at_bf, "store_A_new_buff");
-
-
-
 
       // Splitting entry block to surround the whole function with the while loop
       BasicBlock *entryBB = &(gatherF->getEntryBlock()); 
@@ -287,7 +277,6 @@ namespace {
       Builder.CreateBr(while_cond);
 
       // Above code is mostly just setting up the structure and relevant instructions for the while loop logic
-
 
       // This loop finds the return instruction of the funcion
       Instruction *fn_ret;
@@ -367,7 +356,6 @@ namespace {
       // and changing its index var from idx[i] to just i
       // all while deleting unneccesary instructions.
       // TODO: again, better to have something more general here. 
-      Instruction *GEP_gather_var;
       Instruction *load_gather_val;
       Instruction *loop_index;
       for (inst_iterator I = inst_begin(scatterF), E = inst_end(scatterF); I != E; ++I){
@@ -380,7 +368,6 @@ namespace {
           continue;
         if (!(Inst->getOperand(0)->getName() == gather_var))
           continue;
-        GEP_gather_var = Inst;
         insts_to_erase.push_back(Inst);
         if (!(Inst = dyn_cast<SExtInst>(Inst->getOperand(2))))
           continue;
@@ -415,7 +402,6 @@ namespace {
 
       Instruction *store_to_scatter_var;  
       Instruction *GEP_scatter_var;
-      Instruction *GEP_index_var;
 
       for (inst_iterator I = inst_begin(scatterF), E = inst_end(scatterF); I != E; ++I){
         if (!(Inst = dyn_cast<StoreInst>(&*I))) 
@@ -434,7 +420,6 @@ namespace {
           continue;
         if (!(Inst->getOperand(0)->getName() == idx_var))
           continue;
-        GEP_index_var = Inst;
         if (!(Inst = dyn_cast<SExtInst>(Inst->getOperand(2))))
           continue;
         loop_index = Inst; 
@@ -658,18 +643,15 @@ namespace {
           //if(I->getOperand(1) == gat_gep_inst){
           if(I->getOperand(1) == sca_gep_inst){
             store_res = &*I;
-            llvm::errs() << "store_res " << *store_res << "\n";
           }
         }
         if (isa<LoadInst>(dyn_cast<Instruction>(&*I))){
           if(I->getOperand(0) == gat_gep_inst){
             ld_frm_A = &*I;
-            llvm::errs() << "ld_frm_A " << *ld_frm_A << "\n";
           }
         }
         if (isa<ICmpInst>(dyn_cast<Instruction>(&*I))){
           icmp = &*I;
-          llvm::errs() << "icmp " << *icmp << "\n";
         }
       }
 
@@ -698,10 +680,6 @@ namespace {
       gep_at_sbf = Builder.CreateGEP(Type::getDoubleTy(M.getContext()), ld_sbf_idx, idx_gep_operand, "sgep_at_bf");
       /*Instruction *sload =*/ Builder.CreateLoad(Type::getDoubleTy(M.getContext()), gep_at_sbf, "sld" );
       store_res->setOperand(1, gep_at_sbf);
-
-
-      //llvm::errs() << "\ncompute function before adding the while!\n";
-      //llvm::errs() << *computeF;
 
       //issue here
       //add_while(computeF, M, store_res->getParent());
@@ -818,14 +796,9 @@ namespace {
       Builder.SetInsertPoint(lp_bod_term);
       Builder.CreateStore(Builder.CreateNSWAdd(Builder.CreateLoad(trkr), 
             ConstantInt::get(Type::getInt32Ty(M.getContext()), 1)), trkr);
-
-
     }
 
-
-
     bool runOnModule(Module &M) override {
-      errs() << "running on module\n";
 
       MDNode *meta_data; 
       Function *compute_function;
@@ -871,8 +844,6 @@ namespace {
                 bsize = mdconst::extract<ConstantInt>(MD->getOperand(4))->getZExtValue();
                 lsize = mdconst::extract<ConstantInt>(MD->getOperand(5))->getZExtValue();
                 break;
-                //    llvm::errs() << "bsize " << bsize << "\n";
-                //    llvm::errs() << "lsize " << lsize << "\n";
               }
             } //end if(LoopID)
           } // end if(lp)
@@ -1343,6 +1314,7 @@ namespace {
       errs() << "writing result to file\n";
 
       std::error_code EC;
+      ///// TODO!!! -> remove this hardcoded filepath
       raw_fd_ostream *Out = new raw_fd_ostream("/home/amaleewilson/pv_tests/test_out.bc", EC, sys::fs::F_None);
       WriteBitcodeToFile(&M, *Out);
       Out->flush();
