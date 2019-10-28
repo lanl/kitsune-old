@@ -38,6 +38,11 @@ mark_as_advanced(COMPILER_RT_BUILD_CILKTOOLS)
 set(COMPILER_RT_BAREMETAL_BUILD OFF CACHE BOOLEAN
   "Build for a bare-metal target.")
 
+
+if(COMPILER_RT_BUILD_CILKTOOLS)
+  find_package("snappy" REQUIRED)
+endif()
+
 if (COMPILER_RT_STANDALONE_BUILD)
   load_llvm_config()
 

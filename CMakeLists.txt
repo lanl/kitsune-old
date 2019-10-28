@@ -59,6 +59,9 @@
 #
 #####
 project(kitsune)
+
+set(SNAPPY_PREFIX "" CACHE STRING "path to snappy install")
+message(STATUS "Using snappy prefix: ${SNAPPY_PREFIX}")
 cmake_minimum_required(VERSION 3.9)
 set(KITSUNE_SOURCE_DIR ${PROJECT_SOURCE_DIR})
 message(STATUS generator: ${CMAKE_GENERATOR})

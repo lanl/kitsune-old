@@ -79,7 +79,7 @@ check_library_exists(rt shm_open "" COMPILER_RT_HAS_LIBRT)
 check_library_exists(m pow "" COMPILER_RT_HAS_LIBM)
 check_library_exists(pthread pthread_create "" COMPILER_RT_HAS_LIBPTHREAD)
 check_library_exists(stdc++ __cxa_throw "" COMPILER_RT_HAS_LIBSTDCXX)
-check_library_exists(snappy snappy_compress "" COMPILER_RT_HAS_SNAPPY)
+#check_library_exists(snappy snappy_compress ${SNAPPY_PREFIX} COMPILER_RT_HAS_SNAPPY)
 
 # Linker flags.
 if(ANDROID)
